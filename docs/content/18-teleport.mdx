@@ -1,19 +1,19 @@
 ---
 title: 'Teleport'
-description: 'Render content at a different DOM location.'
+description: 'Renders content at a different DOM location.'
 ---
 
 # Teleport
 
-Use a separate DOM location for elements such as modals, dropdowns, and tooltips when an ancestor’s `overflow` or stacking context affects their layout.
+A separate DOM location is useful for elements such as modals, dropdowns, and tooltips when an ancestor’s `overflow` or stacking context affects their layout.
 
 The `<Teleport>` component keeps the content in its original component and scope hierarchy while rendering its DOM nodes at the target location, commonly near the end of `<body>`.
 
 ## Using Teleport
 
-Wrap the content to move in `<Teleport>` and set the destination with the `to` prop.
+The content to move is wrapped in `<Teleport>`, and the destination is set with the `to` prop.
 
-Import `<Teleport>` from `retend-web`, because it is browser-specific.
+`<Teleport>` comes from `retend-web`, because it is browser-specific.
 
 ```tsx
 import { If } from 'retend';
@@ -40,7 +40,7 @@ export function Modal(props) {
 }
 ```
 
-Ensure that the target element exists in the main HTML file:
+The target element needs to exist in the main HTML file:
 
 ```html
 <body>

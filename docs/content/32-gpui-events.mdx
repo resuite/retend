@@ -1,0 +1,123 @@
+---
+title: 'GPUI Events'
+description: 'Handling pointer, keyboard, focus, input, and scroll events in GPUI applications.'
+---
+
+# GPUI Events
+
+GPUI elements accept the same camel-case handler props as web Retend, such as `onClick`. Events come from the native window system, and Retend delivers them through the logical node tree.
+
+```tsx
+<div
+  onClick={(event) => console.log(event.clientX, event.clientY)}
+  onMouseEnter={() => console.log('hovered')}
+>
+  Click me
+</div>
+```
+
+## Handler Props
+
+| Handler                                                     | Event class          | Elements       |
+| ----------------------------------------------------------- | -------------------- | -------------- |
+| `onClick`, `onDblClick`, `onContextMenu`                    | `GpuiMouseEvent`     | all            |
+| `onMouseDown`, `onMouseUp`, `onMouseMove`                   | `GpuiMouseEvent`     | all            |
+| `onMouseEnter`, `onMouseLeave`                              | `GpuiMouseEvent`     | all            |
+| `onMouseDownOutside`                                        | `GpuiMouseEvent`     | all            |
+| `onKeyDown`, `onKeyUp`                                      | `GpuiKeyboardEvent`  | all            |
+| `onFocus`, `onBlur`                                         | `GpuiFocusEvent`     | all            |
+| `onScroll`                                                  | `GpuiScrollEvent`    | all            |
+| `onTransitionRun`, `onTransitionStart`, `onTransitionEnd`, `onTransitionCancel` | `GpuiTransitionEvent` | all |
+| `onInput`, `onChange`                                       | `GpuiInputEvent`     | `input`, `textarea` |
+| `onLoad`, `onError`                                         | `GpuiImageEvent`     | `img`          |
+
+All event classes are exported from `retend-gpui` for use in type annotations.
+
+## Event Properties
+
+| Event class           | Properties                                                                                      |
+| --------------------- | ----------------------------------------------------------------------------------------------- |
+| `GpuiMouseEvent`      | `clientX`, `clientY`, `button`, `buttons`, `detail`, `altKey`, `ctrlKey`, `metaKey`, `shiftKey` |
+| `GpuiKeyboardEvent`   | `key`, `keyChar`, `repeat`, `altKey`, `ctrlKey`, `metaKey`, `shiftKey`                          |
+| `GpuiInputEvent`      | `value`                                                                                         |
+| `GpuiScrollEvent`     | `scrollX`, `scrollY`                                                                            |
+| `GpuiTransitionEvent` | `propertyName`, `elapsedTime`                                                                   |
+| `GpuiFocusEvent`      | None beyond the base event                                                                      |
+| `GpuiImageEvent`      | None beyond the base event                                                                      |
+
+Every event also has the standard `type`, `target`, `currentTarget`, `timeStamp`, `preventDefault()`, and `stopPropagation()`.
+
+### Keyboard events
+
+`key` is the key identifier reported by GPUI. Letter keys are lowercase, for example `a`. `keyChar` is the character the key press produced, when there is one, such as `A` while Shift is held.
+
+Logging `event.key` once reveals the identifier for keys such as arrows or Escape.
+
+```tsx
+import type { GpuiKeyboardEvent } from 'retend-gpui';
+
+function Editor() {
+  const save = (event: GpuiKeyboardEvent) => {
+    if ((event.metaKey || event.ctrlKey) && event.key === 's') {
+      event.preventDefault();
+      console.log('Saving...');
+    }
+  };
+
+  return <div onKeyDown={save} tabIndex={0} style={{ padding: 16 }}>Editor</div>;
+}
+```
+
+Keyboard events are delivered to the focused element and bubble up from it. A plain `div` needs a `tabIndex` to be able to take focus.
+
+## Propagation
+
+Retend runs capture, target, and bubble phases over the logical node tree, as in the browser. Most events bubble. These do not:
+
+- `mouseenter` and `mouseleave`
+- `focus` and `blur`
+- `scroll`
+- `load` and `error`
+- `mousedownoutside`
+
+`mousedownoutside` is specific to `retend-gpui`. It fires on an element when the pointer is pressed anywhere outside it, and it is delivered to that element only. It is the natural way to close menus and popovers.
+
+## Event Modifiers
+
+Modifier suffixes work on GPUI handlers. They are chained with `--`:
+
+```tsx
+<div onClick--self--stop={handleClick}>Only clicks on this element</div>
+```
+
+| Modifier  | Effect                                                    |
+| --------- | --------------------------------------------------------- |
+| `--stop`  | Stops the event from propagating further.                 |
+| `--prevent` | Calls `preventDefault()` before the handler runs.       |
+| `--self`  | Runs the handler only when the element itself is the target. |
+| `--once`  | Removes the handler after its first call.                 |
+| `--passive` | Marks the listener as passive.                          |
+
+See [Event Handling](/docs/event-handling) for how modifiers work in Retend.
+
+## Imperative Listeners
+
+GPUI nodes also support `addEventListener()`, `removeEventListener()`, and `dispatchEvent()`. This is useful for custom events and for code that has an element reference:
+
+```tsx
+import { Cell, onConnected } from 'retend';
+import type { GpuiDivElement } from 'retend-gpui';
+
+function Box() {
+  const box = Cell.source<GpuiDivElement | null>(null);
+
+  onConnected(box, (element) => {
+    const log = () => console.log('clicked');
+    element.addEventListener('click', log);
+    return () => element.removeEventListener('click', log);
+  });
+
+  return <div ref={box}>Box</div>;
+}
+```
+

@@ -61,7 +61,7 @@ const html = renderToString(nodes, window);
 
 ### Custom Renderers
 
-Implement the `Renderer` interface to target another platform. The experimental packages include these examples:
+The `Renderer` interface is implemented to target another platform. The experimental packages include these examples:
 
 - **CanvasRenderer**: Renders to HTML5 Canvas
 - **TerminalRenderer**: Renders to terminal UI
@@ -85,7 +85,7 @@ The framework uses these flags to:
 
 ## The Renderer API
 
-Every renderer in the Retend ecosystem implements the `Renderer` interface. A custom renderer for HTML5 Canvas or a command-line terminal UI must implement this interface.
+Every renderer in the Retend ecosystem implements the `Renderer` interface. A custom renderer for HTML5 Canvas or a command-line terminal UI implements this same interface.
 
 ### Renderer Types
 

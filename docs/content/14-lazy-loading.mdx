@@ -1,6 +1,6 @@
 ---
 title: 'Lazy Loading'
-description: 'Load route components and subtrees on demand.'
+description: 'Loading route components and subtrees on demand.'
 ---
 
 # Lazy Loading
@@ -11,7 +11,7 @@ As an application grows, downloading all route code on the initial load can incr
 
 ## Basic Lazy Loading
 
-Use `lazy()` to lazy-load a route component. Pass it a function that returns a dynamic `import()` for the component file.
+`lazy()` lazy-loads a route component. It accepts a function that returns a dynamic `import()` for the component file.
 
 ```tsx
 import { defineRoutes, lazy } from 'retend/router';
@@ -32,7 +32,7 @@ const routes = defineRoutes([
 
 ### Exporting your Component
 
-The component passed to `lazy()` must be the file’s **default** export.
+The component passed to `lazy()` is expected to be the file’s **default** export.
 
 ```tsx
 // views/Settings.tsx
@@ -89,7 +89,7 @@ For applications with many routes, the route configuration itself can become lar
 
 ### Step 1: Create the Subtree File
 
-Create a separate file that exports one route configuration as its `default` export:
+A separate file exports one route configuration as its `default` export:
 
 ```tsx
 // finance.routes.ts
@@ -115,7 +115,7 @@ export default defineRoute({
 
 ### Step 2: Connect it to the Main Router
 
-In the main route file, set `subtree` instead of `component` or `children`, and wrap the import in `lazy()`:
+In the main route file, `subtree` is set instead of `component` or `children`, and the import is wrapped in `lazy()`:
 
 ```tsx
 // index.routes.ts

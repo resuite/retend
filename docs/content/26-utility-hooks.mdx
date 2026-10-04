@@ -182,7 +182,7 @@ function SessionCounter() {
 
 Normalizes a static value or `Cell` to a `Cell`. If the input is a `Cell`, the returned cell tracks it. If the input is a plain value, the returned cell holds it as a constant.
 
-Use this in components that accept either reactive or non-reactive props.
+This is used in components that accept either reactive or non-reactive props.
 
 **Parameters:**
 
@@ -205,7 +205,7 @@ function Label(props: { text: Cell<string> | string }) {
 
 Normalizes a static value, `Cell`, or `AsyncCell` to an `AsyncDerivedCell`. For asynchronous input, the returned cell resolves it through Retend's async derivation flow. For synchronous input, it tracks the cell or holds the static value as a constant.
 
-Use this in components that accept synchronous or asynchronous reactive props.
+This is used in components that accept synchronous or asynchronous reactive props.
 
 **Parameters:**
 

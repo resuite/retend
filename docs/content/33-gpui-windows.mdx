@@ -1,0 +1,241 @@
+---
+title: 'GPUI Windows'
+description: 'Configuring the application, opening and controlling windows, and sharing process-wide state.'
+---
+
+# GPUI Windows
+
+A `retend-gpui` application has two layers. The **application** is one Node.js process that owns shared resources such as a database connection. Each **window** is an independent Retend root that renders the entry component.
+
+## Configuring the Plugin
+
+`retend-gpui dev` and `vite build` both read the `retendGpui` plugin in `vite.config.ts`:
+
+```ts
+import { retendGpui } from 'retend-gpui/plugins/vite';
+import { defineConfig } from 'vite';
+
+export default defineConfig({
+  plugins: [
+    retendGpui({
+      app: {
+        name: 'Notes',
+        identifier: 'com.example.notes',
+        version: '1.0.0',
+        icon: './assets/icon.png',
+      },
+      application: './source/application.ts',
+      entry: './source/main.tsx',
+      system: { transparentTitlebar: true },
+      window: { width: 900, height: 640 },
+    }),
+  ],
+});
+```
+
+| Option        | Required | Description                                                                                  |
+| ------------- | -------- | -------------------------------------------------------------------------------------------- |
+| `app`         | Yes      | The application's identity. See below.                                                       |
+| `application` | Yes      | Path to a module whose default export is the application class.                              |
+| `entry`       | Yes      | Path to a module whose default export is the root component.                                 |
+| `window`      | Yes      | Options for the first window. `width` and `height` are required.                             |
+| `system`      | No       | Process-wide native options. See [System Options](#system-options).                          |
+| `target`      | No       | Build target. See [GPUI Packaging](/docs/gpui-packaging).                                    |
+| `node`        | No       | Embedded Node.js version for packaged apps. See [GPUI Packaging](/docs/gpui-packaging).      |
+| `signing`     | No       | macOS signing and notarization. See [GPUI Packaging](/docs/gpui-packaging).                  |
+
+Paths are relative to the Vite root. The plugin validates its options when Vite starts and throws a descriptive error if one is wrong.
+
+### App identity
+
+| Field         | Required | Description                                                                                         |
+| ------------- | -------- | --------------------------------------------------------------------------------------------------- |
+| `name`        | Yes      | The display name. Also the default window title.                                                    |
+| `identifier`  | Yes      | A reverse-DNS identifier such as `com.example.notes`.                                               |
+| `version`     | Yes      | A valid SemVer version, such as `1.0.0`.                                                            |
+| `icon`        | No       | The app icon. macOS accepts `.icns`, `.png`, or `.svg`. Windows accepts `.ico`, `.png`, or `.svg`.  |
+| `macos.icon`  | No       | Overrides `icon` on macOS.                                                                          |
+| `windows.icon`| No       | Overrides `icon` on Windows.                                                                        |
+| `description` | No       | A description passed to the Windows packager.                                                       |
+| `publisher`   | No       | A publisher name passed to the Windows packager.                                                    |
+
+## The Application Class
+
+The module at `application` default-exports a class. It holds process-wide state in a `context` object and sets it up in `init()`:
+
+```ts
+import type { GpuiApplication } from 'retend-gpui';
+
+interface AppContext {
+  database: Database | null;
+}
+
+export default class Application implements GpuiApplication<AppContext> {
+  readonly context: AppContext = { database: null };
+
+  async init() {
+    this.context.database = await openDatabase();
+  }
+
+  async cleanup() {
+    await this.context.database?.close();
+  }
+}
+```
+
+- `init()` runs once, when the application starts.
+- `cleanup()` runs when the application shuts down.
+- `context` keeps the same object identity from construction through cleanup. It is mutated rather than replaced.
+
+Both methods may be asynchronous.
+
+## Reading the Application Context
+
+`useAppContext()` returns the `context` object from any component:
+
+```tsx
+import { useAppContext, useWindow } from 'retend-gpui';
+
+export default function App() {
+  const { database } = useAppContext();
+  const window = useWindow();
+
+  return <div>{database ? window.title : 'Database unavailable'}</div>;
+}
+```
+
+The context is typed from the application class. `retend-start` creates `retend-gpui-env.d.ts` for this, and every dev or build startup checks it and rewrites it only when it is missing or stale. Changing the `application` path repairs the types automatically. For projects maintained by hand, the file is added to the tsconfig `include` and committed, as with `next-env.d.ts`.
+
+`useAppContext()` throws when no application is active.
+
+## The Window Object
+
+`useWindow()` returns the native window for the current Retend root:
+
+| Member            | Description                                                                                |
+| ----------------- | ------------------------------------------------------------------------------------------ |
+| `width`, `height` | Read-only Cells that track the content size. They update on native resize events.          |
+| `title`           | A Cell. Setting it changes the OS window title.                                            |
+| `open(options)`   | Opens another independent window. Returns a promise of a handle.                           |
+| `close()`         | Requests that this window close.                                                           |
+| `host`            | The native host. It exposes the window's `location` and `history`, which the router uses.  |
+
+The window is also an event target and emits `focus` and `blur`.
+
+```tsx
+import { Cell } from 'retend';
+import { useWindow } from 'retend-gpui';
+
+function Header() {
+  const window = useWindow();
+  const size = Cell.derived(() => `${window.width.get()} × ${window.height.get()}`);
+
+  return (
+    <div>
+      <div>{size}</div>
+      <button onClick={() => window.title.set('Renamed')}>Rename window</button>
+    </div>
+  );
+}
+```
+
+## Window Options
+
+The `window` option in the plugin config and the `options` argument to `open()` accept the same fields:
+
+| Option            | Type      | Description                                                                   |
+| ----------------- | --------- | ----------------------------------------------------------------------------- |
+| `title`           | `string`  | The window title. For the first window it defaults to `app.name`.             |
+| `width`           | `number`  | The initial content width, in logical pixels.                                 |
+| `height`          | `number`  | The initial content height, in logical pixels.                                |
+| `resizable`       | `boolean` | Whether the user can resize the window. Defaults to `true`.                   |
+| `fullscreen`      | `boolean` | Opens in fullscreen. Cannot be combined with `maximized`.                     |
+| `maximized`       | `boolean` | Opens maximized. Cannot be combined with `fullscreen`.                        |
+| `minWidth`, `minHeight` | `number` | The smallest content size the user can resize to.                       |
+| `maxWidth`, `maxHeight` | `number` | The largest content size the user can resize to.                        |
+| `location`        | `string`  | The initial route. Defaults to `/`.                                           |
+| `closeWithOpener` | `boolean` | Whether the window closes when the window that opened it closes. Defaults to `true`. |
+
+Sizes are finite positive numbers, and each minimum cannot exceed its maximum.
+
+## Opening More Windows
+
+`open()` creates another native window with its own Retend root. A `location` value starts it on a specific route:
+
+```tsx
+import { useWindow } from 'retend-gpui';
+
+function OpenSettings() {
+  const window = useWindow();
+
+  const openSettings = async () => {
+    const settings = await window.open({
+      title: 'Settings',
+      width: 520,
+      height: 640,
+      location: '/settings',
+    });
+    settings.addEventListener('close', () => console.log('Settings closed'));
+  };
+
+  return <button onClick={openSettings}>Settings</button>;
+}
+```
+
+The returned handle has a `close()` method and fires a `close` event. By default a child window closes with the window that opened it. `closeWithOpener: false` keeps it open independently.
+
+## Routing
+
+A GPUI window has no browser location bar, so the router is connected to the native window explicitly. The scaffolded `router.tsx` shows the setup:
+
+```tsx
+import { onSetup } from 'retend';
+import { useWindow } from 'retend-gpui';
+import { Outlet, Router, RouterProvider } from 'retend/router';
+
+import App from './App';
+
+const routes = [{ path: '/', component: App }];
+
+export default function Root() {
+  const window = useWindow();
+  const router = new Router({ routes, linkTag: 'div' });
+
+  onSetup(() => {
+    const host = window.host as unknown as Window;
+    const detach = router.attachWindowListeners(host);
+    window.host.dispatchEvent(new Event('load'));
+    return detach;
+  });
+
+  return (
+    <RouterProvider router={router}>
+      <Outlet />
+    </RouterProvider>
+  );
+}
+```
+
+Three details matter:
+
+- `linkTag: 'div'` gives `Link` a GPUI-compatible host element.
+- `attachWindowListeners` connects the router to the window's `location` and `history`. It returns a function that detaches them, which `onSetup` uses as its cleanup.
+- The router loads the initial route when the host receives a `load` event, so the setup dispatches one after attaching.
+
+See [Defining Routes](/docs/defining-routes) for the router itself.
+
+## System Options
+
+`system` holds options that apply to every window in the application:
+
+| Option               | Description                                                                                               |
+| -------------------- | --------------------------------------------------------------------------------------------------------- |
+| `transparentTitlebar` | Makes the native titlebar transparent so content can extend behind the window controls. macOS and Windows. |
+
+## Development Reloads
+
+During `retend-gpui dev`, Vite runs without an HTTP server and starts one Node.js application process with the initial window.
+
+- Editing a component updates it in place.
+- Editing the application module, or a module it imports, triggers a full reload. This recreates application and module state and remounts every open window without replacing the native windows or their navigation history.
+- Restarting Vite, for example after a config change, replaces the whole application process.

@@ -29,6 +29,9 @@ importers:
       '@tailwindcss/vite':
         specifier: ^4.2.1
         version: 4.2.1(vite@6.4.1(@types/node@22.19.11)(jiti@2.6.1)(lightningcss@1.33.0)(tsx@4.21.0))
+      innate-ui:
+        specifier: https://pkg.pr.new/adebola-io/innate-ui@b3c284f9adfc74466e5ebb0faa8348c8447ed573
+        version: https://pkg.pr.new/adebola-io/innate-ui@b3c284f9adfc74466e5ebb0faa8348c8447ed573(retend-utils@packages+retend-utils)(retend-web@packages+retend-web)(retend@packages+retend)
       remark-gfm:
         specifier: ^4.0.1
         version: 4.0.1
@@ -307,32 +310,6 @@ importers:
       vitest:
         specifier: ^3.2.4
         version: 3.2.4(@types/debug@4.1.12)(@types/node@22.20.3)(@vitest/browser@3.2.4)(jiti@2.6.1)(lightningcss@1.33.0)(tsx@4.21.0)
-    optionalDependencies:
-      retend-gpui-native-darwin-arm64:
-        specifier: workspace:*
-        version: link:native/npm/darwin-arm64
-      retend-gpui-native-linux-arm64-gnu:
-        specifier: workspace:*
-        version: link:native/npm/linux-arm64-gnu
-      retend-gpui-native-linux-x64-gnu:
-        specifier: workspace:*
-        version: link:native/npm/linux-x64-gnu
-      retend-gpui-native-win32-arm64-msvc:
-        specifier: workspace:*
-        version: link:native/npm/win32-arm64-msvc
-      retend-gpui-native-win32-x64-msvc:
-        specifier: workspace:*
-        version: link:native/npm/win32-x64-msvc
-
-  packages/retend-gpui/native/npm/darwin-arm64: {}
-
-  packages/retend-gpui/native/npm/linux-arm64-gnu: {}
-
-  packages/retend-gpui/native/npm/linux-x64-gnu: {}
-
-  packages/retend-gpui/native/npm/win32-arm64-msvc: {}
-
-  packages/retend-gpui/native/npm/win32-x64-msvc: {}
 
   packages/retend-oxlint-plugin:
     dependencies:
@@ -3836,6 +3813,14 @@ packages:
 
   inline-style-parser@0.2.7:
     resolution: {integrity: sha512-Nb2ctOyNR8DqQoR0OwRG95uNWIC0C1lCgf5Naz5H6Ji72KZ8OcFZLz2P5sNgwlyoJ8Yif11oMuYs5pBQa86csA==}
+
+  innate-ui@https://pkg.pr.new/adebola-io/innate-ui@b3c284f9adfc74466e5ebb0faa8348c8447ed573:
+    resolution: {tarball: https://pkg.pr.new/adebola-io/innate-ui@b3c284f9adfc74466e5ebb0faa8348c8447ed573}
+    version: 0.0.0-preview-b3c284f
+    peerDependencies:
+      retend: ^0.0.36
+      retend-utils: ^0.0.36
+      retend-web: ^0.0.36
 
   inquirer@12.11.1:
     resolution: {integrity: sha512-9VF7mrY+3OmsAfjH3yKz/pLbJ5z22E23hENKw3/LNSaA/sAt3v49bDRY+Ygct1xwuKT+U+cBfTzjCPySna69Qw==}
@@ -8392,6 +8377,12 @@ snapshots:
   inherits@2.0.4: {}
 
   inline-style-parser@0.2.7: {}
+
+  innate-ui@https://pkg.pr.new/adebola-io/innate-ui@b3c284f9adfc74466e5ebb0faa8348c8447ed573(retend-utils@packages+retend-utils)(retend-web@packages+retend-web)(retend@packages+retend):
+    dependencies:
+      retend: link:packages/retend
+      retend-utils: link:packages/retend-utils
+      retend-web: link:packages/retend-web
 
   inquirer@12.11.1(@types/node@22.19.11):
     dependencies:

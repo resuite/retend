@@ -1,6 +1,6 @@
 ---
 title: 'Static Site Generation'
-description: 'Generate page HTML at build time.'
+description: 'Generates page HTML at build time.'
 ---
 
 # Static Site Generation
@@ -11,7 +11,7 @@ Retend provides the `retendSSG` Vite plugin for this process.
 
 ## Setup
 
-Import the plugin and add it to the Vite configuration:
+The plugin is imported and added to the Vite configuration:
 
 ```ts
 // vite.config.ts
@@ -40,7 +40,7 @@ export default defineConfig({
 
 ### The Router Module
 
-The module at `routerModulePath` must export a `createRouter` function that returns a `Router` instance:
+The module at `routerModulePath` exports a `createRouter` function that returns a `Router` instance:
 
 ```tsx
 // source/router.ts
@@ -60,7 +60,7 @@ export function createRouter() {
 
 ## Handling Dynamic Routes
 
-The `pages` array must list every specific URL you want to generate. For dynamic routes like `/users/:userId`, you need to enumerate each URL:
+The `pages` array lists every specific URL to generate. For dynamic routes like `/users/:userId`, each URL is enumerated:
 
 ```ts
 retendSSG({
@@ -69,7 +69,7 @@ retendSSG({
 });
 ```
 
-If your URLs come from a database or API, you can build the array dynamically in your Vite config:
+If URLs come from a database or API, the array can be built dynamically in the Vite config:
 
 ```ts
 const userIds = await fetchAllUserIds();
@@ -87,20 +87,20 @@ export default defineConfig({
 
 ## How It Works
 
-When you run `vite build`, the plugin:
+During `vite build`, the plugin:
 
-1. Reads your `index.html` shell.
+1. Reads the `index.html` shell.
 2. For each page in the `pages` array, creates a virtual browser environment.
 3. Renders the app by navigating the router to that page.
 4. Waits for all async data (via `<Await>` boundaries) to resolve.
 5. Serializes the rendered output into a static HTML file.
-6. Handles any redirects defined in your routes automatically.
+6. Handles any redirects defined in the routes automatically.
 
 The generated HTML files can be served by a static file host.
 
 ## Redirects
 
-If a route in your configuration has a `redirect` property, the plugin automatically generates:
+If a route in the configuration has a `redirect` property, the plugin automatically generates:
 
 - An HTML file with a `<meta http-equiv="refresh">` redirect.
 - A `_redirects` file entry (compatible with Netlify, Cloudflare Pages, etc.).

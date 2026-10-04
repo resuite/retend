@@ -57,6 +57,12 @@ const createLabelFromSlug = (slug: string): string => {
   const labelMap: Record<string, string> = {
     'Shadow Root': 'ShadowRoot',
     Devtools: 'DevTools',
+    'Gpui Overview': 'GPUI Overview',
+    'Gpui Elements': 'GPUI Elements',
+    'Gpui Styling': 'GPUI Styling',
+    'Gpui Events': 'GPUI Events',
+    'Gpui Windows': 'GPUI Windows',
+    'Gpui Packaging': 'GPUI Packaging',
   };
 
   const label = slug

@@ -1,6 +1,6 @@
 ---
 title: 'View Transitions'
-description: 'Use the View Transitions API for route changes.'
+description: 'The router can use the View Transitions API for route changes.'
 ---
 
 # View Transitions
@@ -9,7 +9,7 @@ The [View Transitions API](https://developer.mozilla.org/en-US/docs/Web/API/View
 
 ## Enabling View Transitions
 
-Set `useViewTransitions: true` when creating the `Router`:
+`useViewTransitions: true` is set when creating the `Router`:
 
 ```tsx
 import { Router, defineRoutes } from 'retend';
@@ -31,13 +31,13 @@ When enabled, the router wraps each route change in `document.startViewTransitio
 
 ## Automatic Direction Types
 
-The router determines the navigation direction and adds a type to the view transition. Use these types to define different animations for forward and backward navigation:
+The router determines the navigation direction and adds a type to the view transition. These types define different animations for forward and backward navigation:
 
 - **`forwards`** — Navigating to a new page.
 - **`backwards`** — Navigating back in the history stack.
 - **`neutral`** — Replacing the current page or navigating to the same path.
 
-Target these types in CSS:
+These types are targeted in CSS:
 
 ```css
 @keyframes slide-in-from-right {
@@ -69,7 +69,7 @@ Target these types in CSS:
 
 ## Per-Route Transition Types
 
-Assign a custom `transitionType` to an individual route to select a transition for that route:
+A custom `transitionType` assigned to an individual route selects a transition for that route:
 
 ```tsx
 const routes = defineRoutes(() => [

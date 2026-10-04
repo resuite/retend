@@ -1,0 +1,137 @@
+/*
+ * Landing page. Utilities do most of the work; this file holds the pieces
+ * they cannot express: the typeface, the frame grid band, crop marks, the
+ * isometric drawing, and the reactivity pulses.
+ */
+
+@import '@fontsource-variable/inter/opsz.css';
+
+.home {
+  font-family: 'Inter Variable', var(--font-main);
+  font-optical-sizing: auto;
+  font-feature-settings: 'cv11', 'ss03';
+  --home-card-shadow:
+    0 1px 2px rgb(20 14 8 / 0.06), 0 18px 40px -16px rgb(20 14 8 / 0.28);
+}
+
+html.dark .home {
+  --home-card-shadow:
+    0 1px 2px rgb(0 0 0 / 0.5), 0 18px 40px -16px rgb(0 0 0 / 0.8);
+}
+
+.home-card {
+  box-shadow: var(--home-card-shadow);
+}
+
+/* Square grid used for the band above the hero and the drawing backdrop. */
+.home-grid {
+  background-image:
+    linear-gradient(var(--ds-line) 1px, transparent 1px),
+    linear-gradient(90deg, var(--ds-line) 1px, transparent 1px);
+  background-size: 24px 24px;
+  background-position: -1px -1px;
+}
+
+/* A heavier grid for the social preview image, which is seen small. */
+.og-grid {
+  background-image:
+    linear-gradient(
+      color-mix(in srgb, var(--ds-ink) 9%, transparent) 1px,
+      transparent 1px
+    ),
+    linear-gradient(
+      90deg,
+      color-mix(in srgb, var(--ds-ink) 9%, transparent) 1px,
+      transparent 1px
+    );
+  background-size: 30px 30px;
+  background-position: -1px -1px;
+}
+
+/* The page's content sheet: plain paper over the grid. */
+.home-sheet {
+  background-color: var(--ds-paper);
+}
+
+/* The drawing's grid only fills the lower-right half, like a cutting mat. */
+.home-grid-diagonal {
+  mask-image: linear-gradient(to bottom right, transparent 49.9%, #000 50%);
+}
+
+/* Corner ticks around a block of text. */
+.home-crop {
+  position: relative;
+}
+
+.home-crop::before,
+.home-crop::after {
+  content: '';
+  position: absolute;
+  inset: -12px;
+  pointer-events: none;
+  background:
+    linear-gradient(currentColor, currentColor) top left / 1px 9px no-repeat,
+    linear-gradient(currentColor, currentColor) top left / 9px 1px no-repeat,
+    linear-gradient(currentColor, currentColor) top right / 1px 9px no-repeat,
+    linear-gradient(currentColor, currentColor) top right / 9px 1px no-repeat,
+    linear-gradient(currentColor, currentColor) bottom left / 1px 9px no-repeat,
+    linear-gradient(currentColor, currentColor) bottom left / 9px 1px no-repeat,
+    linear-gradient(currentColor, currentColor) bottom right / 1px 9px no-repeat,
+    linear-gradient(currentColor, currentColor) bottom right / 9px 1px no-repeat;
+}
+
+.home-crop::after {
+  display: none;
+}
+
+/* Paintings sit a little darker in dark mode so cards keep their edge. */
+html.dark .home-painting {
+  filter: brightness(0.78) saturate(0.95);
+}
+
+html.dark .home-painting-blurred {
+  filter: blur(3px) saturate(1.05) brightness(0.75);
+}
+
+.home-painting-blurred {
+  filter: blur(3px) saturate(1.05);
+  transform: scale(1.04);
+}
+
+/* Dependency chain: a node pulses when its Cell notifies. */
+.home-node {
+  transition:
+    box-shadow 500ms ease,
+    opacity 300ms ease;
+}
+
+.home-node-active {
+  box-shadow:
+    0 0 0 3px rgb(255 255 255 / 0.9),
+    0 0 0 5px var(--ds-accent),
+    var(--home-card-shadow);
+  transition-duration: 60ms, 300ms;
+}
+
+/* Fanned cards straighten when hovered or focused. */
+.home-fan-card {
+  transition:
+    transform 400ms cubic-bezier(0.2, 0.8, 0.2, 1),
+    box-shadow 400ms ease;
+}
+
+@media (min-width: 768px) {
+  .home-fan-card:hover,
+  .home-fan-card:focus-within {
+    transform: translateY(-10px) rotate(0deg) !important;
+    z-index: 10;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .home-node,
+  .home-node-active,
+  .home-fan-card {
+    transition: none;
+  }
+}

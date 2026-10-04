@@ -1,17 +1,17 @@
 ---
 title: 'Route Locking'
-description: 'Block in-app navigation while a route has unsaved changes.'
+description: 'Blocks in-app navigation while a route has unsaved changes.'
 ---
 
 # Route Locking
 
 **Route locking** temporarily blocks in-app navigation from the current route. While locked, navigation through a `<Link>` or `router.navigate()` is blocked.
 
-_Route locking only controls navigation handled by Retend’s router. It does not prevent browser-level actions such as closing the tab, entering a URL in the address bar, or refreshing the page. Use the browser’s `beforeunload` event for those actions._
+_Route locking only controls navigation handled by Retend’s router. It does not prevent browser-level actions such as closing the tab, entering a URL in the address bar, or refreshing the page. The browser’s `beforeunload` event handles those actions._
 
 ## Locking a Route
 
-Call `router.lock()` to lock the current route:
+`router.lock()` locks the current route:
 
 ```tsx
 import { useRouter } from 'retend/router';
@@ -36,7 +36,7 @@ After `router.lock()` is called, in-app navigation away from the route is blocke
 
 ## Unlocking a Route
 
-Call `router.unlock()` when the user has finished, such as after saving a form, to allow in-app navigation again:
+`router.unlock()` allows in-app navigation again once the user has finished, such as after saving a form:
 
 ```tsx
 import { useRouter } from 'retend/router';
@@ -74,9 +74,9 @@ export function SettingsForm() {
 
 ## Handling Blocked Navigation
 
-When navigation is blocked, display a message explaining why, such as a warning about unsaved changes.
+Blocked navigation can be accompanied by a message explaining why, such as a warning about unsaved changes.
 
-Retend dispatches a `routelockprevented` event on the router when it blocks a navigation attempt. Listen for this event to display a warning:
+Retend dispatches a `routelockprevented` event on the router when it blocks a navigation attempt. Listening for this event allows a warning to be displayed:
 
 ```tsx
 import { useRouter } from 'retend/router';
@@ -129,4 +129,4 @@ export function ProtectedForm() {
 }
 ```
 
-Use route locking to prevent users from leaving a route with unsaved work through in-app navigation.
+Route locking prevents users from leaving a route with unsaved work through in-app navigation.

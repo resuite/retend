@@ -1,6 +1,6 @@
 ---
 title: 'Await'
-description: 'Show fallback UI while asynchronous data loads.'
+description: 'Shows fallback UI while asynchronous data loads.'
 ---
 
 # Await
@@ -17,7 +17,7 @@ When an async cell is used in a template, Retend detects its pending state and n
 
 ## Basic Usage
 
-To use an asynchronous boundary, wrap your components in `<Await>` and provide a `fallback` element to show while loading.
+For an asynchronous boundary, components are wrapped in `<Await>` with a `fallback` element shown while loading.
 
 ```tsx
 import { Await, If, Cell } from 'retend';
@@ -101,10 +101,10 @@ export function Dashboard() {
 }
 ```
 
-To load them independently, wrap the two sections in separate `<Await>` components.
+To load them independently, the two sections are wrapped in separate `<Await>` components.
 
 ## Server-Side Rendering (Advanced)
 
 For Server-Side Rendering (SSR), `<Await>` boundaries identify asynchronous work that must resolve before the server sends the HTML response.
 
-Use `waitForAsyncBoundaries()` in server code to wait for these boundaries to settle.
+`waitForAsyncBoundaries()` in server code waits for these boundaries to settle.

@@ -1,0 +1,238 @@
+/*
+ * Retend docs design system, v1 tokens.
+ *
+ * Every visual value comes from a --ds-* variable. Those variables are
+ * redefined by `html.dark` and by `[data-ds-theme]` wrappers, which is how the
+ * kitchen sink can show light and dark side by side.
+ *
+ * `@theme inline` makes Tailwind utilities emit `var(--ds-*)` directly instead
+ * of a copy resolved on :root, so a nested theme scope changes what utilities
+ * like `bg-paper` and `text-ink` resolve to.
+ *
+ * Contrast notes (WCAG 2.x, measured, see /design for live numbers):
+ *   --ds-accent       decorative and large-element use only (3.81:1 on paper)
+ *   --ds-accent-ink   text and links on paper and washes (>= 4.98:1)
+ *   --ds-accent-fill  filled controls, paired with --ds-on-accent (5.68:1)
+ */
+
+@theme inline {
+  --color-paper: var(--ds-paper);
+  --color-raised: var(--ds-raised);
+  --color-sunken: var(--ds-sunken);
+  --color-line: var(--ds-line);
+  --color-line-strong: var(--ds-line-strong);
+  --color-line-input: var(--ds-line-input);
+  --color-ink: var(--ds-ink);
+  --color-ink-soft: var(--ds-ink-soft);
+  --color-ink-faint: var(--ds-ink-faint);
+  --color-accent: var(--ds-accent);
+  --color-accent-ink: var(--ds-accent-ink);
+  --color-accent-fill: var(--ds-accent-fill);
+  --color-on-accent: var(--ds-on-accent);
+  --color-accent-wash: var(--ds-accent-wash);
+  --color-good: var(--ds-good);
+  --color-good-wash: var(--ds-good-wash);
+  --color-bad: var(--ds-bad);
+  --color-bad-wash: var(--ds-bad-wash);
+}
+
+@theme {
+  --text-h1: 1.75rem;
+  --text-h1--line-height: 1.2;
+  --text-h1--letter-spacing: -0.02em;
+  --text-h2: 1.25rem;
+  --text-h2--line-height: 1.3;
+  --text-h2--letter-spacing: -0.015em;
+  --text-h3: 1.0625rem;
+  --text-h3--line-height: 1.4;
+  --text-h3--letter-spacing: -0.01em;
+  --text-body: 1.0625rem;
+  --text-body--line-height: 1.7;
+  --text-small: 0.875rem;
+  --text-small--line-height: 1.55;
+  --text-caption: 0.75rem;
+  --text-caption--line-height: 1.4;
+  --text-caption--letter-spacing: 0.01em;
+  --text-code: 0.75rem;
+  --text-code--line-height: 1.65;
+}
+
+:root,
+[data-ds-theme='light'] {
+  color-scheme: light;
+
+  --ds-paper: #fcfaf7;
+  --ds-raised: #ffffff;
+  --ds-sunken: #f4f0ea;
+  --ds-line: #e6dfd5;
+  --ds-line-strong: #cfc5b7;
+  --ds-line-input: #8a8177;
+
+  --ds-ink: #1c1917;
+  --ds-ink-soft: #57534e;
+  --ds-ink-faint: #6f6a64;
+
+  --ds-accent: #b76e33;
+  --ds-accent-ink: #9a5520;
+  --ds-accent-fill: #9a5520;
+  --ds-on-accent: #ffffff;
+  --ds-accent-wash: #fbeee0;
+
+  --ds-good: #3f6212;
+  --ds-good-wash: #eff5e4;
+  --ds-bad: #b42318;
+  --ds-bad-wash: #fdeceb;
+
+  /* Same hues as the original code palette, lightness lowered to reach 4.6:1
+     on --ds-sunken. The originals were 2.5:1 to 4.4:1. */
+  --ds-code-keyword: #bd4300;
+  --ds-code-function: #916311;
+  --ds-code-string: #4e771a;
+  --ds-code-number: #b34d1d;
+  --ds-code-property: #92620d;
+  --ds-code-type: #b74928;
+  --ds-code-tag: #be4216;
+  --ds-code-component: #aa5513;
+  --ds-code-comment: #726a62;
+  --ds-code-boolean: #b34d1d;
+  --ds-code-operator: #6b6560;
+  --ds-code-punctuation: #716b67;
+  --ds-code-builtin: #a2581f;
+}
+
+html.dark,
+[data-ds-theme='dark'] {
+  color-scheme: dark;
+
+  --ds-paper: #100e0c;
+  --ds-raised: #1a1714;
+  --ds-sunken: #0b0a09;
+  --ds-line: #2b2622;
+  --ds-line-strong: #3d362f;
+  --ds-line-input: #857b70;
+
+  --ds-ink: #f5f1ea;
+  --ds-ink-soft: #b5aca1;
+  --ds-ink-faint: #8c8378;
+
+  --ds-accent: #ffa44a;
+  --ds-accent-ink: #ffb56b;
+  --ds-accent-fill: #ffa44a;
+  --ds-on-accent: #1a0f05;
+  --ds-accent-wash: #2a1a0d;
+
+  --ds-good: #a8cc60;
+  --ds-good-wash: #182010;
+  --ds-bad: #ff8f85;
+  --ds-bad-wash: #2b1311;
+
+  /* Unchanged from the original dark code palette (all >= 5.3:1). */
+  --ds-code-keyword: #ff9b5e;
+  --ds-code-function: #f0c765;
+  --ds-code-string: #a8cc60;
+  --ds-code-number: #f0a060;
+  --ds-code-property: #e8b84d;
+  --ds-code-type: #f09070;
+  --ds-code-tag: #ff7b50;
+  --ds-code-component: #f0a040;
+  --ds-code-comment: #8a8480;
+  --ds-code-boolean: #f0a060;
+  --ds-code-operator: #c8c0b8;
+  --ds-code-punctuation: #a09890;
+  --ds-code-builtin: #e8a060;
+}
+
+/* Syntax colors. The highlighter emits .rt-code-* classes; these rules scope
+   new colors to .ds-code so the live site keeps its current look. */
+.ds-code .rt-code-keyword {
+  color: var(--ds-code-keyword);
+}
+.ds-code .rt-code-function {
+  color: var(--ds-code-function);
+}
+.ds-code .rt-code-string {
+  color: var(--ds-code-string);
+}
+.ds-code .rt-code-number {
+  color: var(--ds-code-number);
+}
+.ds-code .rt-code-property {
+  color: var(--ds-code-property);
+}
+.ds-code .rt-code-type {
+  color: var(--ds-code-type);
+}
+.ds-code .rt-code-tag {
+  color: var(--ds-code-tag);
+}
+.ds-code .rt-code-component {
+  color: var(--ds-code-component);
+}
+.ds-code .rt-code-comment {
+  color: var(--ds-code-comment);
+  font-style: italic;
+  opacity: 1;
+}
+.ds-code .rt-code-boolean {
+  color: var(--ds-code-boolean);
+}
+.ds-code .rt-code-operator {
+  color: var(--ds-code-operator);
+}
+.ds-code .rt-code-punctuation {
+  color: var(--ds-code-punctuation);
+}
+.ds-code .rt-code-builtin {
+  color: var(--ds-code-builtin);
+}
+
+/* Numbered steps with a connector line. Numbering uses a CSS counter so the
+   component needs no state. */
+.ds-steps {
+  counter-reset: ds-step;
+  list-style: none;
+}
+
+.ds-step {
+  counter-increment: ds-step;
+  position: relative;
+  padding-left: 2.75rem;
+  padding-bottom: 1.75rem;
+}
+
+.ds-step::before {
+  content: counter(ds-step);
+  position: absolute;
+  left: 0;
+  top: 0;
+  display: grid;
+  place-items: center;
+  width: 1.75rem;
+  height: 1.75rem;
+  border: 1px solid var(--ds-accent);
+  border-radius: 9999px;
+  background: var(--ds-paper);
+  color: var(--ds-accent-ink);
+  font-family: var(--font-mono);
+  font-size: 0.8125rem;
+  font-weight: 600;
+  line-height: 1;
+}
+
+.ds-step::after {
+  content: '';
+  position: absolute;
+  left: 0.875rem;
+  top: 2.25rem;
+  bottom: 0.5rem;
+  width: 1px;
+  background: var(--ds-line-strong);
+}
+
+.ds-step:last-child {
+  padding-bottom: 0;
+}
+
+.ds-step:last-child::after {
+  display: none;
+}

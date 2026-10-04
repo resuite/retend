@@ -1,0 +1,98 @@
+---
+title: 'GPUI Packaging'
+description: 'Building and distributing a GPUI application for macOS and Windows.'
+---
+
+# GPUI Packaging
+
+A GPUI application is built with Vite. The `retendGpui` plugin bundles the code, copies in the native addon, and packages the result for the target platform.
+
+```sh
+npm run build
+```
+
+The `build` script runs `vite build`. Output goes to `dist/<platform>-<arch>`, for example `dist/darwin-arm64`. Each build empties that directory first and packages again.
+
+> The `retend-gpui` command line has one command, `retend-gpui dev`. Builds use `vite build`.
+
+## Build Options
+
+These plugin options affect builds:
+
+| Option    | Description                                                                                                           |
+| --------- | --------------------------------------------------------------------------------------------------------------------- |
+| `target`  | The build target as `<platform>-<arch>`. Defaults to the machine you build on.                                        |
+| `node`    | The Node.js version embedded in the packaged app. Defaults to a version chosen by `retend-gpui`.                      |
+| `signing` | Developer ID signing and notarization for macOS. See [macOS](#macos).                                                 |
+
+Supported targets are `darwin-arm64`, `linux-arm64`, `linux-x64`, `win32-arm64`, and `win32-x64`. Any other value throws an error.
+
+A packaged macOS or Windows app embeds its own Node.js runtime, so users do not need Node installed. The runtime is downloaded on the first build and cached in `node_modules/.cache/retend-gpui`.
+
+A build needs the prebuilt native addon for its target. The addon for the host platform installs automatically. Building for another platform requires that platform's package, such as `retend-gpui-native-win32-x64-msvc`.
+
+## What Each Platform Produces
+
+| Target                     | Result                                                                  |
+| -------------------------- | ----------------------------------------------------------------------- |
+| `darwin-arm64`             | `<AppName>.app` and `<AppName>.dmg`                                     |
+| `win32-x64`, `win32-arm64` | `<AppName>.exe` when built on Windows. Otherwise only the bundle.       |
+| `linux-x64`, `linux-arm64` | The bundle directory.                                                    |
+
+The bundle directory holds `index.js`, an `assets/` folder, and the native addon under `native/`.
+
+## macOS
+
+macOS application bundles target Apple Silicon.
+
+The build creates `<AppName>.app` and a `.dmg` that contains it. The app icon can be `.icns`, `.png`, or `.svg`.
+
+### Signing and notarization
+
+Without a signing identity, the app is signed ad hoc. It runs on the machine that built it, but anyone who downloads it from the web will see macOS refuse to open it with an "Apple could not verify" dialog. Distributing an app requires signing it with a Developer ID certificate and notarizing it.
+
+```ts
+retendGpui({
+  // ...
+  signing: {
+    identity: 'Developer ID Application: Your Name (TEAMID)',
+    notaryProfile: 'my-notary-profile',
+  },
+});
+```
+
+| Option          | Description                                                                                                         |
+| --------------- | ------------------------------------------------------------------------------------------------------------------- |
+| `identity`      | The `codesign` identity. Falls back to the `RETEND_GPUI_SIGN_IDENTITY` environment variable.                        |
+| `entitlements`  | Path to a custom entitlements plist. A default that allows JIT is generated when you omit it.                       |
+| `notaryProfile` | A `notarytool` keychain profile. Falls back to `RETEND_GPUI_NOTARY_PROFILE`, then to the `APPLE_*` environment variables. |
+| `notarize`      | Set to `false` to skip notarization.                                                                                |
+
+The build warns when the app is signed ad hoc, and when it is signed but missing notarization credentials. Gatekeeper blocks unnotarized downloads in both cases.
+
+## Windows
+
+The app icon can be `.ico`, `.png`, or `.svg`. It is applied to every window and to the taskbar button, and embedded in the executable.
+
+The `.exe` is only built when `vite build` runs on Windows. Building a Windows target on another system emits the bundle and logs a message. Running the build on Windows produces the executable.
+
+The result is `dist/win32-x64/<AppName>.exe` (or `win32-arm64`). The `native/` and `assets/` folders and the `AppIcon.*` file belong next to the executable when it is tested or distributed.
+
+## Linux
+
+Linux builds emit the bundle directory.
+
+## Application Identity During Development
+
+In development the app presents itself as a real application, not a Node process.
+
+- **macOS.** The dev process runs inside a minimal temporary `.app` bundle that carries `app.name` and `app.identifier`. It installs the native application menu and sets the Dock icon from `app.icon` (or `app.macos.icon`) before the first window opens. The Dock and Mission Control then show the app's identity.
+- **Windows.** Retend sets the AppUserModelID from `app.identifier` and applies `app.icon` (or `app.windows.icon`) to every window and taskbar button.
+
+## Checklist Before You Ship
+
+- A real `app.identifier` and `app.version` are set.
+- An icon in the format the target platform accepts is added.
+- On macOS, a signing identity and notarization credentials are provided.
+- A build runs on each platform shipped for, since Windows executables need a Windows build.
+- The exact `retend-gpui` version is pinned while it is in `0.0.x`.

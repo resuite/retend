@@ -1,0 +1,232 @@
+---
+title: 'GPUI Elements'
+description: 'The elements available in retend-gpui and how each one behaves.'
+---
+
+# GPUI Elements
+
+GPUI components use native intrinsic elements for layout, controls, images, icons, and floating layers.
+
+| Element    | Purpose                                         | Children |
+| ---------- | ----------------------------------------------- | -------- |
+| `div`      | A container for layout.                         | Yes      |
+| `button`   | A native button with default styling.           | Yes      |
+| `input`    | A native single-line text editor.               | No       |
+| `textarea` | A native multi-line text editor.                | No       |
+| `img`      | A bitmap or full-color image.                   | No       |
+| `svg`      | A single-color vector icon.                     | No       |
+| `anchored` | A floating layer for menus, tooltips, and more. | Yes      |
+
+Text is not an element. It is written as ordinary JSX content. Adjacent text nodes, including interpolations such as `Count: {count}`, render as one inline run that wraps with its container.
+
+## Shared Props
+
+Every element accepts these props:
+
+| Prop       | Description                                                                                                          |
+| ---------- | -------------------------------------------------------------------------------------------------------------------- |
+| `style`    | An author style object, or a Cell holding one. See [GPUI Styling](/docs/gpui-styling).                               |
+| `tabIndex` | The native tab order. Negative values remain focusable from code.                                                    |
+| `ref`      | A Cell or callback that receives the element. See [Refs and Imperative Methods](#refs-and-imperative-methods).       |
+| `onClick`… | Event handlers. See [GPUI Events](/docs/gpui-events).                                                                |
+
+Any prop can be a Cell, so values can change reactively.
+
+## div
+
+A `div` has no default styling. Layout is expressed through `style`:
+
+```tsx
+<div style={{ display: 'flex', flexDirection: 'column', gap: 8, padding: 16 }}>
+  <div>First</div>
+  <div>Second</div>
+</div>
+```
+
+## button
+
+A `button` is a native control. By default it centers its children in a padded, rounded, neutral surface with a hairline border. It activates on click, or on Enter and Space when focused, and takes part in Tab traversal.
+
+```tsx
+const count = Cell.source(0);
+
+return (
+  <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+    <div>Clicked {count} times</div>
+    <button onClick={() => count.set(count.get() + 1)}>Increment</button>
+  </div>
+);
+```
+
+Setting `disabled` skips the button in Tab traversal, ignores pointer and keyboard activation, and renders it dimmed.
+
+## input and textarea
+
+`input` is a native single-line editor and `textarea` is a native multi-line editor with wrapping.
+
+| Prop          | Elements   | Description                                                      |
+| ------------- | ---------- | ---------------------------------------------------------------- |
+| `value`       | both       | The text content.                                                |
+| `placeholder` | both       | Text shown while the control is empty.                           |
+| `minRows`     | `textarea` | Minimum visible rows while the control auto-sizes.               |
+| `maxRows`     | `textarea` | Maximum visible rows while the control auto-sizes.               |
+
+Both fire `input` and `change` events. The event's `value` property holds the current text:
+
+```tsx
+const name = Cell.source('');
+
+return (
+  <input
+    value={name}
+    placeholder="Your name"
+    onInput={(event) => name.set(event.value)}
+  />
+);
+```
+
+The controls come with default styling: comfortable padding, a 6px corner radius, a white surface, and a hairline border. Properties in the `style` override these defaults one at a time, so a form field needs no surface styling of its own:
+
+```tsx
+<input
+  placeholder="Accent"
+  style={{
+    backgroundColor: '#eef2ff',
+    borderColor: '#6366f1',
+    focused: { borderColor: '#e11d48' },
+  }}
+/>
+```
+
+## img
+
+| Prop        | Description                                                                          |
+| ----------- | ------------------------------------------------------------------------------------ |
+| `src`       | An HTTP(S) URL, a `file:` URL, a root-relative path, or an imported asset.           |
+| `objectFit` | `fill`, `contain`, `cover`, `scaleDown`, or `none`.                                  |
+| `alt`       | Accessible text announced for the image.                                             |
+
+An `img` fires `load` and `error` events.
+
+An image is given a size through `style`:
+
+```tsx
+import logo from './logo.png';
+
+<img src={logo} alt="Logo" style={{ width: 64, height: 64 }} />;
+```
+
+Root-relative paths such as `/assets/logo.png` resolve against the Vite root during development and against the app's resources directory in a packaged app. Remote, `data:`, and `file:` sources are used as they are.
+
+## svg
+
+An `svg` draws a single-color vector icon in the current text `color`, like `currentColor` in CSS. An icon follows the color of its container, including hover and active styles, unless it sets its own `color`.
+
+The markup is passed as `content`, for example from a `?raw` import, or `src` points at a local file. When both are set, `content` wins.
+
+```tsx
+import check from './icons/check.svg?raw';
+
+<button style={{ color: '#555555', hover: { color: '#000000' } }}>
+  <svg content={check} alt="" />
+  Save
+</button>;
+```
+
+Icons are 16 × 16 by default. `width` and `height` in `style` resize them. `alt` provides the accessible label.
+
+`img` is used for full-color SVG artwork. Icon markup passes through `content` or `src` rather than JSX children.
+
+## anchored
+
+An `anchored` element is a floating layer. It is the primitive behind menus, tooltips, and popovers. Placement is delegated to GPUI instead of being measured in JavaScript.
+
+| Prop         | Description                                                                                                  |
+| ------------ | ------------------------------------------------------------------------------------------------------------ |
+| `side`       | `top`, `right`, `bottom`, or `left`. The side of the parent slot to place the content on.                    |
+| `align`      | `start`, `center`, or `end`. Alignment along that side.                                                      |
+| `gap`        | Distance from the chosen side, in logical pixels.                                                            |
+| `offset`     | An `{ x, y }` adjustment applied after side positioning.                                                     |
+| `position`   | An `{ x, y }` point in window coordinates. Use it instead of `side` and `align` to place the layer exactly.  |
+| `fit`        | `snap` (the default) keeps the layer inside the window. `switch` flips the anchor instead.                   |
+| `snapMargin` | The window-edge margin used by `fit="snap"`.                                                                 |
+| `deferred`   | Paints the layer above normal content. On by default.                                                        |
+| `priority`   | Ordering between deferred layers.                                                                            |
+| `occlude`    | Whether the layer blocks pointer input to what is behind it. On by default.                                  |
+
+```tsx
+function Menu() {
+  const isOpen = Cell.source(false);
+  const toggle = () => isOpen.set(!isOpen.get());
+  const close = () => isOpen.set(false);
+
+  return (
+    <div>
+      <button onClick={toggle}>Menu</button>
+      {If(isOpen, () => (
+        <anchored side="bottom" align="start" gap={4}>
+          <div
+            onMouseDownOutside={close}
+            style={{ padding: 8, backgroundColor: 'white', borderRadius: 6 }}
+          >
+            Menu content
+          </div>
+        </anchored>
+      ))}
+    </div>
+  );
+}
+```
+
+`mousedownoutside` fires when the pointer is pressed anywhere outside the element, which makes it the natural way to dismiss a floating layer.
+
+An `anchored` child stays margin-free. `gap` and `offset` handle spacing, or the child is placed inside a wrapper when layout margin is needed.
+
+## Refs and Imperative Methods
+
+A Cell passed to `ref` receives the element. Elements expose methods for focus, scrolling, and measuring:
+
+```tsx
+import { Cell } from 'retend';
+import type { GpuiInputElement } from 'retend-gpui';
+
+function SearchBox() {
+  const input = Cell.source<GpuiInputElement | null>(null);
+  const focusInput = () => input.get()?.focus();
+
+  return (
+    <div style={{ display: 'flex', gap: 8 }}>
+      <input ref={input} placeholder="Search" />
+      <button onClick={focusInput}>Focus</button>
+    </div>
+  );
+}
+```
+
+Every element has these methods:
+
+| Method                  | Description                                                                         |
+| ----------------------- | ----------------------------------------------------------------------------------- |
+| `focus()`               | Requests native keyboard focus.                                                     |
+| `blur()`                | Releases focus if this element owns it.                                             |
+| `scrollTo(x, y)`        | Scrolls to an absolute offset.                                                      |
+| `scrollBy(x, y)`        | Scrolls relative to the current offset.                                             |
+| `scrollIntoView()`      | Scrolls the nearest scroll containers enough to reveal the element.                 |
+| `getScrollOffset()`     | Returns a promise of the current `{ x, y }` scroll offset.                          |
+| `measure()`             | Returns a promise of the painted bounds. See below.                                 |
+
+`input` and `textarea` add three more:
+
+| Method                         | Description                                           |
+| ------------------------------ | ----------------------------------------------------- |
+| `select()`                     | Selects all of the text.                              |
+| `setSelectionRange(start, end)` | Sets the selection, using UTF-16 offsets.             |
+| `getSelection()`               | Returns a promise of the current `{ start, end }`.    |
+
+`measure()` works like `getBoundingClientRect()`. It resolves to the painted, transformed border box in window coordinates, plus the size of the scrollable content:
+
+```tsx
+const { x, y, width, height, scrollWidth, scrollHeight } = await element.measure();
+```
+
+Calling any of these on an element that has been removed from the tree throws an error.

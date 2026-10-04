@@ -1,6 +1,6 @@
 ---
 title: 'ClientOnly and ClientReady'
-description: 'Render browser-dependent UI with optional asynchronous readiness gating.'
+description: 'Browser-dependent UI is rendered with optional asynchronous readiness gating.'
 ---
 
 # ClientOnly
@@ -31,7 +31,7 @@ During SSG, `fallback` is rendered instead. After the JavaScript loads and the c
 
 ## ClientReady
 
-Use `<ClientReady>` when a browser-only subtree performs asynchronous work that must finish before the fallback is removed. Like `<ClientOnly>`, it skips the subtree during SSG, then keeps the fallback visible until the subtree mounts and its initial `<Await>` boundary resolves.
+`<ClientReady>` is used when a browser-only subtree performs asynchronous work that must finish before the fallback is removed. Like `<ClientOnly>`, it skips the subtree during SSG, then keeps the fallback visible until the subtree mounts and its initial `<Await>` boundary resolves.
 
 ```tsx
 import { ClientReady } from 'retend-server';
@@ -45,11 +45,11 @@ function App() {
 }
 ```
 
-This is appropriate for app shells, boot screens, and browser-only dashboards that should not display the client subtree before its initial asynchronous work is ready.
+This is appropriate for app shells, boot screens, and browser-only dashboards that do not display the client subtree before its initial asynchronous work is ready.
 
 ## When to Use It
 
-Use `<ClientOnly>` when a component:
+`<ClientOnly>` is used when a component:
 
 - Reads from `window`, `document`, or `navigator`.
 - Uses `localStorage` or `sessionStorage`.
@@ -60,7 +60,7 @@ Components that do not use browser APIs do not need `<ClientOnly>`; Retend's SSG
 
 ## Without a Fallback
 
-To omit placeholder content, leave out the `fallback` prop. The area is empty during server rendering and appears when the client hydrates:
+Placeholder content is omitted by leaving out the `fallback` prop. The area is empty during server rendering and appears when the client hydrates:
 
 ```tsx
 <ClientOnly>

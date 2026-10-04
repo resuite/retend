@@ -1,0 +1,71 @@
+---
+title: 'GPUI'
+description: 'Building native desktop applications with Retend and GPUI.'
+---
+
+# GPUI
+
+`retend-gpui` brings Retend's component model to native desktop applications. Components are still functions, state still lives in Cells, and reactive values still update the parts of the interface that read them. The difference is where the interface ends up: GPUI paints it in a native window rather than a browser.
+
+> **Experimental.** Breaking changes may land between `0.0.x` releases. Pin an exact version until `0.1`.
+
+## A GPUI project
+
+`retend-start` can scaffold a desktop project with the GPUI target:
+
+```sh
+npx retend-start@latest my-app --target=gpui
+cd my-app
+npm run dev
+```
+
+The development process opens the application as a native window and keeps it connected to Vite while the project is running.
+
+Most of the application still looks like ordinary Retend. The scaffold begins with `source/App.tsx`:
+
+```tsx
+import { Cell } from 'retend';
+
+export default function App() {
+  const count = Cell.source(0);
+
+  return (
+    <div
+      style={{
+        width: '100%',
+        height: '100%',
+        display: 'flex',
+        flexDirection: 'column',
+        alignItems: 'center',
+        justifyContent: 'center',
+        gap: 12,
+      }}
+    >
+      <div style={{ fontSize: 28 }}>My App</div>
+      <button onClick={() => count.set(count.get() + 1)}>
+        Counter: {count}
+      </button>
+    </div>
+  );
+}
+```
+
+There is no GPUI-specific state model hidden inside this component. `count` is a normal Cell. The button changes it, and the text that reads it updates. The same control-flow helpers, scopes, lifecycle hooks, and routing model used elsewhere in Retend remain available.
+
+## The native surface
+
+The part that changes is the surface the component renders into.
+
+GPUI has its own intrinsic elements for layout, controls, images, icons, and floating content. They are described in [GPUI Elements](/docs/gpui-elements). Text remains ordinary JSX content, so a value such as `Counter: {count}` can sit directly inside a container or control.
+
+Styling is expressed through typed `style` objects. Layout, spacing, typography, color, overflow, transforms, pseudo-states, and transitions all live there rather than in a separate stylesheet. [GPUI Styling](/docs/gpui-styling) covers the style vocabulary in detail.
+
+Events keep Retend's familiar handler shape. A native button can use `onClick`; text editors expose input events; focus, keyboard, pointer, scroll, image, and transition events flow through the same component tree. The event objects themselves reflect the native window system. See [GPUI Events](/docs/gpui-events).
+
+## The desktop application around it
+
+A desktop application has a little more lifetime than a single component tree. The scaffold includes an application object for process-wide resources and configuration for the native window that hosts the interface. Those pieces stay out of the way for simple applications, but become useful when an app needs shared services, multiple windows, custom window behavior, or application-level setup and teardown.
+
+[GPUI Windows](/docs/gpui-windows) documents those application and window APIs.
+
+Building uses the same Vite project rather than a separate native build system. The GPUI plugin assembles the JavaScript bundle, native addon, application identity, icons, and platform packaging. Distribution details live in [GPUI Packaging](/docs/gpui-packaging).

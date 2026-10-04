@@ -90,6 +90,22 @@ describe('Router Metadata', () => {
     ).toBe('summary_large_image');
   });
 
+  it('should preserve document language and charset when route metadata omits them', () => {
+    const window = new VWindow();
+    const { document } = window;
+    document.documentElement.setAttribute('lang', 'en');
+    const charset = document.createElement('meta');
+    charset.setAttribute('charset', 'UTF-8');
+    document.head.append(charset);
+
+    updatePageMeta({ title: 'Home' }, document);
+
+    expect(document.documentElement.getAttribute('lang')).toBe('en');
+    expect(document.head.querySelector('meta')?.getAttribute('charset')).toBe(
+      'UTF-8'
+    );
+  });
+
   it('should aggregate metadata from nested routes', async () => {
     const renderer = getActiveRenderer() as DOMRenderer;
     const { host: window } = renderer;

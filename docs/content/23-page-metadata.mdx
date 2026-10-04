@@ -1,6 +1,6 @@
 ---
 title: 'Page Metadata'
-description: 'Define titles and meta tags for routes.'
+description: 'Titles and meta tags are defined for routes.'
 ---
 
 # Page Metadata
@@ -9,7 +9,7 @@ Retend's router supports page metadata such as titles, descriptions, Open Graph 
 
 ## Setting a Page Title
 
-Set the page title with the `title` property on a route definition:
+The page title is set with the `title` property on a route definition:
 
 ```tsx
 const routes = defineRoutes([
@@ -30,7 +30,7 @@ When navigation reaches `/about`, the browser tab title becomes "About Us | My A
 
 ## Route Metadata
 
-For descriptions and social sharing tags, use the `metadata` property:
+Descriptions and social sharing tags are provided by the `metadata` property:
 
 ```tsx
 const routes = defineRoutes([
@@ -85,7 +85,7 @@ Retend recognizes these metadata keys and maps them to the appropriate HTML tags
 
 ## Dynamic Metadata
 
-To derive metadata from the current URL, pass a function instead of an object. For example, a user profile page can use the user's name in its title:
+Metadata can be derived from the current URL by passing a function instead of an object. For example, a user profile page can use the user's name in its title:
 
 ```tsx
 const routes = defineRoutes([

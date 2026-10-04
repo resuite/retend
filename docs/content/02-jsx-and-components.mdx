@@ -1,6 +1,6 @@
 ---
 title: 'JSX and Components'
-description: 'Use JSX to describe interfaces and components to organize them.'
+description: 'JSX describes interfaces, and components organize them.'
 ---
 
 # JSX and Components
@@ -17,7 +17,7 @@ const heading = <h1>Hello, Retend!</h1>;
 
 JSX supports standard HTML attributes.
 
-For CSS classes, use `class`:
+CSS classes use `class`:
 
 ```tsx
 <div class="card-container">
@@ -25,7 +25,7 @@ For CSS classes, use `class`:
 </div>
 ```
 
-For form labels, use `for`:
+Form labels use `for`:
 
 ```tsx
 <label for="username">Username</label>
@@ -34,7 +34,7 @@ For form labels, use `for`:
 
 ### Adding JavaScript to JSX
 
-Use curly braces `{}` to insert JavaScript expressions into JSX.
+Curly braces `{}` insert JavaScript expressions into JSX.
 
 ```tsx
 const userName = 'Alice';
@@ -48,7 +48,7 @@ const profile = (
 );
 ```
 
-Curly braces also work for attributes. For inline styles, pass a JavaScript object:
+Curly braces also work for attributes. Inline styles accept a JavaScript object:
 
 ```tsx
 const alertBox = (
@@ -62,7 +62,7 @@ const alertBox = (
 
 Components separate an interface into smaller units. This helps organize JSX as an application grows.
 
-A Retend component is a JavaScript function that returns JSX. Component names must start with a **capital letter** so Retend can tell them apart from regular HTML tags.
+A Retend component is a JavaScript function that returns JSX. Component names start with a **capital letter**, which is how Retend tells them apart from regular HTML tags.
 
 ```tsx
 function Greeting() {
@@ -70,7 +70,7 @@ function Greeting() {
 }
 ```
 
-Use the component as a JSX element:
+The component is used as a JSX element:
 
 ```tsx
 function App() {
@@ -85,13 +85,13 @@ function App() {
 
 ### Passing Data with Props
 
-Pass data to a component with **props** (short for properties). Props use JSX attribute syntax:
+Data is passed to a component with **props** (short for properties). Props use JSX attribute syntax:
 
 ```tsx
 <UserCard name="Alice" age={30} />
 ```
 
-Inside your component, you receive these props as a single object.
+Inside the component, props arrive as a single object.
 
 ```tsx
 function UserCard(props) {

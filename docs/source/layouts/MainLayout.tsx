@@ -6,6 +6,11 @@ import { ThemeScope, useThemeData } from '@/scopes/theme';
 
 import { Header } from './Header';
 
+/**
+ * Shared shell: theme, header and scroll handling. Each child route owns its
+ * own width, so the landing page can run edge to edge inside its frame while
+ * the docs keep their reading column.
+ */
 export function MainLayout() {
   const themeData = useThemeData();
 
@@ -14,14 +19,9 @@ export function MainLayout() {
       <ScrollRestoration />
       <Await>
         <Header />
-
-        <div class="mt-(--header-height) pt-7 md:pt-14">
-          <div class="mx-auto max-w-300 px-5 sm:px-6 md:px-10">
-            <main class="flex flex-col gap-20 md:gap-35">
-              <Outlet />
-            </main>
-          </div>
-        </div>
+        <main class="mt-(--header-height)">
+          <Outlet />
+        </main>
       </Await>
     </ThemeScope.Provider>
   );

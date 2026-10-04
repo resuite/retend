@@ -6,7 +6,10 @@ import { fileURLToPath } from 'node:url';
 // Verifies every prebuilt binary is present, then delegates versioning and
 // publishing to the napi-rs CLI (`napi pre-publish`), which syncs each
 // platform manifest to the main version, merges exact-version entries into
-// `optionalDependencies`, and publishes every target. Releases are always
+// `optionalDependencies`, and publishes every target. The platform packages
+// intentionally are not pnpm workspace projects or source-time dependencies;
+// keeping them there makes every pnpm command validate foreign OS/CPU packages
+// and print expected platform warnings. Releases are always
 // complete: a missing binary fails the run instead of shipping broken
 // installs, because npm provides no rollback. Single-platform testing goes
 // through package previews, never the registry. Binaries are produced by

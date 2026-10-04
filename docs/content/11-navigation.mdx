@@ -1,15 +1,15 @@
 ---
 title: 'Navigation'
-description: 'Navigate between routes without full browser reloads.'
+description: 'Navigating between routes without full browser reloads.'
 ---
 
 # Navigation
 
-After routes are defined, use Retend’s navigation APIs to change routes without a full browser reload.
+After routes are defined, Retend’s navigation APIs change routes without a full browser reload.
 
 ## Using Links
 
-Use `<Link>` for declarative navigation. It renders an HTML `<a>` element and intercepts clicks to update the URL and rendered route.
+`<Link>` provides declarative navigation. It renders an HTML `<a>` element and intercepts clicks to update the URL and rendered route.
 
 Because it uses an `<a>` element, it retains browser link behavior, including accessibility semantics, search engine discoverability, and opening links in a new tab.
 
@@ -27,7 +27,7 @@ export function NavigationMenu() {
 }
 ```
 
-You can pass standard HTML attributes like `class`, `id`, or `aria-label` directly to the `<Link>` component:
+Standard HTML attributes like `class`, `id`, or `aria-label` can be passed directly to the `<Link>` component:
 
 ```tsx
 <Link
@@ -43,7 +43,7 @@ You can pass standard HTML attributes like `class`, `id`, or `aria-label` direct
 
 By default, clicking a `<Link>` adds an entry to browser history, so the Back action returns to the previous route.
 
-Use the `replace` prop to replace the current history entry. This can prevent the previous route, such as a login page after authentication, from being restored by Back:
+The `replace` prop replaces the current history entry. This can prevent the previous route, such as a login page after authentication, from being restored by Back:
 
 ```tsx
 <Link href="/dashboard" replace>
@@ -53,9 +53,9 @@ Use the `replace` prop to replace the current history entry. This can prevent th
 
 ## Navigating from Code
 
-Use programmatic navigation when an operation, such as form submission or payment completion, should change the route.
+Programmatic navigation is used when an operation, such as form submission or payment completion, is meant to change the route.
 
-Call `useRouter()` to access the router and then call `router.navigate()`.
+`useRouter()` provides access to the router, and `router.navigate()` changes the route.
 
 ```tsx
 import { useRouter } from 'retend/router';
@@ -84,6 +84,6 @@ export function LoginForm() {
 }
 ```
 
-Use `router.replace('/login')` to replace the current browser history entry instead of adding one.
+`router.replace('/login')` replaces the current browser history entry instead of adding one.
 
-Both `router.navigate()` and `router.replace()` return Promises. Await them when code must run after the route transition completes.
+Both `router.navigate()` and `router.replace()` return Promises. They are awaited when code needs to run after the route transition completes.

@@ -1,5 +1,5 @@
 /// <reference types="vite/client" />
-import { Router } from 'retend/router';
+import { lazy, Router } from 'retend/router';
 
 import { DocsLayout } from '@/layouts/DocsLayout';
 import { MainLayout } from '@/layouts/MainLayout';
@@ -7,8 +7,24 @@ import { DocsPage } from '@/routes/DocsPage';
 import { Home } from '@/routes/Home';
 
 export function createRouter() {
+  // The design-system kitchen sink only exists in dev. Vite replaces
+  // import.meta.env.DEV with false in builds, so the lazy chunk is dropped.
+  const devRoutes = import.meta.env.DEV
+    ? [
+        {
+          path: '/design',
+          component: lazy(() => import('@/routes/Design')),
+        },
+        {
+          path: '/og-preview',
+          component: lazy(() => import('@/routes/OgPreview')),
+        },
+      ]
+    : [];
+
   return new Router({
     routes: [
+      ...devRoutes,
       {
         path: '/',
         component: MainLayout,

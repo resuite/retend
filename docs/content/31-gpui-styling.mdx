@@ -1,0 +1,186 @@
+---
+title: 'GPUI Styling'
+description: 'Styling GPUI elements with typed style objects, pseudo-states, and transitions.'
+---
+
+# GPUI Styling
+
+GPUI elements are styled with a typed `style` object. Editors autocomplete the available properties and validate their values.
+
+```tsx
+<div
+  style={{
+    display: 'flex',
+    flexDirection: 'column',
+    gap: 12,
+    padding: 24,
+    backgroundColor: '#f1f5f9',
+    borderRadius: 12,
+  }}
+>
+  <div style={{ fontSize: 18, fontWeight: 'bold' }}>Settings</div>
+</div>
+```
+
+## Values
+
+**Numbers are logical pixels.** `padding: 24` is 24 logical pixels. This applies to spacing, borders, gaps, font sizes, and line heights.
+
+**Dimensions** (`width`, `height`, `minWidth`, `minHeight`, `maxWidth`, `maxHeight`, `top`, `right`, `bottom`, `left`) accept a number, `'auto'`, a pixel string such as `'320px'`, or a percentage such as `'50%'`.
+
+**Spacing uses numbers.** `padding`, `margin`, `gap`, `borderWidth`, and `borderRadius` take a single number. For different values per axis or side, `paddingInline`, `paddingBlock`, or the individual side properties are used.
+
+**Line height is in pixels.** Unlike CSS, `lineHeight: 24` means 24 logical pixels, not a multiplier. A value like `1.5` would be a line height of one and a half pixels.
+
+**Colors** are hex strings (`#rrggbb` or `#rrggbbaa`) or CSS named colors such as `'tomato'`, including `'transparent'`.
+
+The application root defaults to a white background with black text. `backgroundColor` and `color` on the root element override them. Text styles such as `color` and `fontSize` are inherited by descendants.
+
+## Reactive Styles
+
+Each property can be a Cell. When a Cell changes, the element's style updates:
+
+```tsx
+const label = Cell.source('Waiting');
+const color = Cell.derived(() =>
+  label.get() === 'Ready' ? '#00aa66' : '#777777'
+);
+
+return <div style={{ color }}>{label}</div>;
+```
+
+The whole `style` object can also be a Cell. Each new style value replaces the previous one, so a property that is missing from the next object is cleared.
+
+## Properties
+
+### Layout
+
+| Property         | Values                                                                                                     |
+| ---------------- | ---------------------------------------------------------------------------------------------------------- |
+| `display`        | `block`, `flex`, `none`                                                                                    |
+| `flexDirection`  | `row`, `column`, `row-reverse`, `column-reverse`                                                           |
+| `flexWrap`       | `nowrap`, `wrap`, `wrap-reverse`                                                                           |
+| `flexGrow`       | number                                                                                                     |
+| `flexShrink`     | number                                                                                                     |
+| `alignItems`     | `start`, `end`, `flex-start`, `flex-end`, `center`, `baseline`, `stretch`                                  |
+| `alignSelf`      | same as `alignItems`                                                                                       |
+| `alignContent`   | `start`, `end`, `flex-start`, `flex-end`, `center`, `stretch`, `space-between`, `space-around`, `space-evenly` |
+| `justifyContent` | same as `alignContent`                                                                                     |
+| `gap`            | number                                                                                                     |
+| `rowGap`         | number                                                                                                     |
+| `columnGap`      | number                                                                                                     |
+
+
+### Size, spacing, and position
+
+| Property                                                       | Values                                  |
+| -------------------------------------------------------------- | --------------------------------------- |
+| `width`, `height`, `minWidth`, `minHeight`, `maxWidth`, `maxHeight` | dimension                               |
+| `padding`, `paddingTop`, `paddingRight`, `paddingBottom`, `paddingLeft` | number                          |
+| `paddingInline`, `paddingBlock`                                | number                                  |
+| `margin`, `marginTop`, `marginRight`, `marginBottom`, `marginLeft` | number                              |
+| `marginInline`, `marginBlock`                                  | number                                  |
+| `position`                                                     | `relative`, `absolute`                  |
+| `top`, `right`, `bottom`, `left`                               | dimension                               |
+
+### Appearance
+
+| Property          | Values                  |
+| ----------------- | ----------------------- |
+| `backgroundColor` | color                   |
+| `color`           | color                   |
+| `opacity`         | number                  |
+| `borderWidth`     | number                  |
+| `borderColor`     | color                   |
+| `borderRadius`    | number                  |
+
+### Text
+
+| Property      | Values                                       |
+| ------------- | -------------------------------------------- |
+| `fontSize`    | number                                       |
+| `fontFamily`  | string                                       |
+| `fontWeight`  | a number, `normal`, or `bold`                |
+| `textAlign`   | `left`, `center`, `right`                    |
+| `lineHeight`  | number, in pixels                            |
+| `whiteSpace`  | `normal`, `nowrap`                           |
+
+### Overflow
+
+`overflow` accepts `visible`, `clip`, `hidden`, `auto`, or `scroll`. Elements with `auto` or `scroll` become native scroll containers. Their `scroll` events are observed, and the offset is read or set through the [element methods](/docs/gpui-elements#refs-and-imperative-methods).
+
+### Transforms
+
+| Property          | Values                                                                                              |
+| ----------------- | --------------------------------------------------------------------------------------------------- |
+| `scale`           | A number, or `'1.2'`, `'120%'`, or `'1 2'` for separate x and y factors. `'none'` clears it.        |
+| `rotate`          | A number of degrees, or an angle such as `'45deg'`, `'0.5turn'`, or `'1rad'`. `'none'` clears it.   |
+| `translate`       | A number of pixels for x, or `'10px 20px'`, or percentages of the border box. `'none'` clears it.   |
+| `skew`            | A number of degrees for x, or `'10deg 5deg'` for x and y. `'none'` clears it.                       |
+| `transformOrigin` | CSS-style values: `'center'`, `'top left'`, `'25% 75%'`, or a pixel x as a number. Defaults to `'50% 50%'`. |
+
+Transforms use individual `scale`, `rotate`, `translate`, `skew`, and `transformOrigin` properties.
+
+## Pseudo-States
+
+Three nested objects apply extra declarations while an element is hovered, focused, or pressed:
+
+```tsx
+<button
+  style={{
+    backgroundColor: '#ffffff',
+    hover: { backgroundColor: '#f1f5f9' },
+    focused: { borderColor: '#6366f1' },
+    active: { opacity: 0.8 },
+  }}
+>
+  Save
+</button>
+```
+
+| Key       | Applies while                    |
+| --------- | -------------------------------- |
+| `hover`   | The pointer is over the element. |
+| `focused` | The element has focus.           |
+| `active`  | The element is being pressed.    |
+
+Each pseudo-state accepts the same declarations as the base style, except that it cannot nest further.
+
+## Transitions
+
+Transitions animate a property when its value changes, including changes caused by a pseudo-state.
+
+| Property                   | Values                                                                        |
+| -------------------------- | ----------------------------------------------------------------------------- |
+| `transitionProperty`       | One property name or an array of them.                                        |
+| `transitionDuration`       | A time string such as `'300ms'` or `'3s'`.                                    |
+| `transitionDelay`          | A time string.                                                                |
+| `transitionTimingFunction` | `linear`, `ease`, `ease-in`, `ease-out`, `ease-in-out`, or `cubic-bezier(...)`. |
+
+These properties can be animated:
+
+`width`, `height`, `top`, `right`, `bottom`, `left`, `opacity`, `borderRadius`, `backgroundColor`, `color`, `borderColor`, `scale`, `rotate`, `translate`, `skew`, `transformOrigin`
+
+A pseudo-state can override the transition settings. In this example the square scales and rotates over `3s` with `ease-in-out` by default, and the `hover` block replaces that with `300ms` and `ease` while the pointer is over it:
+
+```tsx
+<div
+  style={{
+    backgroundColor: 'blue',
+    width: 100,
+    height: 100,
+    borderRadius: 18,
+    transitionProperty: ['scale', 'rotate'],
+    transitionDuration: '3s',
+    transitionTimingFunction: 'ease-in-out',
+    hover: {
+      scale: 2,
+      rotate: 50,
+      transitionTimingFunction: 'ease',
+      transitionDuration: '300ms',
+    },
+  }}
+/>
+```
+
+Transition progress is reported through the `transitionrun`, `transitionstart`, `transitionend`, and `transitioncancel` events. See [GPUI Events](/docs/gpui-events).

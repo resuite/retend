@@ -87,13 +87,6 @@
     "retend": "*",
     "vite": "^8.0.0"
   },
-  "optionalDependencies": {
-    "retend-gpui-native-darwin-arm64": "workspace:*",
-    "retend-gpui-native-linux-arm64-gnu": "workspace:*",
-    "retend-gpui-native-linux-x64-gnu": "workspace:*",
-    "retend-gpui-native-win32-arm64-msvc": "workspace:*",
-    "retend-gpui-native-win32-x64-msvc": "workspace:*"
-  },
   "napi": {
     "binaryName": "retend-gpui-native",
     "npmClient": "pnpm",

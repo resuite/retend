@@ -1,25 +1,25 @@
 ---
 title: 'Getting Started'
-description: 'Create and run a Retend project.'
+description: 'Creating and running a Retend project.'
 ---
 
 # Getting Started
 
 import { FeatureCard } from '@/components/FeatureCard';
 
-Create a Retend project, run it locally, and build a small reactive application.
+This page details creating a Retend project, running it locally, and building a small reactive application.
 
 > **Warning**
 > Retend is currently in early development. It is **not ready for production use**. APIs, features, and behaviors are highly unstable and subject to change without notice.
 
 ## Prerequisites
 
-Install the following before creating a project:
+Creating a project requires the following:
 
-- **Node.js**: If you do not have it yet, download it from the [official Node.js website](https://nodejs.org/).
-- **npm**: It ships with Node.js. If you prefer `pnpm`, the equivalent commands work too.
+- **Node.js**: Available from the [official Node.js website](https://nodejs.org/).
+- **npm**: Ships with Node.js. The equivalent `pnpm` commands also work.
 
-We also assume you are familiar with basic HTML, CSS, and JavaScript.
+Familiarity with basic HTML, CSS, and JavaScript is assumed.
 
 ## Retend Overview
 
@@ -44,13 +44,13 @@ We also assume you are familiar with basic HTML, CSS, and JavaScript.
 
 ## Setting Up Your First Project
 
-To create a project, run the scaffold command in a terminal:
+A project is created with the scaffold command in a terminal:
 
 ```bash
 npx retend-start@latest my-app
 ```
 
-Change to the project directory, install its dependencies, and start the development server:
+The project directory is where dependencies are installed and the development server is started:
 
 ```bash
 cd my-app
@@ -66,7 +66,7 @@ By default, the scaffold creates:
 - CSS modules for styling
 - Client-side rendering
 
-Add `--tailwind` to include Tailwind CSS. Add `--ssg` to enable static site generation.
+The `--tailwind` flag includes Tailwind CSS, and `--ssg` enables static site generation.
 
 > New Retend projects include DevTools. The floating "RT" button opens the component tree and live state inspector.
 
@@ -74,7 +74,7 @@ Add `--tailwind` to include Tailwind CSS. Add `--ssg` to enable static site gene
 
 The following toggle application demonstrates reactive data in Retend.
 
-After scaffolding, open `source/App.tsx` and replace its contents with:
+The application is defined in `source/App.tsx`:
 
 ```tsx
 import { Cell } from 'retend';
@@ -100,20 +100,20 @@ export default function App() {
 }
 ```
 
-If you picked JavaScript during setup, edit `source/App.jsx` instead.
+JavaScript projects use `source/App.jsx` instead.
 
 ### How the Toggle Switch Works
 
-1. We create an `isOn` variable using `Cell.source(false)`. This wraps our boolean `false` in a reactive container.
-2. We pass `{isOn}` directly into our user interface.
+1. An `isOn` variable is created with `Cell.source(false)`. This wraps the boolean `false` in a reactive container.
+2. `{isOn}` is passed directly into the interface.
 3. Retend subscribes the text binding to that `Cell`. When the button calls `toggleSwitch`, the binding updates the button text. The `App` function is not called again.
 
 ## Running Your Application
 
-If the development server is not running, start it with:
+If the development server is not running, it is started with:
 
 ```bash
 npm run dev
 ```
 
-Open `http://localhost:5229` in a browser to view the application.
+The application is served at `http://localhost:5229`.

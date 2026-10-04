@@ -1,6 +1,6 @@
 ---
 title: 'Event Handling'
-description: 'Respond to clicks, input, hover, and other events.'
+description: 'Event props handle clicks, input, hover, and other events.'
 ---
 
 # Event Handling
@@ -9,7 +9,7 @@ Retend handles user interactions through event props.
 
 ## Listening to Events
 
-Pass a function to an event prop to register a listener. Use **camelCase** event names such as `onClick`, `onInput`, and `onSubmit`.
+A function passed to an event prop registers a listener. Event names use **camelCase**, such as `onClick`, `onInput`, and `onSubmit`.
 
 ```tsx
 function LoggingButton() {
@@ -49,7 +49,7 @@ function SearchInput() {
 
 ## Updating State from Events
 
-To update the interface in response to an event, call `.set()` on the relevant Cell. Retend then updates the bound interface.
+The interface is updated in response to an event by calling `.set()` on the relevant Cell. Retend then updates the bound interface.
 
 ```tsx
 import { Cell } from 'retend';
@@ -76,7 +76,7 @@ function ToggleSwitch() {
 
 Some event handlers need standard operations such as `event.preventDefault()`. For example, preventing the default action is commonly required when handling form submission.
 
-Retend provides **modifiers** for these operations. Append modifiers to event names with double hyphens (`--`):
+Retend provides **modifiers** for these operations. Modifiers are appended to event names with double hyphens (`--`):
 
 ```tsx
 function Form() {

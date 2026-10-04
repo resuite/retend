@@ -41,8 +41,8 @@ import { buildPath, RedirectOutputArtifact } from './server.js';
  * The CSS selector for the root element. Defaults to '#app'.
  *
  * @property {boolean} [inlineEnvironmentImports]
- * Changes the import mode in SSR from `ModuleRunner.evaluator.runExternalModule`
- * to `ModuleRunner.import(..)`
+ * Runs the SSG runtime and application dependencies through Vite's module
+ * runner instead of mixing runner modules with Node-loaded modules.
  */
 
 /**
@@ -124,7 +124,27 @@ function staticBuildPlugin(sharedData) {
           exclude: ['retend', 'retend-web', 'retend-server', 'retend-utils'],
         },
         environments: {
-          retend_ssg: {},
+          ...config_.environments,
+          retend_ssg: {
+            ...config_.environments?.retend_ssg,
+            consumer: 'server',
+            resolve: {
+              ...config_.environments?.retend_ssg?.resolve,
+              external: sharedData.options.inlineEnvironmentImports
+                ? [
+                    ...(Array.isArray(
+                      config_.environments?.retend_ssg?.resolve?.external
+                    )
+                      ? config_.environments.retend_ssg.resolve.external
+                      : []),
+                    '@adbl/cells',
+                  ]
+                : config_.environments?.retend_ssg?.resolve?.external,
+              noExternal: sharedData.options.inlineEnvironmentImports
+                ? true
+                : config_.environments?.retend_ssg?.resolve?.noExternal,
+            },
+          },
         },
         // It is expected that all the expected functionality, be it transformations or rewrites,
         // would be handled by the main build process and cached. Having the plugins run again leads

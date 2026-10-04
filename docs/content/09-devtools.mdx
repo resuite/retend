@@ -1,6 +1,6 @@
 ---
 title: 'DevTools'
-description: 'Inspect components and props in the application.'
+description: 'Inspecting components and props in the application.'
 ---
 
 # DevTools
@@ -9,15 +9,15 @@ The `retend-web-devtools` package provides an in-app overlay for inspecting the 
 
 ## Features
 
-- **Component Inspector**: View the application's component tree.
-- **Props Viewer**: Inspect the props passed to a component.
-- **DOM Highlighting**: Highlight the DOM elements corresponding to components in the devtools tree.
-- **Component Search**: Find components by name in the component tree.
-- **Customizable Interface**: Select the inspector's highlight colors.
+- **Component Inspector**: Displays the application's component tree.
+- **Props Viewer**: Inspects the props passed to a component.
+- **DOM Highlighting**: Highlights the DOM elements corresponding to components in the devtools tree.
+- **Component Search**: Finds components by name in the component tree.
+- **Customizable Interface**: Allows selecting the inspector's highlight colors.
 
 ## Installation
 
-Install the devtools as a development dependency:
+The devtools are installed as a development dependency:
 
 ```bash
 npm install -D retend-web-devtools
@@ -25,13 +25,13 @@ npm install -D retend-web-devtools
 
 ## Usage
 
-Wrap the application root with the `<RetendDevTools>` component to use the devtools.
+Wrapping the application root with the `<RetendDevTools>` component enables the devtools.
 
 In development, `retend-web-devtools` enables the full devtools build. In production, it resolves to a no-op component.
 
 ### Client-Side Rendered (CSR) Apps
 
-Import the component and wrap the application root:
+The component is imported and used to wrap the application root:
 
 ```tsx
 import { renderToDOM } from 'retend-web';
@@ -49,7 +49,7 @@ renderToDOM(root, () => (
 
 ### Server-Side Rendered (SSR) / Hydration
 
-If you are using `retend-server` with `hydrate`, use the `wrap` option:
+When `retend-server` is used with `hydrate`, the `wrap` option is used:
 
 ```tsx
 import { hydrate } from 'retend-server/client';
