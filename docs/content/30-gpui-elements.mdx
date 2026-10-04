@@ -5,7 +5,7 @@ description: 'The elements available in retend-gpui and how each one behaves.'
 
 # GPUI Elements
 
-`retend-gpui` provides seven elements. Using any other tag, such as `span`, `a`, or `section`, throws an unsupported intrinsic element error.
+GPUI components use native intrinsic elements for layout, controls, images, icons, and floating layers.
 
 | Element    | Purpose                                         | Children |
 | ---------- | ----------------------------------------------- | -------- |
@@ -135,7 +135,7 @@ import check from './icons/check.svg?raw';
 
 Icons are 16 × 16 by default. Set `width` and `height` in `style` to resize them. `alt` provides the accessible label.
 
-Use `img` for full-color SVG artwork. SVG markup cannot be written as JSX children.
+Use `img` for full-color SVG artwork. Pass icon markup through `content` or `src` rather than JSX children.
 
 ## anchored
 
@@ -180,7 +180,7 @@ function Menu() {
 
 `mousedownoutside` fires when the pointer is pressed anywhere outside the element, which makes it the natural way to dismiss a floating layer.
 
-Margins are not supported on `anchored`, because GPUI requires an anchored child to be margin-free. Use `gap` and `offset`, or put the `anchored` element inside a wrapper when you need layout margin.
+Keep an `anchored` child margin-free. Use `gap` and `offset`, or put it inside a wrapper when you need layout margin.
 
 ## Refs and Imperative Methods
 

@@ -1,22 +1,14 @@
 import type { Step } from './StepList';
 
-export type FeatureId =
-  | 'routing'
-  | 'async'
-  | 'server'
-  | 'scopes'
-  | 'devtools'
-  | 'hmr';
-
-export interface Feature extends Step<FeatureId> {
+interface FeatureDefinition extends Step<string> {
   filename: string;
   code: string;
-  tags: string[];
+  tags: readonly string[];
   href: string;
   linkLabel: string;
 }
 
-export const features: Feature[] = [
+export const features = [
   {
     value: 'routing',
     label: 'Routing',
@@ -167,4 +159,7 @@ export default defineConfig({
 });
 `,
   },
-];
+] as const satisfies readonly FeatureDefinition[];
+
+export type Feature = (typeof features)[number];
+export type FeatureId = Feature['value'];

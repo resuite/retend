@@ -122,21 +122,18 @@ interface SeatBarsProps {
 /** One thin bar per seat; the ones you are booking turn dark. */
 function SeatBars(props: SeatBarsProps) {
   const { quantity, seats } = props;
-  const bars = Array.from({ length: seats }, (_, seat) => {
-    const taken = Cell.derived(() => seat < quantity.get());
-    const free = Cell.derived(() => !taken.get());
-    return { taken, free };
-  });
+  const bars = Array.from({ length: seats }, (_, seat) =>
+    Cell.derived(() =>
+      seat < quantity.get()
+        ? 'h-full w-[3px] rounded-full bg-ink motion-safe:transition-colors'
+        : 'h-full w-[3px] rounded-full bg-line-strong motion-safe:transition-colors'
+    )
+  );
 
   return (
     <span aria-hidden="true" class="flex h-7 flex-1 items-center gap-[7px]">
-      {For(bars, (bar) => (
-        <span
-          class={[
-            'h-full w-[3px] rounded-full motion-safe:transition-colors',
-            { 'bg-ink': bar.taken, 'bg-line-strong': bar.free },
-          ]}
-        />
+      {For(bars, (className) => (
+        <span class={className} />
       ))}
     </span>
   );

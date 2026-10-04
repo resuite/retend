@@ -1,7 +1,7 @@
 import type { PropRow } from '@/ds/PropTable';
 
+import { InlineCode } from '@/components/InlineCode';
 import { CodeFrame } from '@/ds/CodeFrame';
-import { InlineCode } from '@/ds/InlineCode';
 import { PropTable } from '@/ds/PropTable';
 import { Step, Steps } from '@/ds/Steps';
 

@@ -10,7 +10,7 @@ export interface Step<T extends string> {
 }
 
 interface StepListProps<T extends string> {
-  steps: Step<T>[];
+  steps: readonly Step<T>[];
   selected: Cell<T>;
   onSelect: (value: T) => void;
   label: string;
@@ -21,6 +21,9 @@ interface StepButtonProps<T extends string> {
   selected: Cell<T>;
   onSelect: (value: T) => void;
 }
+
+const BUTTON_CLASS =
+  'group focus-visible:outline-accent flex w-full items-center gap-3 rounded-lg px-2 py-2 text-left text-[0.9375rem] focus-visible:outline-2 motion-safe:transition-colors';
 
 /**
  * The left-hand list beside a panel. Choosing an item changes what the panel
@@ -46,18 +49,18 @@ export function StepList<T extends string>(props: StepListProps<T>) {
 function StepButton<T extends string>(props: StepButtonProps<T>) {
   const { step, selected, onSelect } = props;
   const isActive = Cell.derived(() => selected.get() === step.value);
-  const isIdle = Cell.derived(() => !isActive.get());
-  const pressed = Cell.derived(() => (isActive.get() ? 'true' : 'false'));
+  const buttonClass = Cell.derived(() =>
+    isActive.get()
+      ? `${BUTTON_CLASS} text-ink`
+      : `${BUTTON_CLASS} text-ink-faint hover:text-ink-soft`
+  );
 
   return (
     <button
       type="button"
-      aria-pressed={pressed}
+      aria-pressed={isActive}
       onClick={() => onSelect(step.value)}
-      class={[
-        'group focus-visible:outline-accent flex w-full items-center gap-3 rounded-lg px-2 py-2 text-left text-[0.9375rem] focus-visible:outline-2 motion-safe:transition-colors',
-        { 'text-ink': isActive, 'text-ink-faint hover:text-ink-soft': isIdle },
-      ]}
+      class={buttonClass}
     >
       <span class="text-small font-mono tabular-nums empty:hidden">
         {step.marker ?? ''}

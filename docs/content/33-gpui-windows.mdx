@@ -66,10 +66,12 @@ The module at `application` default-exports a class. It holds process-wide state
 ```ts
 import type { GpuiApplication } from 'retend-gpui';
 
-export default class Application implements GpuiApplication<{
+interface AppContext {
   database: Database | null;
-}> {
-  readonly context = { database: null };
+}
+
+export default class Application implements GpuiApplication<AppContext> {
+  readonly context: AppContext = { database: null };
 
   async init() {
     this.context.database = await openDatabase();
@@ -136,8 +138,6 @@ function Header() {
   );
 }
 ```
-
-`useWindow()` is available in Vite-managed applications. It is not provided when you call `renderToGpui()` yourself.
 
 ## Window Options
 
@@ -218,7 +218,7 @@ export default function Root() {
 
 Three details matter:
 
-- `linkTag: 'div'` makes `Link` render a `div`. By default it renders an `a`, which GPUI does not have.
+- `linkTag: 'div'` gives `Link` a GPUI-compatible host element.
 - `attachWindowListeners` connects the router to the window's `location` and `history`. It returns a function that detaches them, which `onSetup` uses as its cleanup.
 - The router loads the initial route when the host receives a `load` event, so the setup dispatches one after attaching.
 
@@ -239,36 +239,3 @@ During `retend-gpui dev`, Vite runs without an HTTP server and starts one Node.j
 - Editing a component updates it in place.
 - Editing the application module, or a module it imports, triggers a full reload. This recreates application and module state and remounts every open window without replacing the native windows or their navigation history.
 - Restarting Vite, for example after a config change, replaces the whole application process.
-
-## Without Vite
-
-Most applications should use the plugin. For custom startup or testing, `renderToGpui` opens a window directly:
-
-```tsx
-import { Cell } from 'retend';
-import { renderToGpui } from 'retend-gpui';
-
-function App() {
-  const count = Cell.source(0);
-
-  return <div style={{ padding: 24 }}>Count: {count}</div>;
-}
-
-const renderer = await renderToGpui(App, {
-  title: 'Counter',
-  width: 640,
-  height: 420,
-});
-```
-
-It resolves with the `RetendGpuiRenderer` that owns the window. For finer control, create the renderer yourself:
-
-```ts
-import { RetendGpuiRenderer } from 'retend-gpui';
-
-const renderer = new RetendGpuiRenderer();
-renderer.init({ title: 'My app', width: 900, height: 600 });
-renderer.render(App);
-```
-
-Call `renderer.flush()` after changes when you manage rendering manually, and `renderer.dispose()` when you are finished. Without the plugin there is no application class, so `useAppContext()` and `useWindow()` are not available.

@@ -1,6 +1,6 @@
+import { InlineCode } from '@/components/InlineCode';
 import { Badge } from '@/ds/Badge';
 import { Callout } from '@/ds/Callout';
-import { InlineCode } from '@/ds/InlineCode';
 import { Kbd } from '@/ds/Kbd';
 import { LinkCard } from '@/ds/LinkCard';
 

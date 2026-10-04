@@ -5,7 +5,7 @@ description: 'Style GPUI elements with typed style objects, pseudo-states, and t
 
 # GPUI Styling
 
-GPUI elements are styled with a `style` object. There is no stylesheet, no class names, and no CSS parser. The object is typed, so an editor can list every property and reject values that are not supported.
+GPUI elements are styled with a typed `style` object. Your editor can autocomplete the available properties and validate their values.
 
 ```tsx
 <div
@@ -28,7 +28,7 @@ GPUI elements are styled with a `style` object. There is no stylesheet, no class
 
 **Dimensions** (`width`, `height`, `minWidth`, `minHeight`, `maxWidth`, `maxHeight`, `top`, `right`, `bottom`, `left`) accept a number, `'auto'`, a pixel string such as `'320px'`, or a percentage such as `'50%'`.
 
-**Spacing is numbers only.** `padding`, `margin`, `gap`, `borderWidth`, and `borderRadius` take a single number. CSS shorthand strings such as `padding: '8px 12px'` are not supported. Use `paddingInline`, `paddingBlock`, or the individual sides instead.
+**Spacing uses numbers.** `padding`, `margin`, `gap`, `borderWidth`, and `borderRadius` take a single number. For different values per axis or side, use `paddingInline`, `paddingBlock`, or the individual side properties.
 
 **Line height is in pixels.** Unlike CSS, `lineHeight: 24` means 24 logical pixels, not a multiplier. A value like `1.5` would be a line height of one and a half pixels.
 
@@ -49,7 +49,7 @@ const color = Cell.derived(() =>
 return <div style={{ color }}>{label}</div>;
 ```
 
-The whole `style` object can also be a Cell. The renderer sends each resolved style as one complete snapshot. A property that is missing from the next snapshot is removed, so returning a new object without `color` clears the color.
+The whole `style` object can also be a Cell. Each new style value replaces the previous one, so a property that is missing from the next object is cleared.
 
 ## Properties
 
@@ -70,7 +70,6 @@ The whole `style` object can also be a Cell. The renderer sends each resolved st
 | `rowGap`         | number                                                                                                     |
 | `columnGap`      | number                                                                                                     |
 
-There is no `grid` display. Use nested flex containers.
 
 ### Size, spacing, and position
 
@@ -120,7 +119,7 @@ There is no `grid` display. Use nested flex containers.
 | `skew`            | A number of degrees for x, or `'10deg 5deg'` for x and y. `'none'` clears it.                       |
 | `transformOrigin` | CSS-style values: `'center'`, `'top left'`, `'25% 75%'`, or a pixel x as a number. Defaults to `'50% 50%'`. |
 
-These are individual properties, not a CSS `transform` string. There is no `transform` property.
+Transforms use individual `scale`, `rotate`, `translate`, `skew`, and `transformOrigin` properties.
 
 ## Pseudo-States
 

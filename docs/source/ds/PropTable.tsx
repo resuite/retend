@@ -12,23 +12,8 @@ interface PropTableProps {
   rows: PropRow[];
 }
 
-interface DisplayRow {
-  name: string;
-  type: string;
-  description: string;
-  required: boolean;
-  fallback: string;
-}
-
 export function PropTable(props: PropTableProps) {
   const { rows } = props;
-  const displayRows: DisplayRow[] = rows.map((row) => ({
-    name: row.name,
-    type: row.type,
-    description: row.description,
-    required: row.required === true,
-    fallback: row.defaultValue ?? '—',
-  }));
 
   return (
     <div
@@ -46,12 +31,12 @@ export function PropTable(props: PropTableProps) {
         </thead>
         <tbody>
           {For(
-            displayRows,
+            rows,
             (row) => (
               <tr class="border-line border-t align-top">
                 <td class="px-4 py-3 whitespace-nowrap">
                   <code class="text-accent-ink font-mono">{row.name}</code>
-                  {If(row.required, () => (
+                  {If(row.required === true, () => (
                     <>
                       <span aria-hidden="true" class="text-bad ml-0.5">
                         *
@@ -67,7 +52,7 @@ export function PropTable(props: PropTableProps) {
                 </td>
                 <td class="px-4 py-3">
                   <code class="text-caption text-ink-soft font-mono">
-                    {row.fallback}
+                    {row.defaultValue ?? '—'}
                   </code>
                 </td>
                 <td class="text-ink-soft px-4 py-3">{row.description}</td>

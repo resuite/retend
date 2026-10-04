@@ -90,7 +90,7 @@ const notes: Record<Point, PointNote> = {
 export function WriteSection() {
   const point = Cell.source<Point>('deps');
   const current = Cell.derived(
-    () => points.find((item) => item.value === point.get()) ?? points[0]
+    () => points.find((item) => item.value === point.get())!
   );
   const highlight = Cell.derived(() => notes[point.get()].lines);
   const title = Cell.derived(() => current.get().title);

@@ -1,7 +1,7 @@
 import type { JSX } from 'retend/jsx-runtime';
 
 export const GITHUB_URL = 'https://github.com/resuite/retend';
-export const GPUI_URL = `${GITHUB_URL}/tree/main/packages/retend-gpui`;
+export const GPUI_DOCS_URL = '/docs/gpui-overview';
 export const CREATE_COMMAND = 'pnpm dlx retend-start@latest my-app';
 
 export type ClassValue = JSX.ValueOrCell<string | string[] | object>;

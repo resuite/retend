@@ -22,6 +22,7 @@ export function CodeFrame(props: CodeFrameProps) {
   const copied = Cell.source(false);
   const copyLabel = Cell.derived(() => (copied.get() ? 'Copied' : 'Copy'));
   const html = highlightCode(code.trimEnd(), lang);
+  let timer: ReturnType<typeof setTimeout> | undefined;
 
   const handleCopy = async () => {
     try {
@@ -30,7 +31,8 @@ export function CodeFrame(props: CodeFrameProps) {
       return;
     }
     copied.set(true);
-    setTimeout(() => copied.set(false), 1600);
+    clearTimeout(timer);
+    timer = setTimeout(() => copied.set(false), 1600);
   };
 
   return (

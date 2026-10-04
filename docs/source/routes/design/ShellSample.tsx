@@ -1,8 +1,8 @@
 import { Link } from 'retend/router';
 
+import { InlineCode } from '@/components/InlineCode';
 import { Callout } from '@/ds/Callout';
 import { CodeFrame } from '@/ds/CodeFrame';
-import { InlineCode } from '@/ds/InlineCode';
 import { ThemePair } from '@/ds/ThemePair';
 
 import { IF_SAMPLE } from './samples';

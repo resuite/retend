@@ -2,12 +2,12 @@ import { For } from 'retend';
 
 import { AnyLink } from '@/components/AnyLink';
 
-import { FRAME_PAD, GPUI_URL } from './constants';
+import { FRAME_PAD, GPUI_DOCS_URL } from './constants';
 import { IsoStack } from './IsoStack';
 
 const packages = [
   { name: 'retend-web', href: '/docs/getting-started', external: false },
-  { name: 'retend-gpui', href: GPUI_URL, external: true },
+  { name: 'retend-gpui', href: GPUI_DOCS_URL, external: false },
   {
     name: 'retend-server',
     href: '/docs/static-site-generation',

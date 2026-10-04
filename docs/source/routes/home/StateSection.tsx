@@ -38,7 +38,7 @@ export function StateSection() {
   const model = createCityModel();
   const focus = Cell.source<NodeKind>('source');
   const current = Cell.derived(
-    () => steps.find((step) => step.value === focus.get()) ?? steps[0]
+    () => steps.find((step) => step.value === focus.get())!
   );
   const title = Cell.derived(() => current.get().title);
   const body = Cell.derived(() => current.get().body);

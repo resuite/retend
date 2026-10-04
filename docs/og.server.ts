@@ -48,7 +48,7 @@ export async function handleOgRequest(
   // The landing page's preview is a designed image in public/og, captured
   // from the dev-only /og-preview route. Docs pages keep the generated card.
   const slug = url.pathname.slice(4, -4);
-  if (slug === 'overview' || slug === 'preview') {
+  if (slug === 'overview') {
     const asset = await env.ASSETS.fetch(
       new URL('/og/overview.png', url.origin)
     );

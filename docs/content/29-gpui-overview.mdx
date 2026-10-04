@@ -1,17 +1,17 @@
 ---
-title: 'GPUI Overview'
+title: 'GPUI'
 description: 'Build native desktop applications with Retend and GPUI.'
 ---
 
-# GPUI Overview
+# GPUI
 
-`retend-gpui` is a Retend renderer for native desktop windows. Components use the same JSX, Cells, and control flow as a web application, and the output is drawn by GPUI, a native UI framework written in Rust, instead of a browser.
+`retend-gpui` brings Retend's component model to native desktop applications. Components are still functions, state still lives in Cells, and reactive values still update the parts of the interface that read them. The difference is where the interface ends up: GPUI paints it in a native window rather than a browser.
 
-> **Experimental.** `retend-gpui` is usable for real applications, but the native protocol and renderer API may change between `0.0.x` releases. Pin an exact version and expect breaking changes until `0.1`.
+> **Experimental.** Breaking changes may land between `0.0.x` releases. Pin an exact version until `0.1`.
 
-## Create a Project
+## A GPUI project
 
-Scaffold a desktop project with `retend-start`:
+`retend-start` can scaffold a desktop project with the GPUI target:
 
 ```sh
 npx retend-start@latest my-app --target=gpui
@@ -19,45 +19,15 @@ cd my-app
 npm run dev
 ```
 
-`npm run dev` runs `retend-gpui dev`, which starts Vite and opens the application window.
+The development process opens the application as a native window and keeps it connected to Vite while the project is running.
 
-## What the Scaffold Creates
-
-```text
-my-app/
-├── source/
-│   ├── App.tsx
-│   ├── application.ts
-│   ├── main.tsx
-│   ├── router.tsx
-│   └── vite-env.d.ts
-├── retend-gpui-env.d.ts
-├── tsconfig.json
-├── vite.config.ts
-└── package.json
-```
-
-| File                    | Purpose                                                                                           |
-| ----------------------- | ------------------------------------------------------------------------------------------------- |
-| `source/App.tsx`        | The first screen. It renders a counter.                                                           |
-| `source/application.ts` | A class for process-wide setup and teardown. See [Windows and Application](/docs/gpui-windows).   |
-| `source/main.tsx`       | Default-exports the root component that every window renders.                                     |
-| `source/router.tsx`     | Creates the router and connects it to the native window.                                          |
-| `retend-gpui-env.d.ts`  | Generated types for `useAppContext()`. Commit it, and do not edit it.                             |
-| `vite.config.ts`        | Configures the `retendGpui` Vite plugin: app identity, entry files, and the initial window.       |
-
-The project's scripts are `dev` (`retend-gpui dev`), `build` (`vite build`), `typecheck`, and `lint`.
-
-## A First Component
-
-The scaffolded `App.tsx` is an ordinary Retend component:
+Most of the application still looks like ordinary Retend. The scaffold begins with `source/App.tsx`:
 
 ```tsx
 import { Cell } from 'retend';
 
 export default function App() {
   const count = Cell.source(0);
-  const incrementCount = () => count.set(count.get() + 1);
 
   return (
     <div
@@ -68,73 +38,34 @@ export default function App() {
         flexDirection: 'column',
         alignItems: 'center',
         justifyContent: 'center',
+        gap: 12,
       }}
     >
       <div style={{ fontSize: 28 }}>My App</div>
-      <button onClick={incrementCount}>Counter: {count}</button>
+      <button onClick={() => count.set(count.get() + 1)}>
+        Counter: {count}
+      </button>
     </div>
   );
 }
 ```
 
-Three things differ from a web component:
+There is no GPUI-specific state model hidden inside this component. `count` is a normal Cell. The button changes it, and the text that reads it updates. The same control-flow helpers, scopes, lifecycle hooks, and routing model used elsewhere in Retend remain available.
 
-- Styling is a `style` object. There are no class names or stylesheets. See [GPUI Styling](/docs/gpui-styling).
-- Only a small set of elements exists. See [GPUI Elements](/docs/gpui-elements).
-- Text is ordinary JSX content. `Counter: {count}` renders as one run of text that updates when `count` changes.
+## The native surface
 
-## Add to an Existing Project
+The part that changes is the surface the component renders into.
 
-```sh
-npm install retend retend-gpui vite
-```
+GPUI has its own intrinsic elements for layout, controls, images, icons, and floating content. They are described in [GPUI Elements](/docs/gpui-elements). Text remains ordinary JSX content, so a value such as `Counter: {count}` can sit directly inside a container or control.
 
-The native addon for your platform is installed automatically as an optional dependency.
+Styling is expressed through typed `style` objects. Layout, spacing, typography, color, overflow, transforms, pseudo-states, and transitions all live there rather than in a separate stylesheet. [GPUI Styling](/docs/gpui-styling) covers the style vocabulary in detail.
 
-Configure TypeScript to use Retend's JSX runtime and the GPUI element types:
+Events keep Retend's familiar handler shape. A native button can use `onClick`; text editors expose input events; focus, keyboard, pointer, scroll, image, and transition events flow through the same component tree. The event objects themselves reflect the native window system. See [GPUI Events](/docs/gpui-events).
 
-```json
-{
-  "compilerOptions": {
-    "jsx": "react-jsx",
-    "jsxImportSource": "retend",
-    "types": ["retend-gpui/jsx-runtime"]
-  },
-  "include": ["source", "retend-gpui-env.d.ts"]
-}
-```
+## The desktop application around it
 
-The `include` entry for `retend-gpui-env.d.ts` is what makes `useAppContext()` typed. Then add the `retendGpui` plugin to `vite.config.ts`. The [Windows and Application](/docs/gpui-windows) page covers each option.
+A desktop application has a little more lifetime than a single component tree. The scaffold includes an application object for process-wide resources and configuration for the native window that hosts the interface. Those pieces stay out of the way for simple applications, but become useful when an app needs shared services, multiple windows, custom window behavior, or application-level setup and teardown.
 
-## How It Differs from the Web
+[GPUI Windows](/docs/gpui-windows) documents those application and window APIs.
 
-- **No DOM.** `retend-gpui` is a native renderer and does not run in a browser. Elements such as `span`, `a`, and `section` do not exist.
-- **Seven elements.** `div`, `button`, `input`, `textarea`, `img`, `svg`, and `anchored`.
-- **Native events.** Pointer, keyboard, focus, input, and scroll events come from the native window system.
-- **Window-level APIs.** `useWindow()` controls the native window, and `useAppContext()` shares process-wide resources.
-
-The [Rendering Architecture](/docs/rendering-architecture) page explains how the core library hands work to a renderer.
-
-## Platform Support
-
-Native addons are published for these platforms:
-
-| Platform | Architectures        | Packaging                                                     |
-| -------- | -------------------- | ------------------------------------------------------------- |
-| macOS    | Apple Silicon only   | `.app` bundle and `.dmg`                                      |
-| Windows  | x64, arm64           | `.exe`, when the build runs on Windows                        |
-| Linux    | x64, arm64 (glibc)   | Not implemented. The build emits a bundle directory only.     |
-
-Intel Macs are not supported. See [GPUI Packaging](/docs/gpui-packaging) for the details.
-
-## Not Supported Yet
-
-As of `0.0.36`, `retend-gpui` covers the renderer: elements, layout, styling, events, windows, and packaging. These are not available yet:
-
-- **Full-color inline SVG.** `<svg>` icons are single-color and take the text `color`. Full-color SVG files render through `<img>`.
-- **CSS filters.** There is no `filter` style.
-- **System integration.** There are no APIs for the system tray or menu bar, global shortcuts, the clipboard, native file dialogs, or notifications.
-- **OS permission prompts.** Apps that need Microphone, Accessibility, or similar permissions must manage them outside `retend-gpui`.
-- **IME composition events.** Composition stays inside the native editor, and no JavaScript composition events are fired.
-
-If one of these blocks you, open an issue at [github.com/resuite/retend/issues](https://github.com/resuite/retend/issues) describing the use case. That is how these get prioritized.
+Building uses the same Vite project rather than a separate native build system. The GPUI plugin assembles the JavaScript bundle, native addon, application identity, icons, and platform packaging. Distribution details live in [GPUI Packaging](/docs/gpui-packaging).

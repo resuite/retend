@@ -4,7 +4,7 @@ import { For } from 'retend';
 
 import { AnyLink } from '@/components/AnyLink';
 
-import { FRAME_PAD, GPUI_URL } from './constants';
+import { FRAME_PAD, GPUI_DOCS_URL } from './constants';
 import { paintings } from './paintings';
 import { ServerMock } from './ServerMock';
 import { BrowserMock, WindowMock } from './SurfaceMocks';
@@ -45,8 +45,7 @@ const surfaces: Surface[] = [
     title: 'Build native desktop applications with retend-gpui',
     pkg: 'retend-gpui',
     bubble: 'bg-[#23845a] rounded-br-md',
-    href: GPUI_URL,
-    external: true,
+    href: GPUI_DOCS_URL,
     painting: paintings.vianen,
     position: 'object-[70%_50%]',
     mock: WindowMock,

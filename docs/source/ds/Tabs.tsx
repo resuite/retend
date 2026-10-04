@@ -8,10 +8,12 @@ export interface TabItem {
   content: () => JSX.Element;
 }
 
+export type TabItems = readonly [TabItem, ...TabItem[]];
+
 interface TabsProps {
   /** Accessible name for the tab list. Also seeds element ids. */
   label: string;
-  tabs: TabItem[];
+  tabs: TabItems;
   /** Overrides the id prefix when the same label appears twice on a page. */
   id?: string;
 }
@@ -19,8 +21,7 @@ interface TabsProps {
 interface TabState {
   tab: TabItem;
   isActive: Cell<boolean>;
-  isInactive: Cell<boolean>;
-  ariaSelected: Cell<string>;
+  isHidden: Cell<boolean>;
   tabIndex: Cell<number>;
 }
 
@@ -45,13 +46,12 @@ export function Tabs(props: TabsProps) {
   const { label, tabs, id } = props;
   const base = slugify(id ?? label);
   const active = Cell.source(tabs[0].id);
-  const states: TabState[] = tabs.map((tab) => ({
-    tab,
-    isActive: Cell.derived(() => active.get() === tab.id),
-    isInactive: Cell.derived(() => active.get() !== tab.id),
-    ariaSelected: Cell.derived(() => String(active.get() === tab.id)),
-    tabIndex: Cell.derived(() => (active.get() === tab.id ? 0 : -1)),
-  }));
+  const states: TabState[] = tabs.map((tab) => {
+    const isActive = Cell.derived(() => active.get() === tab.id);
+    const isHidden = Cell.derived(() => !isActive.get());
+    const tabIndex = Cell.derived(() => (isActive.get() ? 0 : -1));
+    return { tab, isActive, isHidden, tabIndex };
+  });
 
   const select = (tabId: string) => () => active.set(tabId);
 
@@ -81,17 +81,10 @@ export function Tabs(props: TabsProps) {
               role="tab"
               id={`${base}-tab-${state.tab.id}`}
               aria-controls={`${base}-panel-${state.tab.id}`}
-              aria-selected={state.ariaSelected}
+              aria-selected={state.isActive}
               tabIndex={state.tabIndex}
               onClick={select(state.tab.id)}
-              class={[
-                'text-small focus-visible:outline-accent rounded-t-md border-b-2 px-3 py-1.5 font-medium focus-visible:outline-2 focus-visible:-outline-offset-2',
-                {
-                  'border-accent bg-raised text-ink': state.isActive,
-                  'text-ink-soft hover:text-ink border-transparent':
-                    state.isInactive,
-                },
-              ]}
+              class="text-small text-ink-soft hover:text-ink aria-selected:border-accent aria-selected:bg-raised aria-selected:text-ink focus-visible:outline-accent rounded-t-md border-b-2 border-transparent px-3 py-1.5 font-medium focus-visible:outline-2 focus-visible:-outline-offset-2"
             >
               {state.tab.label}
             </button>
@@ -106,7 +99,7 @@ export function Tabs(props: TabsProps) {
             role="tabpanel"
             id={`${base}-panel-${state.tab.id}`}
             aria-labelledby={`${base}-tab-${state.tab.id}`}
-            class={{ hidden: state.isInactive }}
+            class={{ hidden: state.isHidden }}
           >
             {state.tab.content()}
           </div>

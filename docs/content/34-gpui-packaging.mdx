@@ -37,13 +37,13 @@ A build needs the prebuilt native addon for its target. The addon for your own p
 | -------------------------- | ----------------------------------------------------------------------- |
 | `darwin-arm64`             | `<AppName>.app` and `<AppName>.dmg`                                     |
 | `win32-x64`, `win32-arm64` | `<AppName>.exe` when built on Windows. Otherwise only the bundle.       |
-| `linux-x64`, `linux-arm64` | The bundle directory only. Application packaging is not implemented.    |
+| `linux-x64`, `linux-arm64` | The bundle directory.                                                    |
 
 The bundle directory holds `index.js`, an `assets/` folder, and the native addon under `native/`.
 
 ## macOS
 
-Application bundles are produced for Apple Silicon only. Intel Macs are not supported.
+macOS application bundles target Apple Silicon.
 
 The build creates `<AppName>.app` and a `.dmg` that contains it. The app icon can be `.icns`, `.png`, or `.svg`.
 
@@ -80,7 +80,7 @@ The result is `dist/win32-x64/<AppName>.exe` (or `win32-arm64`). Keep the `nativ
 
 ## Linux
 
-The build emits the bundle directory. Application packaging for Linux is not implemented yet.
+Linux builds emit the bundle directory.
 
 ## Application Identity During Development
 
@@ -95,4 +95,4 @@ In development the app should look like a real application, not a Node process.
 - Add an icon in the format your target platform accepts.
 - On macOS, provide a signing identity and notarization credentials.
 - Build on each platform you ship for, since Windows executables need a Windows build.
-- Pin the exact `retend-gpui` version. The renderer API may change between `0.0.x` releases.
+- Pin the exact `retend-gpui` version while it is in `0.0.x`.

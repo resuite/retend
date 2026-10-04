@@ -2,7 +2,7 @@ import { For } from 'retend';
 
 import { AnyLink } from '@/components/AnyLink';
 
-import { FRAME_PAD, GPUI_URL } from './constants';
+import { FRAME_PAD, GPUI_DOCS_URL } from './constants';
 
 interface Entry {
   title: string;
@@ -40,8 +40,7 @@ const entries: Entry[] = [
   {
     title: 'GPUI',
     body: 'Build and package native desktop apps with retend-gpui.',
-    href: GPUI_URL,
-    external: true,
+    href: GPUI_DOCS_URL,
   },
 ];
 

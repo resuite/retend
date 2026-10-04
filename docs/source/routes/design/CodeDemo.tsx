@@ -1,5 +1,5 @@
 import type { PackageCommands } from '@/ds/PackageTabs';
-import type { TabItem } from '@/ds/Tabs';
+import type { TabItems } from '@/ds/Tabs';
 import type { PanelTheme } from '@/ds/ThemePanel';
 
 import { Callout } from '@/ds/Callout';
@@ -23,7 +23,7 @@ const CREATE_COMMANDS: PackageCommands = {
 export function CodeDemo(props: CodeDemoProps) {
   const { theme } = props;
 
-  const targets: TabItem[] = [
+  const targets: TabItems = [
     {
       id: 'web',
       label: 'Web',
