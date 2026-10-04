@@ -37,11 +37,9 @@ export function updatePageMeta(newMeta, document) {
   const head = document.head;
   const html = document.documentElement;
 
-  // Handle lang attribute
+  // Omitted route metadata must not erase values supplied by the HTML shell.
   if (newMeta.lang) {
     html.setAttribute('lang', newMeta.lang);
-  } else if (html.getAttribute('lang') !== null) {
-    html.removeAttribute('lang');
   }
 
   // Handle charset
@@ -65,8 +63,6 @@ export function updatePageMeta(newMeta, document) {
       }
     }
     charsetMeta.setAttribute('charset', newMeta.charset);
-  } else if (charsetMeta) {
-    charsetMeta.remove();
   }
 
   // Handle title

@@ -310,32 +310,6 @@ importers:
       vitest:
         specifier: ^3.2.4
         version: 3.2.4(@types/debug@4.1.12)(@types/node@22.20.3)(@vitest/browser@3.2.4)(jiti@2.6.1)(lightningcss@1.33.0)(tsx@4.21.0)
-    optionalDependencies:
-      retend-gpui-native-darwin-arm64:
-        specifier: workspace:*
-        version: link:native/npm/darwin-arm64
-      retend-gpui-native-linux-arm64-gnu:
-        specifier: workspace:*
-        version: link:native/npm/linux-arm64-gnu
-      retend-gpui-native-linux-x64-gnu:
-        specifier: workspace:*
-        version: link:native/npm/linux-x64-gnu
-      retend-gpui-native-win32-arm64-msvc:
-        specifier: workspace:*
-        version: link:native/npm/win32-arm64-msvc
-      retend-gpui-native-win32-x64-msvc:
-        specifier: workspace:*
-        version: link:native/npm/win32-x64-msvc
-
-  packages/retend-gpui/native/npm/darwin-arm64: {}
-
-  packages/retend-gpui/native/npm/linux-arm64-gnu: {}
-
-  packages/retend-gpui/native/npm/linux-x64-gnu: {}
-
-  packages/retend-gpui/native/npm/win32-arm64-msvc: {}
-
-  packages/retend-gpui/native/npm/win32-x64-msvc: {}
 
   packages/retend-oxlint-plugin:
     dependencies:
