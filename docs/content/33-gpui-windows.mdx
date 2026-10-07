@@ -33,31 +33,31 @@ export default defineConfig({
 });
 ```
 
-| Option        | Required | Description                                                                                  |
-| ------------- | -------- | -------------------------------------------------------------------------------------------- |
-| `app`         | Yes      | The application's identity. See below.                                                       |
-| `application` | Yes      | Path to a module whose default export is the application class.                              |
-| `entry`       | Yes      | Path to a module whose default export is the root component.                                 |
-| `window`      | Yes      | Options for the first window. `width` and `height` are required.                             |
-| `system`      | No       | Process-wide native options. See [System Options](#system-options).                          |
-| `target`      | No       | Build target. See [GPUI Packaging](/docs/gpui-packaging).                                    |
-| `node`        | No       | Embedded Node.js version for packaged apps. See [GPUI Packaging](/docs/gpui-packaging).      |
-| `signing`     | No       | macOS signing and notarization. See [GPUI Packaging](/docs/gpui-packaging).                  |
+| Option        | Required | Description                                                                             |
+| ------------- | -------- | --------------------------------------------------------------------------------------- |
+| `app`         | Yes      | The application's identity. See below.                                                  |
+| `application` | Yes      | Path to a module whose default export is the application class.                         |
+| `entry`       | Yes      | Path to a module whose default export is the root component.                            |
+| `window`      | Yes      | Options for the first window. `width` and `height` are required.                        |
+| `system`      | No       | Process-wide native options. See [System Options](#system-options).                     |
+| `target`      | No       | Build target. See [GPUI Packaging](/docs/gpui-packaging).                               |
+| `node`        | No       | Embedded Node.js version for packaged apps. See [GPUI Packaging](/docs/gpui-packaging). |
+| `signing`     | No       | macOS signing and notarization. See [GPUI Packaging](/docs/gpui-packaging).             |
 
 Paths are relative to the Vite root. The plugin validates its options when Vite starts and throws a descriptive error if one is wrong.
 
 ### App identity
 
-| Field         | Required | Description                                                                                         |
-| ------------- | -------- | --------------------------------------------------------------------------------------------------- |
-| `name`        | Yes      | The display name. Also the default window title.                                                    |
-| `identifier`  | Yes      | A reverse-DNS identifier such as `com.example.notes`.                                               |
-| `version`     | Yes      | A valid SemVer version, such as `1.0.0`.                                                            |
-| `icon`        | No       | The app icon. macOS accepts `.icns`, `.png`, or `.svg`. Windows accepts `.ico`, `.png`, or `.svg`.  |
-| `macos.icon`  | No       | Overrides `icon` on macOS.                                                                          |
-| `windows.icon`| No       | Overrides `icon` on Windows.                                                                        |
-| `description` | No       | A description passed to the Windows packager.                                                       |
-| `publisher`   | No       | A publisher name passed to the Windows packager.                                                    |
+| Field          | Required | Description                                                                                        |
+| -------------- | -------- | -------------------------------------------------------------------------------------------------- |
+| `name`         | Yes      | The display name. Also the default window title.                                                   |
+| `identifier`   | Yes      | A reverse-DNS identifier such as `com.example.notes`.                                              |
+| `version`      | Yes      | A valid SemVer version, such as `1.0.0`.                                                           |
+| `icon`         | No       | The app icon. macOS accepts `.icns`, `.png`, or `.svg`. Windows accepts `.ico`, `.png`, or `.svg`. |
+| `macos.icon`   | No       | Overrides `icon` on macOS.                                                                         |
+| `windows.icon` | No       | Overrides `icon` on Windows.                                                                       |
+| `description`  | No       | A description passed to the Windows packager.                                                      |
+| `publisher`    | No       | A publisher name passed to the Windows packager.                                                   |
 
 ## The Application Class
 
@@ -112,13 +112,13 @@ The context is typed from the application class. `retend-start` creates `retend-
 
 `useWindow()` returns the native window for the current Retend root:
 
-| Member            | Description                                                                                |
-| ----------------- | ------------------------------------------------------------------------------------------ |
-| `width`, `height` | Read-only Cells that track the content size. They update on native resize events.          |
-| `title`           | A Cell. Setting it changes the OS window title.                                            |
-| `open(options)`   | Opens another independent window. Returns a promise of a handle.                           |
-| `close()`         | Requests that this window close.                                                           |
-| `host`            | The native host. It exposes the window's `location` and `history`, which the router uses.  |
+| Member            | Description                                                                               |
+| ----------------- | ----------------------------------------------------------------------------------------- |
+| `width`, `height` | Read-only Cells that track the content size. They update on native resize events.         |
+| `title`           | A Cell. Setting it changes the OS window title.                                           |
+| `open(options)`   | Opens another independent window. Returns a promise of a handle.                          |
+| `close()`         | Requests that this window close.                                                          |
+| `host`            | The native host. It exposes the window's `location` and `history`, which the router uses. |
 
 The window is also an event target and emits `focus` and `blur`.
 
@@ -128,7 +128,9 @@ import { useWindow } from 'retend-gpui';
 
 function Header() {
   const window = useWindow();
-  const size = Cell.derived(() => `${window.width.get()} × ${window.height.get()}`);
+  const size = Cell.derived(
+    () => `${window.width.get()} × ${window.height.get()}`
+  );
 
   return (
     <div>
@@ -143,18 +145,18 @@ function Header() {
 
 The `window` option in the plugin config and the `options` argument to `open()` accept the same fields:
 
-| Option            | Type      | Description                                                                   |
-| ----------------- | --------- | ----------------------------------------------------------------------------- |
-| `title`           | `string`  | The window title. For the first window it defaults to `app.name`.             |
-| `width`           | `number`  | The initial content width, in logical pixels.                                 |
-| `height`          | `number`  | The initial content height, in logical pixels.                                |
-| `resizable`       | `boolean` | Whether the user can resize the window. Defaults to `true`.                   |
-| `fullscreen`      | `boolean` | Opens in fullscreen. Cannot be combined with `maximized`.                     |
-| `maximized`       | `boolean` | Opens maximized. Cannot be combined with `fullscreen`.                        |
-| `minWidth`, `minHeight` | `number` | The smallest content size the user can resize to.                       |
-| `maxWidth`, `maxHeight` | `number` | The largest content size the user can resize to.                        |
-| `location`        | `string`  | The initial route. Defaults to `/`.                                           |
-| `closeWithOpener` | `boolean` | Whether the window closes when the window that opened it closes. Defaults to `true`. |
+| Option                  | Type      | Description                                                                          |
+| ----------------------- | --------- | ------------------------------------------------------------------------------------ |
+| `title`                 | `string`  | The window title. For the first window it defaults to `app.name`.                    |
+| `width`                 | `number`  | The initial content width, in logical pixels.                                        |
+| `height`                | `number`  | The initial content height, in logical pixels.                                       |
+| `resizable`             | `boolean` | Whether the user can resize the window. Defaults to `true`.                          |
+| `fullscreen`            | `boolean` | Opens in fullscreen. Cannot be combined with `maximized`.                            |
+| `maximized`             | `boolean` | Opens maximized. Cannot be combined with `fullscreen`.                               |
+| `minWidth`, `minHeight` | `number`  | The smallest content size the user can resize to.                                    |
+| `maxWidth`, `maxHeight` | `number`  | The largest content size the user can resize to.                                     |
+| `location`              | `string`  | The initial route. Defaults to `/`.                                                  |
+| `closeWithOpener`       | `boolean` | Whether the window closes when the window that opened it closes. Defaults to `true`. |
 
 Sizes are finite positive numbers, and each minimum cannot exceed its maximum.
 
@@ -228,8 +230,8 @@ See [Defining Routes](/docs/defining-routes) for the router itself.
 
 `system` holds options that apply to every window in the application:
 
-| Option               | Description                                                                                               |
-| -------------------- | --------------------------------------------------------------------------------------------------------- |
+| Option                | Description                                                                                                |
+| --------------------- | ---------------------------------------------------------------------------------------------------------- |
 | `transparentTitlebar` | Makes the native titlebar transparent so content can extend behind the window controls. macOS and Windows. |
 
 ## Development Reloads

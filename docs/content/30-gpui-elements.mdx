@@ -23,12 +23,12 @@ Text is not an element. It is written as ordinary JSX content. Adjacent text nod
 
 Every element accepts these props:
 
-| Prop       | Description                                                                                                          |
-| ---------- | -------------------------------------------------------------------------------------------------------------------- |
-| `style`    | An author style object, or a Cell holding one. See [GPUI Styling](/docs/gpui-styling).                               |
-| `tabIndex` | The native tab order. Negative values remain focusable from code.                                                    |
-| `ref`      | A Cell or callback that receives the element. See [Refs and Imperative Methods](#refs-and-imperative-methods).       |
-| `onClick`… | Event handlers. See [GPUI Events](/docs/gpui-events).                                                                |
+| Prop       | Description                                                                                                    |
+| ---------- | -------------------------------------------------------------------------------------------------------------- |
+| `style`    | An author style object, or a Cell holding one. See [GPUI Styling](/docs/gpui-styling).                         |
+| `tabIndex` | The native tab order. Negative values remain focusable from code.                                              |
+| `ref`      | A Cell or callback that receives the element. See [Refs and Imperative Methods](#refs-and-imperative-methods). |
+| `onClick`… | Event handlers. See [GPUI Events](/docs/gpui-events).                                                          |
 
 Any prop can be a Cell, so values can change reactively.
 
@@ -64,12 +64,12 @@ Setting `disabled` skips the button in Tab traversal, ignores pointer and keyboa
 
 `input` is a native single-line editor and `textarea` is a native multi-line editor with wrapping.
 
-| Prop          | Elements   | Description                                                      |
-| ------------- | ---------- | ---------------------------------------------------------------- |
-| `value`       | both       | The text content.                                                |
-| `placeholder` | both       | Text shown while the control is empty.                           |
-| `minRows`     | `textarea` | Minimum visible rows while the control auto-sizes.               |
-| `maxRows`     | `textarea` | Maximum visible rows while the control auto-sizes.               |
+| Prop          | Elements   | Description                                        |
+| ------------- | ---------- | -------------------------------------------------- |
+| `value`       | both       | The text content.                                  |
+| `placeholder` | both       | Text shown while the control is empty.             |
+| `minRows`     | `textarea` | Minimum visible rows while the control auto-sizes. |
+| `maxRows`     | `textarea` | Maximum visible rows while the control auto-sizes. |
 
 Both fire `input` and `change` events. The event's `value` property holds the current text:
 
@@ -100,11 +100,11 @@ The controls come with default styling: comfortable padding, a 6px corner radius
 
 ## img
 
-| Prop        | Description                                                                          |
-| ----------- | ------------------------------------------------------------------------------------ |
-| `src`       | An HTTP(S) URL, a `file:` URL, a root-relative path, or an imported asset.           |
-| `objectFit` | `fill`, `contain`, `cover`, `scaleDown`, or `none`.                                  |
-| `alt`       | Accessible text announced for the image.                                             |
+| Prop        | Description                                                                |
+| ----------- | -------------------------------------------------------------------------- |
+| `src`       | An HTTP(S) URL, a `file:` URL, a root-relative path, or an imported asset. |
+| `objectFit` | `fill`, `contain`, `cover`, `scaleDown`, or `none`.                        |
+| `alt`       | Accessible text announced for the image.                                   |
 
 An `img` fires `load` and `error` events.
 
@@ -141,18 +141,18 @@ Icons are 16 × 16 by default. `width` and `height` in `style` resize them. `alt
 
 An `anchored` element is a floating layer. It is the primitive behind menus, tooltips, and popovers. Placement is delegated to GPUI instead of being measured in JavaScript.
 
-| Prop         | Description                                                                                                  |
-| ------------ | ------------------------------------------------------------------------------------------------------------ |
-| `side`       | `top`, `right`, `bottom`, or `left`. The side of the parent slot to place the content on.                    |
-| `align`      | `start`, `center`, or `end`. Alignment along that side.                                                      |
-| `gap`        | Distance from the chosen side, in logical pixels.                                                            |
-| `offset`     | An `{ x, y }` adjustment applied after side positioning.                                                     |
-| `position`   | An `{ x, y }` point in window coordinates. Use it instead of `side` and `align` to place the layer exactly.  |
-| `fit`        | `snap` (the default) keeps the layer inside the window. `switch` flips the anchor instead.                   |
-| `snapMargin` | The window-edge margin used by `fit="snap"`.                                                                 |
-| `deferred`   | Paints the layer above normal content. On by default.                                                        |
-| `priority`   | Ordering between deferred layers.                                                                            |
-| `occlude`    | Whether the layer blocks pointer input to what is behind it. On by default.                                  |
+| Prop         | Description                                                                                                 |
+| ------------ | ----------------------------------------------------------------------------------------------------------- |
+| `side`       | `top`, `right`, `bottom`, or `left`. The side of the parent slot to place the content on.                   |
+| `align`      | `start`, `center`, or `end`. Alignment along that side.                                                     |
+| `gap`        | Distance from the chosen side, in logical pixels.                                                           |
+| `offset`     | An `{ x, y }` adjustment applied after side positioning.                                                    |
+| `position`   | An `{ x, y }` point in window coordinates. Use it instead of `side` and `align` to place the layer exactly. |
+| `fit`        | `snap` (the default) keeps the layer inside the window. `switch` flips the anchor instead.                  |
+| `snapMargin` | The window-edge margin used by `fit="snap"`.                                                                |
+| `deferred`   | Paints the layer above normal content. On by default.                                                       |
+| `priority`   | Ordering between deferred layers.                                                                           |
+| `occlude`    | Whether the layer blocks pointer input to what is behind it. On by default.                                 |
 
 ```tsx
 function Menu() {
@@ -205,28 +205,29 @@ function SearchBox() {
 
 Every element has these methods:
 
-| Method                  | Description                                                                         |
-| ----------------------- | ----------------------------------------------------------------------------------- |
-| `focus()`               | Requests native keyboard focus.                                                     |
-| `blur()`                | Releases focus if this element owns it.                                             |
-| `scrollTo(x, y)`        | Scrolls to an absolute offset.                                                      |
-| `scrollBy(x, y)`        | Scrolls relative to the current offset.                                             |
-| `scrollIntoView()`      | Scrolls the nearest scroll containers enough to reveal the element.                 |
-| `getScrollOffset()`     | Returns a promise of the current `{ x, y }` scroll offset.                          |
-| `measure()`             | Returns a promise of the painted bounds. See below.                                 |
+| Method              | Description                                                         |
+| ------------------- | ------------------------------------------------------------------- |
+| `focus()`           | Requests native keyboard focus.                                     |
+| `blur()`            | Releases focus if this element owns it.                             |
+| `scrollTo(x, y)`    | Scrolls to an absolute offset.                                      |
+| `scrollBy(x, y)`    | Scrolls relative to the current offset.                             |
+| `scrollIntoView()`  | Scrolls the nearest scroll containers enough to reveal the element. |
+| `getScrollOffset()` | Returns a promise of the current `{ x, y }` scroll offset.          |
+| `measure()`         | Returns a promise of the painted bounds. See below.                 |
 
 `input` and `textarea` add three more:
 
-| Method                         | Description                                           |
-| ------------------------------ | ----------------------------------------------------- |
-| `select()`                     | Selects all of the text.                              |
-| `setSelectionRange(start, end)` | Sets the selection, using UTF-16 offsets.             |
-| `getSelection()`               | Returns a promise of the current `{ start, end }`.    |
+| Method                          | Description                                        |
+| ------------------------------- | -------------------------------------------------- |
+| `select()`                      | Selects all of the text.                           |
+| `setSelectionRange(start, end)` | Sets the selection, using UTF-16 offsets.          |
+| `getSelection()`                | Returns a promise of the current `{ start, end }`. |
 
 `measure()` works like `getBoundingClientRect()`. It resolves to the painted, transformed border box in window coordinates, plus the size of the scrollable content:
 
 ```tsx
-const { x, y, width, height, scrollWidth, scrollHeight } = await element.measure();
+const { x, y, width, height, scrollWidth, scrollHeight } =
+  await element.measure();
 ```
 
 Calling any of these on an element that has been removed from the tree throws an error.

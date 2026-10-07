@@ -74,6 +74,10 @@
     "test:native": "vitest run tests/native-bridge.integration.spec.ts",
     "test:all": "pnpm run test && pnpm run test:native"
   },
+  "dependencies": {
+    "resedit": "^3.1.0",
+    "sharp": "^0.34.5"
+  },
   "devDependencies": {
     "@napi-rs/cli": "^3",
     "@types/node": "^22.7.5",
@@ -98,9 +102,5 @@
       "aarch64-pc-windows-msvc",
       "x86_64-pc-windows-msvc"
     ]
-  },
-  "dependencies": {
-    "resedit": "^3.1.0",
-    "sharp": "^0.34.5"
   }
 }

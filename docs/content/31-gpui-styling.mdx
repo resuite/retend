@@ -55,55 +55,54 @@ The whole `style` object can also be a Cell. Each new style value replaces the p
 
 ### Layout
 
-| Property         | Values                                                                                                     |
-| ---------------- | ---------------------------------------------------------------------------------------------------------- |
-| `display`        | `block`, `flex`, `none`                                                                                    |
-| `flexDirection`  | `row`, `column`, `row-reverse`, `column-reverse`                                                           |
-| `flexWrap`       | `nowrap`, `wrap`, `wrap-reverse`                                                                           |
-| `flexGrow`       | number                                                                                                     |
-| `flexShrink`     | number                                                                                                     |
-| `alignItems`     | `start`, `end`, `flex-start`, `flex-end`, `center`, `baseline`, `stretch`                                  |
-| `alignSelf`      | same as `alignItems`                                                                                       |
+| Property         | Values                                                                                                         |
+| ---------------- | -------------------------------------------------------------------------------------------------------------- |
+| `display`        | `block`, `flex`, `none`                                                                                        |
+| `flexDirection`  | `row`, `column`, `row-reverse`, `column-reverse`                                                               |
+| `flexWrap`       | `nowrap`, `wrap`, `wrap-reverse`                                                                               |
+| `flexGrow`       | number                                                                                                         |
+| `flexShrink`     | number                                                                                                         |
+| `alignItems`     | `start`, `end`, `flex-start`, `flex-end`, `center`, `baseline`, `stretch`                                      |
+| `alignSelf`      | same as `alignItems`                                                                                           |
 | `alignContent`   | `start`, `end`, `flex-start`, `flex-end`, `center`, `stretch`, `space-between`, `space-around`, `space-evenly` |
-| `justifyContent` | same as `alignContent`                                                                                     |
-| `gap`            | number                                                                                                     |
-| `rowGap`         | number                                                                                                     |
-| `columnGap`      | number                                                                                                     |
-
+| `justifyContent` | same as `alignContent`                                                                                         |
+| `gap`            | number                                                                                                         |
+| `rowGap`         | number                                                                                                         |
+| `columnGap`      | number                                                                                                         |
 
 ### Size, spacing, and position
 
-| Property                                                       | Values                                  |
-| -------------------------------------------------------------- | --------------------------------------- |
-| `width`, `height`, `minWidth`, `minHeight`, `maxWidth`, `maxHeight` | dimension                               |
-| `padding`, `paddingTop`, `paddingRight`, `paddingBottom`, `paddingLeft` | number                          |
-| `paddingInline`, `paddingBlock`                                | number                                  |
-| `margin`, `marginTop`, `marginRight`, `marginBottom`, `marginLeft` | number                              |
-| `marginInline`, `marginBlock`                                  | number                                  |
-| `position`                                                     | `relative`, `absolute`                  |
-| `top`, `right`, `bottom`, `left`                               | dimension                               |
+| Property                                                                | Values                 |
+| ----------------------------------------------------------------------- | ---------------------- |
+| `width`, `height`, `minWidth`, `minHeight`, `maxWidth`, `maxHeight`     | dimension              |
+| `padding`, `paddingTop`, `paddingRight`, `paddingBottom`, `paddingLeft` | number                 |
+| `paddingInline`, `paddingBlock`                                         | number                 |
+| `margin`, `marginTop`, `marginRight`, `marginBottom`, `marginLeft`      | number                 |
+| `marginInline`, `marginBlock`                                           | number                 |
+| `position`                                                              | `relative`, `absolute` |
+| `top`, `right`, `bottom`, `left`                                        | dimension              |
 
 ### Appearance
 
-| Property          | Values                  |
-| ----------------- | ----------------------- |
-| `backgroundColor` | color                   |
-| `color`           | color                   |
-| `opacity`         | number                  |
-| `borderWidth`     | number                  |
-| `borderColor`     | color                   |
-| `borderRadius`    | number                  |
+| Property          | Values |
+| ----------------- | ------ |
+| `backgroundColor` | color  |
+| `color`           | color  |
+| `opacity`         | number |
+| `borderWidth`     | number |
+| `borderColor`     | color  |
+| `borderRadius`    | number |
 
 ### Text
 
-| Property      | Values                                       |
-| ------------- | -------------------------------------------- |
-| `fontSize`    | number                                       |
-| `fontFamily`  | string                                       |
-| `fontWeight`  | a number, `normal`, or `bold`                |
-| `textAlign`   | `left`, `center`, `right`                    |
-| `lineHeight`  | number, in pixels                            |
-| `whiteSpace`  | `normal`, `nowrap`                           |
+| Property     | Values                        |
+| ------------ | ----------------------------- |
+| `fontSize`   | number                        |
+| `fontFamily` | string                        |
+| `fontWeight` | a number, `normal`, or `bold` |
+| `textAlign`  | `left`, `center`, `right`     |
+| `lineHeight` | number, in pixels             |
+| `whiteSpace` | `normal`, `nowrap`            |
 
 ### Overflow
 
@@ -111,12 +110,12 @@ The whole `style` object can also be a Cell. Each new style value replaces the p
 
 ### Transforms
 
-| Property          | Values                                                                                              |
-| ----------------- | --------------------------------------------------------------------------------------------------- |
-| `scale`           | A number, or `'1.2'`, `'120%'`, or `'1 2'` for separate x and y factors. `'none'` clears it.        |
-| `rotate`          | A number of degrees, or an angle such as `'45deg'`, `'0.5turn'`, or `'1rad'`. `'none'` clears it.   |
-| `translate`       | A number of pixels for x, or `'10px 20px'`, or percentages of the border box. `'none'` clears it.   |
-| `skew`            | A number of degrees for x, or `'10deg 5deg'` for x and y. `'none'` clears it.                       |
+| Property          | Values                                                                                                      |
+| ----------------- | ----------------------------------------------------------------------------------------------------------- |
+| `scale`           | A number, or `'1.2'`, `'120%'`, or `'1 2'` for separate x and y factors. `'none'` clears it.                |
+| `rotate`          | A number of degrees, or an angle such as `'45deg'`, `'0.5turn'`, or `'1rad'`. `'none'` clears it.           |
+| `translate`       | A number of pixels for x, or `'10px 20px'`, or percentages of the border box. `'none'` clears it.           |
+| `skew`            | A number of degrees for x, or `'10deg 5deg'` for x and y. `'none'` clears it.                               |
 | `transformOrigin` | CSS-style values: `'center'`, `'top left'`, `'25% 75%'`, or a pixel x as a number. Defaults to `'50% 50%'`. |
 
 Transforms use individual `scale`, `rotate`, `translate`, `skew`, and `transformOrigin` properties.
@@ -150,11 +149,11 @@ Each pseudo-state accepts the same declarations as the base style, except that i
 
 Transitions animate a property when its value changes, including changes caused by a pseudo-state.
 
-| Property                   | Values                                                                        |
-| -------------------------- | ----------------------------------------------------------------------------- |
-| `transitionProperty`       | One property name or an array of them.                                        |
-| `transitionDuration`       | A time string such as `'300ms'` or `'3s'`.                                    |
-| `transitionDelay`          | A time string.                                                                |
+| Property                   | Values                                                                          |
+| -------------------------- | ------------------------------------------------------------------------------- |
+| `transitionProperty`       | One property name or an array of them.                                          |
+| `transitionDuration`       | A time string such as `'300ms'` or `'3s'`.                                      |
+| `transitionDelay`          | A time string.                                                                  |
 | `transitionTimingFunction` | `linear`, `ease`, `ease-in`, `ease-out`, `ease-in-out`, or `cubic-bezier(...)`. |
 
 These properties can be animated:
