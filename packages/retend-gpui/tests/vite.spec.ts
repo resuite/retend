@@ -98,7 +98,7 @@ describe('retendGpui Vite plugin', () => {
     );
 
     expect(declaration).toContain(
-      'import type Application from "./source/application.ts"'
+      "import type Application from './source/application.ts'"
     );
     expect(declaration).toContain(
       "InstanceType<typeof Application>['context']"
@@ -117,7 +117,7 @@ describe('retendGpui Vite plugin', () => {
     hook({ command: 'serve', root } as ResolvedConfig);
 
     expect(fs.readFileSync(declarationPath, 'utf8')).toContain(
-      'import type Application from "./source/application.ts"'
+      "import type Application from './source/application.ts'"
     );
   });
 

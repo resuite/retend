@@ -292,8 +292,9 @@ async function createViteEnvDeclaration(projectDir) {
 async function createAppContextDeclaration(projectDir, answers) {
   const extension = answers.language === 'TypeScript' ? 'ts' : 'js';
   const application = `./source/application.${extension}`;
+  const quotedApplication = `'${application.replaceAll("'", "\\'")}'`;
   const content = `// Generated for retend-gpui from the \`application\` option. Do not edit.
-import type Application from ${JSON.stringify(application)};
+import type Application from ${quotedApplication};
 
 type ConfiguredAppContext = InstanceType<typeof Application>['context'];
 

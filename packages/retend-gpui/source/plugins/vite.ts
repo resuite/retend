@@ -247,9 +247,10 @@ function appContextTypesSource(root: string, application: string): string {
     path.relative(root, path.resolve(root, application))
   );
   if (!importPath.startsWith('.')) importPath = `./${importPath}`;
+  const quotedPath = `'${importPath.replaceAll("'", "\\'")}'`;
 
   return `// Generated for retend-gpui from the \`application\` option. Do not edit.
-import type Application from ${JSON.stringify(importPath)};
+import type Application from ${quotedPath};
 
 type ConfiguredAppContext = InstanceType<typeof Application>['context'];
 
