@@ -64,6 +64,7 @@ import {
   GpuiImageEvent,
   GpuiMouseEvent,
   GpuiScrollEvent,
+  GpuiWheelEvent,
 } from '../source/events';
 import { RetendGpuiRenderer } from '../source/gpui-renderer';
 import { NativeEventId } from '../source/native/protocol.generated';
@@ -339,6 +340,78 @@ describe('native event delivery', () => {
       button: 2,
       buttons: 2,
     });
+  });
+
+  it('subscribes onWheel and delivers every delta through capture and bubble', () => {
+    const current = createRenderer();
+    const subscriptions = vi.spyOn(current, 'nativeSubscriptionChanged');
+    const parent = current.createContainer('div');
+    const child = current.createContainer('div');
+    current.append(parent, child);
+    const order: string[] = [];
+    const received: GpuiWheelEvent[] = [];
+    parent.addEventListener('wheel', () => order.push('capture'), true);
+    current.setProperty(child, 'onWheel--once', () => order.push('target'));
+    current.setProperty(parent, 'onWheel', (event: GpuiWheelEvent) => {
+      order.push('bubble');
+      received.push(event);
+    });
+    current.render(() => parent);
+    expect(subscriptions).toHaveBeenCalledWith(
+      parent,
+      NativeEventId.Wheel,
+      true
+    );
+    expect(subscriptions).toHaveBeenCalledWith(
+      child,
+      NativeEventId.Wheel,
+      true
+    );
+
+    for (const touchPhase of ['started', 'moved', 'ended'] as const) {
+      native.onEvent?.({
+        event: {
+          eventId: NativeEventId.Wheel,
+          targetId: child.id,
+          timeStamp: 12.5,
+          clientX: 20,
+          clientY: 30,
+          deltaX: -1,
+          deltaY: 2,
+          deltaMode: 0,
+          touchPhase,
+          altKey: false,
+          ctrlKey: true,
+          metaKey: false,
+          shiftKey: true,
+        },
+      });
+    }
+    expect(order).toEqual([
+      'capture',
+      'target',
+      'bubble',
+      'capture',
+      'bubble',
+      'capture',
+      'bubble',
+    ]);
+    expect(received.map((event) => event.touchPhase)).toEqual([
+      'started',
+      'moved',
+      'ended',
+    ]);
+    expect(
+      received.every(
+        (event) => event instanceof GpuiWheelEvent && event.target === child
+      )
+    ).toBe(true);
+    expect(received.reduce((sum, event) => sum + event.deltaY, 0)).toBe(6);
+    expect(subscriptions).toHaveBeenCalledWith(
+      child,
+      NativeEventId.Wheel,
+      false
+    );
   });
 
   it('delivers mixed continuous bursts in callback order with target and propagation semantics intact', () => {

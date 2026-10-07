@@ -9,6 +9,7 @@ import type {
   GpuiMouseEvent,
   GpuiScrollEvent,
   GpuiTransitionEvent,
+  GpuiWheelEvent,
 } from '../events.js';
 import type {
   GpuiAnchoredElement,
@@ -98,6 +99,7 @@ declare module 'retend/jsx-runtime' {
       onFocus?: ReactiveValue<(event: GpuiFocusEvent) => void>;
       onBlur?: ReactiveValue<(event: GpuiFocusEvent) => void>;
       onScroll?: ReactiveValue<(event: GpuiScrollEvent) => void>;
+      onWheel?: ReactiveValue<(event: GpuiWheelEvent) => void>;
       onTransitionRun?: ReactiveValue<(event: GpuiTransitionEvent) => void>;
       onTransitionStart?: ReactiveValue<(event: GpuiTransitionEvent) => void>;
       onTransitionEnd?: ReactiveValue<(event: GpuiTransitionEvent) => void>;

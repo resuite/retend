@@ -12,7 +12,7 @@ use std::{
 
 use gpui::{
     ClickEvent, Keystroke, Modifiers, MouseButton, MouseDownEvent, MouseMoveEvent, MouseUpEvent,
-    NavigationDirection, Pixels, Point,
+    NavigationDirection, Pixels, Point, ScrollDelta, ScrollWheelEvent, TouchPhase,
 };
 #[cfg(target_os = "macos")]
 use napi::bindgen_prelude::{Env, FunctionRef, JsValuesTuple};
@@ -108,6 +108,10 @@ pub struct NativeEventPayload {
     pub repeat: bool,
     pub scroll_x: f64,
     pub scroll_y: f64,
+    pub delta_x: f64,
+    pub delta_y: f64,
+    pub delta_mode: u32,
+    pub touch_phase: Option<String>,
     pub value: Option<String>,
     pub property_name: Option<String>,
     pub elapsed_time: f64,
@@ -129,6 +133,8 @@ impl NativeEventPayload {
     }
 
     fn is_continuous(&self) -> bool {
+        // Wheel deltas and phase boundaries must each reach JS; only absolute
+        // mouse positions and scroll offsets can replace earlier payloads.
         self.event_id == NativeEventId::MouseMove as u16
             || self.event_id == NativeEventId::Scroll as u16
     }
@@ -211,6 +217,33 @@ pub fn mouse_move(target_id: NodeId, event: &MouseMoveEvent) -> NativeEventPaylo
         event.modifiers,
     );
     (payload.button, payload.buttons) = event.pressed_button.map(button_values).unwrap_or_default();
+    payload
+}
+
+pub fn wheel(target_id: NodeId, event: &ScrollWheelEvent) -> NativeEventPayload {
+    let mut payload = mouse_event(
+        NativeEventId::Wheel,
+        target_id,
+        event.position,
+        event.modifiers,
+    );
+    let (delta, mode) = match event.delta {
+        ScrollDelta::Pixels(delta) => (delta.map(f32::from), 0),
+        ScrollDelta::Lines(delta) => (delta, 1),
+    };
+    // GPUI deltas move content; DOM wheel deltas describe the scroll direction.
+    payload.delta_x = -f64::from(delta.x);
+    payload.delta_y = -f64::from(delta.y);
+    payload.delta_mode = mode;
+    payload.touch_phase = Some(
+        match event.touch_phase {
+            TouchPhase::Started => "started",
+            TouchPhase::Moved => "moved",
+            TouchPhase::Ended => "ended",
+            TouchPhase::Cancelled => "cancelled",
+        }
+        .to_string(),
+    );
     payload
 }
 
@@ -584,6 +617,68 @@ mod tests {
     }
 
     #[test]
+    fn wheel_preserves_units_position_modifiers_and_touch_phases() {
+        for (phase, expected) in [
+            (TouchPhase::Started, "started"),
+            (TouchPhase::Moved, "moved"),
+            (TouchPhase::Ended, "ended"),
+            (TouchPhase::Cancelled, "cancelled"),
+        ] {
+            for (delta, mode) in [
+                (
+                    ScrollDelta::Pixels(gpui::point(gpui::px(1.5), gpui::px(-2.5))),
+                    0,
+                ),
+                (ScrollDelta::Lines(gpui::point(1.5, -2.5)), 1),
+            ] {
+                let payload = wheel(
+                    42,
+                    &ScrollWheelEvent {
+                        position: gpui::point(gpui::px(20.0), gpui::px(30.0)),
+                        delta,
+                        modifiers: Modifiers {
+                            alt: true,
+                            control: true,
+                            platform: true,
+                            shift: true,
+                            ..Modifiers::default()
+                        },
+                        touch_phase: phase,
+                    },
+                );
+                assert_eq!(payload.event_id, NativeEventId::Wheel as u16);
+                assert_eq!(payload.target_id, 42);
+                assert_eq!((payload.client_x, payload.client_y), (20.0, 30.0));
+                assert_eq!((payload.delta_x, payload.delta_y), (-1.5, 2.5));
+                assert_eq!(payload.delta_mode, mode);
+                assert_eq!(payload.touch_phase.as_deref(), Some(expected));
+                assert!(
+                    payload.alt_key && payload.ctrl_key && payload.meta_key && payload.shift_key
+                );
+            }
+        }
+    }
+
+    #[test]
+    fn wheel_bursts_keep_every_delta_and_phase_in_order() {
+        let mut queue = EventQueue::default();
+        let mut deliveries = Vec::new();
+        for index in 0..100 {
+            let mut payload = NativeEventPayload::new(NativeEventId::Wheel, 1);
+            payload.delta_y = index as f64;
+            payload.touch_phase = Some(if index == 0 { "started" } else { "moved" }.into());
+            deliveries.push(schedule(&mut queue, payload));
+        }
+        let delivered: Vec<_> = deliveries.into_iter().map(event).collect();
+        assert_eq!(delivered.len(), 100);
+        for (index, payload) in delivered.iter().enumerate() {
+            assert_eq!(payload.delta_y, index as f64);
+        }
+        assert_eq!(delivered[0].touch_phase.as_deref(), Some("started"));
+        assert_eq!(delivered[99].touch_phase.as_deref(), Some("moved"));
+    }
+
+    #[test]
     fn mouse_move_burst_retains_latest_payload() {
         let mut queue = EventQueue::default();
         let first = schedule(&mut queue, mouse_move_payload(1, 0.0));
@@ -912,5 +1007,4 @@ mod tests {
             .unwrap()
             .is_empty());
     }
-
 }

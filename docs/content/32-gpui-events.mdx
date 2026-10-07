@@ -18,34 +18,65 @@ GPUI elements accept the same camel-case handler props as web Retend, such as `o
 
 ## Handler Props
 
-| Handler                                                     | Event class          | Elements       |
-| ----------------------------------------------------------- | -------------------- | -------------- |
-| `onClick`, `onDblClick`, `onContextMenu`                    | `GpuiMouseEvent`     | all            |
-| `onMouseDown`, `onMouseUp`, `onMouseMove`                   | `GpuiMouseEvent`     | all            |
-| `onMouseEnter`, `onMouseLeave`                              | `GpuiMouseEvent`     | all            |
-| `onMouseDownOutside`                                        | `GpuiMouseEvent`     | all            |
-| `onKeyDown`, `onKeyUp`                                      | `GpuiKeyboardEvent`  | all            |
-| `onFocus`, `onBlur`                                         | `GpuiFocusEvent`     | all            |
-| `onScroll`                                                  | `GpuiScrollEvent`    | all            |
-| `onTransitionRun`, `onTransitionStart`, `onTransitionEnd`, `onTransitionCancel` | `GpuiTransitionEvent` | all |
-| `onInput`, `onChange`                                       | `GpuiInputEvent`     | `input`, `textarea` |
-| `onLoad`, `onError`                                         | `GpuiImageEvent`     | `img`          |
+| Handler                                                                         | Event class           | Elements            |
+| ------------------------------------------------------------------------------- | --------------------- | ------------------- |
+| `onClick`, `onDblClick`, `onContextMenu`                                        | `GpuiMouseEvent`      | all                 |
+| `onMouseDown`, `onMouseUp`, `onMouseMove`                                       | `GpuiMouseEvent`      | all                 |
+| `onMouseEnter`, `onMouseLeave`                                                  | `GpuiMouseEvent`      | all                 |
+| `onMouseDownOutside`                                                            | `GpuiMouseEvent`      | all                 |
+| `onKeyDown`, `onKeyUp`                                                          | `GpuiKeyboardEvent`   | all                 |
+| `onFocus`, `onBlur`                                                             | `GpuiFocusEvent`      | all                 |
+| `onScroll`                                                                      | `GpuiScrollEvent`     | all                 |
+| `onWheel`                                                                       | `GpuiWheelEvent`      | all                 |
+| `onTransitionRun`, `onTransitionStart`, `onTransitionEnd`, `onTransitionCancel` | `GpuiTransitionEvent` | all                 |
+| `onInput`, `onChange`                                                           | `GpuiInputEvent`      | `input`, `textarea` |
+| `onLoad`, `onError`                                                             | `GpuiImageEvent`      | `img`               |
 
 All event classes are exported from `retend-gpui` for use in type annotations.
 
 ## Event Properties
 
-| Event class           | Properties                                                                                      |
-| --------------------- | ----------------------------------------------------------------------------------------------- |
-| `GpuiMouseEvent`      | `clientX`, `clientY`, `button`, `buttons`, `detail`, `altKey`, `ctrlKey`, `metaKey`, `shiftKey` |
-| `GpuiKeyboardEvent`   | `key`, `keyChar`, `repeat`, `altKey`, `ctrlKey`, `metaKey`, `shiftKey`                          |
-| `GpuiInputEvent`      | `value`                                                                                         |
-| `GpuiScrollEvent`     | `scrollX`, `scrollY`                                                                            |
-| `GpuiTransitionEvent` | `propertyName`, `elapsedTime`                                                                   |
-| `GpuiFocusEvent`      | None beyond the base event                                                                      |
-| `GpuiImageEvent`      | None beyond the base event                                                                      |
+| Event class           | Properties                                                                                                      |
+| --------------------- | --------------------------------------------------------------------------------------------------------------- |
+| `GpuiMouseEvent`      | `clientX`, `clientY`, `button`, `buttons`, `detail`, `altKey`, `ctrlKey`, `metaKey`, `shiftKey`                 |
+| `GpuiKeyboardEvent`   | `key`, `keyChar`, `repeat`, `altKey`, `ctrlKey`, `metaKey`, `shiftKey`                                          |
+| `GpuiInputEvent`      | `value`                                                                                                         |
+| `GpuiScrollEvent`     | `scrollX`, `scrollY`                                                                                            |
+| `GpuiWheelEvent`      | `deltaX`, `deltaY`, `deltaMode`, `clientX`, `clientY`, `altKey`, `ctrlKey`, `metaKey`, `shiftKey`, `touchPhase` |
+| `GpuiTransitionEvent` | `propertyName`, `elapsedTime`                                                                                   |
+| `GpuiFocusEvent`      | None beyond the base event                                                                                      |
+| `GpuiImageEvent`      | None beyond the base event                                                                                      |
 
 Every event also has the standard `type`, `target`, `currentTarget`, `timeStamp`, `preventDefault()`, and `stopPropagation()`.
+
+### Wheel events
+
+`onWheel` receives raw wheel and trackpad input even when the element has no scrollable overflow. It captures and bubbles through the logical tree. `onScroll` reports changes to a scroll container's absolute offset instead.
+
+`deltaMode` is `0` for pixels and `1` for lines. Positive `deltaX` and `deltaY` indicate scrolling right and down. `clientX` and `clientY` are window-relative coordinates.
+
+`touchPhase` preserves GPUI's `started`, `moved`, `ended`, or `cancelled` phase. Availability depends on the platform and input device. GPUI does not expose a separate momentum flag.
+
+```tsx
+import { Cell } from 'retend';
+import type { GpuiWheelEvent } from 'retend-gpui';
+
+function ZoomSurface() {
+  const zoom = Cell.source(1);
+  const handleWheel = (event: GpuiWheelEvent) => {
+    const pixels = event.deltaY * (event.deltaMode === 1 ? 16 : 1);
+    zoom.set(zoom.peek() * Math.exp(-pixels * 0.002));
+  };
+
+  return (
+    <div onWheel={handleWheel} style={{ width: '100%', height: '100%' }}>
+      Zoom: {zoom}
+    </div>
+  );
+}
+```
+
+Wheel events are non-cancelable because native scrolling runs independently of JavaScript delivery. `preventDefault()` and `onWheel--prevent` do not suppress native scrolling. Use a surface without scrollable overflow for wheel-driven zoom or panning.
 
 ### Keyboard events
 
@@ -64,7 +95,11 @@ function Editor() {
     }
   };
 
-  return <div onKeyDown={save} tabIndex={0} style={{ padding: 16 }}>Editor</div>;
+  return (
+    <div onKeyDown={save} tabIndex={0} style={{ padding: 16 }}>
+      Editor
+    </div>
+  );
 }
 ```
 
@@ -90,13 +125,13 @@ Modifier suffixes work on GPUI handlers. They are chained with `--`:
 <div onClick--self--stop={handleClick}>Only clicks on this element</div>
 ```
 
-| Modifier  | Effect                                                    |
-| --------- | --------------------------------------------------------- |
-| `--stop`  | Stops the event from propagating further.                 |
-| `--prevent` | Calls `preventDefault()` before the handler runs.       |
-| `--self`  | Runs the handler only when the element itself is the target. |
-| `--once`  | Removes the handler after its first call.                 |
-| `--passive` | Marks the listener as passive.                          |
+| Modifier    | Effect                                                       |
+| ----------- | ------------------------------------------------------------ |
+| `--stop`    | Stops the event from propagating further.                    |
+| `--prevent` | Calls `preventDefault()` before the handler runs.            |
+| `--self`    | Runs the handler only when the element itself is the target. |
+| `--once`    | Removes the handler after its first call.                    |
+| `--passive` | Marks the listener as passive.                               |
 
 See [Event Handling](/docs/event-handling) for how modifiers work in Retend.
 
@@ -120,4 +155,3 @@ function Box() {
   return <div ref={box}>Box</div>;
 }
 ```
-

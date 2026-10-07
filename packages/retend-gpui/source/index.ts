@@ -9,6 +9,7 @@ export {
   GpuiResizeEvent,
   GpuiScrollEvent,
   GpuiTransitionEvent,
+  GpuiWheelEvent,
 } from './events.js';
 export * from './gpui-host.js';
 export * from './gpui-renderer.js';

@@ -17,6 +17,7 @@ use crate::{
         event_bit, AnchoredAlign, AnchoredConfig, AnchoredFit, AnchoredSide, ImageLocation,
         ImageObjectFit, NativeTree, NodeData, NodeId, WindowId,
     },
+    wheel,
 };
 
 actions!(retend, [FocusNext, FocusPrevious]);
@@ -1238,6 +1239,11 @@ where
         _ => element,
     };
 
+    let element = if interest.has(NativeEventId::Wheel) {
+        wheel::observe(element, window_id, id)
+    } else {
+        element
+    };
     let element = crate::transform::wrap(element, resolved_style);
     let NodeData::Anchored(config) = &node.data else {
         return element;
@@ -2930,6 +2936,240 @@ mod tests {
         finish_test_frames(cx);
         crate::events::take_test_emitted_events();
         (window_id, runtime_state, cx)
+    }
+
+    #[gpui::test]
+    fn wheel_targets_transformed_non_scrollable_descendants_once(cx: &mut TestAppContext) {
+        let root_id = NEXT_GLOBAL_TEST_ROOT.fetch_add(16, Ordering::Relaxed);
+        let parent = root_id + 1;
+        let child = root_id + 2;
+        let (window_id, _, cx) = open_global_window(
+            cx,
+            root_id,
+            vec![
+                container(parent),
+                container(child),
+                Command::SetStyle {
+                    id: parent,
+                    properties: vec![
+                        (
+                            PropertyId::Position,
+                            PropertyValue::String("absolute".into()),
+                        ),
+                        (PropertyId::Left, PropertyValue::Number(100.0)),
+                        (PropertyId::Top, PropertyValue::Number(100.0)),
+                        (PropertyId::Width, PropertyValue::Number(100.0)),
+                        (PropertyId::Height, PropertyValue::Number(100.0)),
+                        (PropertyId::Scale, PropertyValue::String("2".into())),
+                    ],
+                },
+                absolute_box(child, 20.0, 20.0, 20.0),
+                subscribe(parent, NativeEventId::Wheel),
+                subscribe(child, NativeEventId::Wheel),
+                insert(root_id, parent),
+                insert(parent, child),
+            ],
+        );
+        for phase in [
+            gpui::TouchPhase::Started,
+            gpui::TouchPhase::Moved,
+            gpui::TouchPhase::Ended,
+        ] {
+            cx.simulate_event(gpui::ScrollWheelEvent {
+                position: point(px(110.0), px(110.0)),
+                delta: gpui::ScrollDelta::Pixels(point(px(1.5), px(-2.5))),
+                touch_phase: phase,
+                ..Default::default()
+            });
+            let emitted = crate::events::take_test_emitted_events();
+            let wheels: Vec<_> = emitted
+                .iter()
+                .filter(|(_, payload)| payload.event_id == NativeEventId::Wheel as u16)
+                .collect();
+            assert_eq!(wheels.len(), 1);
+            let (window, payload) = wheels[0];
+            assert_eq!(*window, window_id);
+            assert_eq!(payload.target_id, child);
+            assert!((payload.client_x - 110.0).abs() < 0.01);
+            assert!((payload.client_y - 110.0).abs() < 0.01);
+            assert_eq!((payload.delta_x, payload.delta_y), (-1.5, 2.5));
+        }
+        close_global_window(window_id);
+    }
+
+    #[gpui::test]
+    fn wheel_observation_preserves_native_scrolling(cx: &mut TestAppContext) {
+        let root_id = NEXT_GLOBAL_TEST_ROOT.fetch_add(16, Ordering::Relaxed);
+        let parent = root_id + 1;
+        let child = root_id + 2;
+        let (window_id, runtime, cx) = open_global_window(
+            cx,
+            root_id,
+            vec![
+                container(parent),
+                container(child),
+                Command::SetStyle {
+                    id: parent,
+                    properties: vec![
+                        (PropertyId::Width, PropertyValue::Number(100.0)),
+                        (PropertyId::Height, PropertyValue::Number(100.0)),
+                        (PropertyId::Overflow, PropertyValue::String("auto".into())),
+                    ],
+                },
+                Command::SetStyle {
+                    id: child,
+                    properties: vec![
+                        (PropertyId::Width, PropertyValue::Number(80.0)),
+                        (PropertyId::Height, PropertyValue::Number(300.0)),
+                        (PropertyId::FlexShrink, PropertyValue::Number(0.0)),
+                    ],
+                },
+                subscribe(parent, NativeEventId::Wheel),
+                subscribe(parent, NativeEventId::Scroll),
+                insert(root_id, parent),
+                insert(parent, child),
+            ],
+        );
+        cx.simulate_event(gpui::ScrollWheelEvent {
+            position: point(px(20.0), px(20.0)),
+            delta: gpui::ScrollDelta::Pixels(point(px(0.0), px(-25.0))),
+            ..Default::default()
+        });
+        finish_test_frames(cx);
+        let emitted = crate::events::take_test_emitted_events();
+        let wheels: Vec<_> = emitted
+            .iter()
+            .filter(|(_, payload)| payload.event_id == NativeEventId::Wheel as u16)
+            .collect();
+        assert_eq!(wheels.len(), 1);
+        assert_eq!(wheels[0].1.target_id, child);
+        assert_eq!(wheels[0].1.delta_y, 25.0);
+        assert_eq!(runtime.scroll_handle(parent).unwrap().offset().y, px(-25.0));
+        assert!(emitted
+            .iter()
+            .any(|(_, payload)| payload.event_id == NativeEventId::Scroll as u16));
+        close_global_window(window_id);
+    }
+
+    #[gpui::test]
+    fn wheel_targets_front_siblings_and_deferred_overlays(cx: &mut TestAppContext) {
+        let root_id = NEXT_GLOBAL_TEST_ROOT.fetch_add(16, Ordering::Relaxed);
+        let back = root_id + 1;
+        let front = root_id + 2;
+        let overlay = root_id + 3;
+        let (window_id, _, cx) = open_global_window(
+            cx,
+            root_id,
+            vec![
+                container(back),
+                container(front),
+                absolute_box(back, 120.0, 120.0, 80.0),
+                absolute_box(front, 120.0, 120.0, 80.0),
+                subscribe(root_id, NativeEventId::Wheel),
+                insert(root_id, back),
+                insert(root_id, front),
+            ],
+        );
+        let input = gpui::ScrollWheelEvent {
+            position: point(px(140.0), px(140.0)),
+            delta: gpui::ScrollDelta::Lines(point(0.0, -1.0)),
+            ..Default::default()
+        };
+        cx.simulate_event(input.clone());
+        let emitted = crate::events::take_test_emitted_events();
+        assert_eq!(emitted.len(), 1);
+        assert_eq!(emitted[0].1.target_id, front);
+
+        crate::runtime()
+            .lock()
+            .unwrap()
+            .apply_commands(
+                window_id,
+                vec![
+                    Command::CreateNode {
+                        id: overlay,
+                        kind: ElementKind::Anchored,
+                    },
+                    Command::SetProperty {
+                        id: overlay,
+                        property: PropertyId::AnchoredPosition,
+                        value: PropertyValue::Point(120.0, 120.0),
+                    },
+                    Command::SetProperty {
+                        id: overlay,
+                        property: PropertyId::AnchoredDeferred,
+                        value: PropertyValue::Boolean(true),
+                    },
+                    Command::SetStyle {
+                        id: overlay,
+                        properties: vec![
+                            (PropertyId::Width, PropertyValue::Number(80.0)),
+                            (PropertyId::Height, PropertyValue::Number(80.0)),
+                        ],
+                    },
+                    insert(root_id, overlay),
+                ],
+            )
+            .unwrap();
+        cx.update(|window, _| window.refresh());
+        finish_test_frames(cx);
+        crate::events::take_test_emitted_events();
+        cx.simulate_event(input);
+        let emitted = crate::events::take_test_emitted_events();
+        assert_eq!(emitted.len(), 1);
+        assert_eq!(emitted[0].1.target_id, overlay);
+        close_global_window(window_id);
+    }
+
+    #[gpui::test]
+    fn wheel_events_remain_separate_across_windows(cx: &mut TestAppContext) {
+        let mut windows = Vec::new();
+        for _ in 0..2 {
+            let root_id = NEXT_GLOBAL_TEST_ROOT.fetch_add(16, Ordering::Relaxed);
+            let target_id = root_id + 1;
+            let (window_id, _, visual) = open_global_window(
+                cx,
+                root_id,
+                vec![
+                    container(target_id),
+                    absolute_box(target_id, 20.0, 20.0, 80.0),
+                    subscribe(target_id, NativeEventId::Wheel),
+                    insert(root_id, target_id),
+                ],
+            );
+            let handle = visual.update(|window, _| window.window_handle());
+            windows.push((window_id, target_id, handle));
+        }
+        let mut expected = Vec::new();
+        for (index, phase) in [
+            (0, gpui::TouchPhase::Started),
+            (1, gpui::TouchPhase::Moved),
+            (0, gpui::TouchPhase::Ended),
+        ] {
+            let (window_id, target_id, handle) = windows[index];
+            let mut visual = gpui::VisualTestContext::from_window(handle, cx);
+            visual.simulate_event(gpui::ScrollWheelEvent {
+                position: point(px(40.0), px(40.0)),
+                delta: gpui::ScrollDelta::Lines(point(0.0, -(index as f32 + 1.0))),
+                touch_phase: phase,
+                ..Default::default()
+            });
+            expected.push((window_id, target_id, index as f64 + 1.0));
+        }
+        let emitted = crate::events::take_test_emitted_events();
+        let actual: Vec<_> = emitted
+            .iter()
+            .map(|(window, payload)| (*window, payload.target_id, payload.delta_y))
+            .collect();
+        assert_eq!(actual, expected);
+        let phases: Vec<_> = emitted
+            .iter()
+            .map(|(_, payload)| payload.touch_phase.as_deref())
+            .collect();
+        assert_eq!(phases, vec![Some("started"), Some("moved"), Some("ended")]);
+        for (window_id, _, _) in windows {
+            close_global_window(window_id);
+        }
     }
 
     fn close_global_window(window_id: WindowId) {

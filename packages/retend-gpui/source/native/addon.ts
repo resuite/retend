@@ -88,6 +88,17 @@ export type NativeScrollEventPayload = NativePayloadById<
   NativeScrollEventId,
   { scrollX: number; scrollY: number }
 >;
+export type NativeWheelEventPayload = NativePayloadById<
+  NativeEventIds<'Wheel'>,
+  {
+    clientX: number;
+    clientY: number;
+    deltaX: number;
+    deltaY: number;
+    deltaMode: 0 | 1;
+    touchPhase: 'started' | 'moved' | 'ended' | 'cancelled';
+  }
+>;
 export type NativeTransitionEventPayload = NativePayloadById<
   NativeTransitionEventId,
   { propertyName: string; elapsedTime: number }
@@ -100,6 +111,7 @@ export type NativeEventPayload =
   | NativeTextEventPayload
   | NativeFocusEventPayload
   | NativeScrollEventPayload
+  | NativeWheelEventPayload
   | NativeTransitionEventPayload
   | NativeImageEventPayload;
 

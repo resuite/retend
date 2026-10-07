@@ -1,7 +1,23 @@
+import type { GpuiWheelEvent } from '../source/index';
+
 function jsxTypingProbe() {
   const handleClick = () => {};
+  const handleWheel = (event: GpuiWheelEvent) => {
+    const mode: 0 | 1 = event.deltaMode;
+    const phase: 'started' | 'moved' | 'ended' | 'cancelled' = event.touchPhase;
+    void [
+      mode,
+      phase,
+      event.deltaX,
+      event.deltaY,
+      event.clientX,
+      event.ctrlKey,
+    ];
+  };
   const validDiv = (
     <div
+      onWheel={handleWheel}
+      onWheel--once={handleWheel}
       style={{
         width: 120,
         opacity: 0.5,

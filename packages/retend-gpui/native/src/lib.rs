@@ -15,6 +15,7 @@ mod runtime_state;
 mod style;
 mod transform;
 mod tree;
+mod wheel;
 
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Mutex, OnceLock};

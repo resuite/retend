@@ -7,6 +7,7 @@ import type {
   NativeScrollEventPayload,
   NativeTextEventPayload,
   NativeTransitionEventPayload,
+  NativeWheelEventPayload,
 } from './native/addon.js';
 import type { GpuiNode } from './tree/nodes.js';
 
@@ -26,6 +27,7 @@ type NativeEventKind =
   | 'text'
   | 'focus'
   | 'scroll'
+  | 'wheel'
   | 'transition'
   | 'image';
 type NativeEventDefinition = readonly [
@@ -50,6 +52,7 @@ const NATIVE_EVENTS = {
   [NativeEventId.Focus]: ['focus', 'focus', false, true],
   [NativeEventId.Blur]: ['blur', 'focus', false, true],
   [NativeEventId.Scroll]: ['scroll', 'scroll', false, true],
+  [NativeEventId.Wheel]: ['wheel', 'wheel', true, true],
   [NativeEventId.MouseDownOutside]: ['mousedownoutside', 'mouse', false, false],
   [NativeEventId.TransitionRun]: ['transitionrun', 'transition', true, true],
   [NativeEventId.TransitionStart]: [
@@ -171,6 +174,11 @@ export class GpuiTransitionEvent extends GpuiEvent {
   }
 }
 
+type ModifierPayload = Pick<
+  NativeMouseEventPayload,
+  'timeStamp' | 'altKey' | 'ctrlKey' | 'metaKey' | 'shiftKey'
+>;
+
 class GpuiModifierEvent extends GpuiEvent {
   readonly altKey: boolean;
   readonly ctrlKey: boolean;
@@ -179,10 +187,11 @@ class GpuiModifierEvent extends GpuiEvent {
 
   constructor(
     type: string,
-    payload: NativeMouseEventPayload | NativeKeyboardEventPayload,
-    bubbles: boolean
+    payload: ModifierPayload,
+    bubbles: boolean,
+    cancelable = true
   ) {
-    super(type, { bubbles, cancelable: true }, payload.timeStamp);
+    super(type, { bubbles, cancelable }, payload.timeStamp);
     this.altKey = payload.altKey;
     this.ctrlKey = payload.ctrlKey;
     this.metaKey = payload.metaKey;
@@ -228,6 +237,27 @@ export class GpuiKeyboardEvent extends GpuiModifierEvent {
   }
 }
 
+/** Raw wheel input; native scrolling runs independently of JS delivery. */
+export class GpuiWheelEvent extends GpuiModifierEvent {
+  readonly clientX: number;
+  readonly clientY: number;
+  readonly deltaX: number;
+  readonly deltaY: number;
+  /** 0 for pixels, 1 for lines. Positive deltas scroll right or down. */
+  readonly deltaMode: NativeWheelEventPayload['deltaMode'];
+  readonly touchPhase: NativeWheelEventPayload['touchPhase'];
+
+  constructor(payload: NativeWheelEventPayload) {
+    super('wheel', payload, true, false);
+    this.clientX = payload.clientX;
+    this.clientY = payload.clientY;
+    this.deltaX = payload.deltaX;
+    this.deltaY = payload.deltaY;
+    this.deltaMode = payload.deltaMode;
+    this.touchPhase = payload.touchPhase;
+  }
+}
+
 export function createNativeEvent(payload: NativeEventPayload): Event {
   const definition = NATIVE_EVENTS[payload.eventId] as
     | NativeEventDefinition
@@ -262,6 +292,8 @@ export function createNativeEvent(payload: NativeEventPayload): Event {
       );
     case 'scroll':
       return new GpuiScrollEvent(payload as NativeScrollEventPayload);
+    case 'wheel':
+      return new GpuiWheelEvent(payload as NativeWheelEventPayload);
     case 'image':
       return new GpuiImageEvent(
         type as 'load' | 'error',
