@@ -312,6 +312,7 @@ export function retendGpui(options: RetendGpuiOptions): RetendGpuiPlugin {
   let productionTarget: string | null = null;
   let productionRoot: string | null = null;
   let productionOutputDir: string | null = null;
+  let productionPublicDir: string | null = null;
   let entryFailed = false;
   hotChannel.on('vite:client:connect', () => {
     entryFailed = false;
@@ -433,6 +434,8 @@ export function retendGpui(options: RetendGpuiOptions): RetendGpuiPlugin {
       syncAppContextTypes(config.root, options.application);
       if (config.command === 'build') {
         productionRoot = config.root;
+        productionPublicDir =
+          typeof config.publicDir === 'string' ? config.publicDir : null;
         plugin.api.launch = null;
         return;
       }
@@ -445,6 +448,8 @@ export function retendGpui(options: RetendGpuiOptions): RetendGpuiPlugin {
         identifier: options.app.identifier,
         icon: icon ? path.resolve(config.root, icon) : null,
         root: config.root,
+        publicDir:
+          typeof config.publicDir === 'string' ? config.publicDir : null,
         application: normalizePath(
           path.resolve(config.root, options.application)
         ),
@@ -580,6 +585,7 @@ export function retendGpui(options: RetendGpuiOptions): RetendGpuiPlugin {
         bundleEntry: path.join(productionOutputDir, 'index.js'),
         addonPath: destination,
         outputDir: productionOutputDir,
+        publicDir: productionPublicDir ?? undefined,
         nodeBinary,
         icon: iconSetting ? path.resolve(root, iconSetting) : undefined,
         signing: identity

@@ -116,7 +116,7 @@ import logo from './logo.png';
 <img src={logo} alt="Logo" style={{ width: 64, height: 64 }} />;
 ```
 
-Root-relative paths such as `/assets/logo.png` resolve against the Vite root during development and against the app's resources directory in a packaged app. Remote, `data:`, and `file:` sources are used as they are.
+Root-relative paths such as `/logo.png` resolve against Vite's `public/` directory during development and against the app's resources directory in a packaged app, which includes a copy of `public/`. Remote, `data:`, and `file:` sources are used as they are.
 
 ## svg
 

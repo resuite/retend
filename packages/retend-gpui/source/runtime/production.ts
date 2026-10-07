@@ -84,11 +84,11 @@ function resolveNativeAddonPath(besideEntry: string): string {
 function resolveAssetBase(): string {
   const bundleDir = fileURLToPath(new URL('.', import.meta.url));
   const executableDir = path.dirname(process.execPath);
-  const candidates = [
-    bundleDir,
-    path.join(executableDir, '..', 'Resources'),
-    executableDir,
-  ];
+  const resourcesDir = path.join(executableDir, '..', 'Resources');
+  // Public files land at the Resources root, so prefer it whenever it
+  // exists, even when no imported `assets/` directory was emitted.
+  if (fs.existsSync(resourcesDir)) return resourcesDir;
+  const candidates = [bundleDir, executableDir];
   return (
     candidates.find((directory) =>
       fs.existsSync(path.join(directory, 'assets'))

@@ -14,6 +14,20 @@ export default function App() {
       <img src={appIcon} alt="Retend GPUI" style={{ width: 64, height: 64 }} />
       <div
         style={{
+          width: 96,
+          height: 96,
+          backgroundColor: '#7f1d1d',
+          borderRadius: 18,
+        }}
+      >
+        <img
+          src="/sample.svg"
+          alt="Public folder sample"
+          style={{ width: 96, height: 96 }}
+        />
+      </div>
+      <div
+        style={{
           backgroundColor: 'blue',
           width: 100,
           height: 100,

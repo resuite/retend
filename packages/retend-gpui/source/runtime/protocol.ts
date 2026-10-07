@@ -8,8 +8,14 @@ export interface DevRuntimeInitMessage {
   icon: string | null;
   /** Reverse-DNS identifier; used as the Windows AppUserModelID in development. */
   identifier: string;
-  /** Vite root; root-relative asset URLs resolve against it in development. */
+  /** Vite root; the asset base falls back to it when `publicDir` is null. */
   root: string;
+  /**
+   * Resolved Vite `publicDir` in development. Root-relative asset URLs
+   * resolve against it to match browser serving. Null when Vite's public
+   * directory is disabled.
+   */
+  publicDir: string | null;
   application: string;
   entry: string;
   system: GpuiSystemOptions;

@@ -61,7 +61,7 @@ async function runApplication(message: DevRuntimeInitMessage): Promise<void> {
 
   process.title = message.appName;
   setGlobalContext({ globalData });
-  setAssetBase(message.root);
+  setAssetBase(message.publicDir ?? message.root);
 
   const closeWindow = (window: RuntimeGpuiWindow): void => {
     if (!windows.delete(window)) return;

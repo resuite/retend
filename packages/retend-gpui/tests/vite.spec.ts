@@ -57,11 +57,15 @@ function options(): RetendGpuiOptions {
   };
 }
 
-function resolvePlugin(plugin: RetendGpuiPlugin, command = 'serve'): string {
+function resolvePlugin(
+  plugin: RetendGpuiPlugin,
+  command = 'serve',
+  publicDir?: string | false
+): string {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), 'retend-gpui-vite-'));
   temporaryRoots.push(root);
   const hook = plugin.configResolved as (config: ResolvedConfig) => void;
-  hook({ command, root } as ResolvedConfig);
+  hook({ command, root, publicDir } as ResolvedConfig);
   return root;
 }
 
@@ -140,7 +144,22 @@ describe('retendGpui Vite plugin', () => {
       identifier: 'dev.retend.test',
       icon: path.join(root, 'icon.svg'),
       system: { transparentTitlebar: true },
+      publicDir: null,
     });
+  });
+
+  it('exposes the resolved public directory to the development runtime', () => {
+    const plugin = retendGpui(options());
+    resolvePlugin(plugin, 'serve', '/demo/public');
+
+    expect(plugin.api.launch?.publicDir).toBe('/demo/public');
+  });
+
+  it('reports a null public directory when Vite disables it', () => {
+    const plugin = retendGpui(options());
+    resolvePlugin(plugin, 'serve', false);
+
+    expect(plugin.api.launch?.publicDir).toBeNull();
   });
 
   it('prefers the platform icon override for the development runtime', () => {
