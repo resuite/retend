@@ -2780,6 +2780,101 @@ mod tests {
     }
 
     #[gpui::test]
+    fn pointer_events_none_is_subtree_transparent(cx: &mut TestAppContext) {
+        let root = NEXT_GLOBAL_TEST_ROOT.fetch_add(16, Ordering::Relaxed);
+        let back = root + 1;
+        let parent = root + 2;
+        let child = root + 3;
+        let pointer = |id: NodeId, left: f64, top: f64, size: f64, value: PropertyValue| {
+            let Command::SetStyle { mut properties, .. } = absolute_box(id, left, top, size)
+            else {
+                unreachable!()
+            };
+            properties.push((PropertyId::PointerEvents, value));
+            Command::SetStyle { id, properties }
+        };
+        let (window_id, _, cx) = open_global_window(
+            cx,
+            root,
+            vec![
+                container(back),
+                absolute_box(back, 20.0, 20.0, 100.0),
+                subscribe(back, NativeEventId::Click),
+                insert(root, back),
+                container(parent),
+                pointer(
+                    parent,
+                    20.0,
+                    20.0,
+                    100.0,
+                    PropertyValue::String("none".into()),
+                ),
+                subscribe(parent, NativeEventId::Click),
+                container(child),
+                pointer(
+                    child,
+                    0.0,
+                    0.0,
+                    40.0,
+                    PropertyValue::String("auto".into()),
+                ),
+                subscribe(child, NativeEventId::Click),
+                insert(parent, child),
+                insert(root, parent),
+            ],
+        );
+        let click = |cx: &mut gpui::VisualTestContext, x: f32, y: f32| {
+            crate::events::take_test_emitted_events();
+            cx.simulate_click(point(px(x), px(y)), Modifiers::default());
+            finish_test_frames(cx);
+            emitted(&[NativeEventId::Click])
+        };
+        let update = |cx: &mut gpui::VisualTestContext, command: Command| {
+            crate::runtime()
+                .lock()
+                .unwrap()
+                .apply_commands(window_id, vec![command])
+                .unwrap();
+            cx.update(|window, _| window.refresh());
+            finish_test_frames(cx);
+        };
+        // `none` on the parent passes through, even where the child says `auto`.
+        assert_eq!(
+            click(cx, 30.0, 30.0),
+            vec![(NativeEventId::Click, back)]
+        );
+        assert_eq!(
+            click(cx, 90.0, 90.0),
+            vec![(NativeEventId::Click, back)]
+        );
+        // `auto` restores targeting for the subtree.
+        update(
+            cx,
+            pointer(
+                parent,
+                20.0,
+                20.0,
+                100.0,
+                PropertyValue::String("auto".into()),
+            ),
+        );
+        assert_eq!(
+            click(cx, 30.0, 30.0),
+            vec![(NativeEventId::Click, child)]
+        );
+        // Removing the declaration restores the default (`auto`) behavior.
+        update(
+            cx,
+            pointer(parent, 20.0, 20.0, 100.0, PropertyValue::Null),
+        );
+        assert_eq!(
+            click(cx, 30.0, 30.0),
+            vec![(NativeEventId::Click, child)]
+        );
+        close_global_window(window_id);
+    }
+
+    #[gpui::test]
     fn secondary_mouse_click_emits_context_menu(cx: &mut TestAppContext) {
         cx.update(init);
         let root_id = NEXT_GLOBAL_TEST_ROOT.fetch_add(8, Ordering::Relaxed);

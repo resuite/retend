@@ -115,7 +115,9 @@
     "Translate": 80,
     "Skew": 81,
     "TransformOrigin": 82,
-    "Content": 83
+    "Content": 83,
+    "Cursor": 84,
+    "PointerEvents": 85
   },
   "nativeEvents": {
     "Click": 1,

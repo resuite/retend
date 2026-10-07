@@ -26,6 +26,21 @@ npm install retend retend-gpui vite
 
 The prebuilt native addon for your platform is installed automatically as an optional dependency. See [Platform notes](#platform-notes) for supported platforms.
 
+## Cursor and pointer targeting
+
+Use `style={{ cursor: 'pointer' }}` to select a native cursor. Supported values include
+`auto`, `default`, `pointer`, `text`, `crosshair`, `grab`, `grabbing`, directional
+resize cursors, `col-resize`, `row-resize`, `vertical-text`, `not-allowed`, `alias`,
+`copy`, and `context-menu`. `auto` selects the native arrow. `zoom-in` and
+`zoom-out` are unsupported because the installed GPUI has no corresponding
+native cursor variants.
+
+`style={{ pointerEvents: 'none' }}` makes that element's subtree
+pointer-transparent: pointer input passes through to what is behind it, while
+layout, paint, and keyboard focus are unaffected. `auto` (the default)
+restores targeting. A descendant `auto` does not opt back in while an
+ancestor is `none`.
+
 ## Not supported yet
 
 `retend-gpui` covers the renderer: elements, layout, styling, events, windows, and packaging. Several things desktop apps commonly need are not available yet:

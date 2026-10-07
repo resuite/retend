@@ -124,6 +124,7 @@ native_style! {
         align_content: ContentAlignValue => AlignContent(parse_content_align);
         justify_content: ContentAlignValue => JustifyContent(parse_content_align);
         position: PositionValue => Position(parse_position);
+        mouse_cursor: gpui::CursorStyle => Cursor(parse_cursor);
     }
     methods {
         width: LengthValue => Width(parse_nonnegative_length), w(to_gpui_length);
@@ -172,6 +173,7 @@ native_style! {
         row_gap: f32 => RowGap(parse_nonnegative_number);
         column_gap: f32 => ColumnGap(parse_nonnegative_number);
         white_space: WhiteSpaceValue => WhiteSpace(parse_white_space);
+        pointer_events: bool => PointerEvents(parse_pointer_events);
     }
 }
 
@@ -323,6 +325,39 @@ string_enum_parser!(
     "left" => TextAlignValue::Left,
     "center" => TextAlignValue::Center,
     "right" => TextAlignValue::Right,
+);
+fn parse_pointer_events(value: &PropertyValue) -> Option<bool> {
+    match value {
+        PropertyValue::String(value) if value == "auto" => Some(true),
+        PropertyValue::String(value) if value == "none" => Some(false),
+        _ => None,
+    }
+}
+string_enum_parser!(
+    parse_cursor,
+    gpui::CursorStyle,
+    "auto" => gpui::CursorStyle::Arrow,
+    "default" => gpui::CursorStyle::Arrow,
+    "pointer" => gpui::CursorStyle::PointingHand,
+    "text" => gpui::CursorStyle::IBeam,
+    "crosshair" => gpui::CursorStyle::Crosshair,
+    "grab" => gpui::CursorStyle::OpenHand,
+    "grabbing" => gpui::CursorStyle::ClosedHand,
+    "w-resize" => gpui::CursorStyle::ResizeLeft,
+    "e-resize" => gpui::CursorStyle::ResizeRight,
+    "ew-resize" => gpui::CursorStyle::ResizeLeftRight,
+    "n-resize" => gpui::CursorStyle::ResizeUp,
+    "s-resize" => gpui::CursorStyle::ResizeDown,
+    "ns-resize" => gpui::CursorStyle::ResizeUpDown,
+    "nesw-resize" => gpui::CursorStyle::ResizeUpRightDownLeft,
+    "nwse-resize" => gpui::CursorStyle::ResizeUpLeftDownRight,
+    "col-resize" => gpui::CursorStyle::ResizeColumn,
+    "row-resize" => gpui::CursorStyle::ResizeRow,
+    "vertical-text" => gpui::CursorStyle::IBeamCursorForVerticalLayout,
+    "not-allowed" => gpui::CursorStyle::OperationNotAllowed,
+    "alias" => gpui::CursorStyle::DragLink,
+    "copy" => gpui::CursorStyle::DragCopy,
+    "context-menu" => gpui::CursorStyle::ContextualMenu,
 );
 string_enum_parser!(
     parse_white_space,
@@ -629,6 +664,42 @@ mod tests {
         assert_eq!(style.padding, Some(12.0));
         assert_eq!(style.border_color, Some(0x336699ff));
         assert_eq!(style.white_space, Some(WhiteSpaceValue::NoWrap));
+        assert!(style.set_property(PropertyId::Cursor, &PropertyValue::String("pointer".into())));
+        assert_eq!(style.mouse_cursor, Some(gpui::CursorStyle::PointingHand));
+        assert!(style.set_property(
+            PropertyId::PointerEvents,
+            &PropertyValue::String("none".into())
+        ));
+        assert_eq!(style.pointer_events, Some(false));
+        style.set_property(
+            PropertyId::PointerEvents,
+            &PropertyValue::String("auto".into()),
+        );
+        assert_eq!(style.pointer_events, Some(true));
+        style.set_property(PropertyId::PointerEvents, &PropertyValue::Null);
+        assert_eq!(style.pointer_events, None);
+        style.set_property(
+            PropertyId::Cursor,
+            &PropertyValue::String("unsupported".into()),
+        );
+        assert_eq!(style.mouse_cursor, None);
+    }
+
+    #[test]
+    fn diagonal_cursors_follow_native_directions_and_zoom_is_unsupported() {
+        // GPUI's CSS comments swap these diagonals; its platform implementations
+        // and variant names agree on the actual native directions.
+        for (value, expected) in [
+            ("nesw-resize", Some(gpui::CursorStyle::ResizeUpRightDownLeft)),
+            ("nwse-resize", Some(gpui::CursorStyle::ResizeUpLeftDownRight)),
+            ("zoom-in", None),
+            ("zoom-out", None),
+        ] {
+            let mut style = NativeStyle::default();
+            style.set_property(PropertyId::Cursor, &PropertyValue::String("pointer".into()));
+            assert!(style.set_property(PropertyId::Cursor, &PropertyValue::String(value.into())));
+            assert_eq!(style.mouse_cursor, expected, "cursor: {value}");
+        }
     }
 
     #[test]

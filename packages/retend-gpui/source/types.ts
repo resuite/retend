@@ -321,6 +321,32 @@ export interface GpuiStyleDeclarations {
   fontWeight?: number | 'normal' | 'bold';
   textAlign?: 'left' | 'center' | 'right';
   lineHeight?: number;
+  /** Native cursor shown over this element. */
+  cursor?:
+    | 'auto'
+    | 'default'
+    | 'pointer'
+    | 'text'
+    | 'crosshair'
+    | 'grab'
+    | 'grabbing'
+    | 'w-resize'
+    | 'e-resize'
+    | 'ew-resize'
+    | 'n-resize'
+    | 's-resize'
+    | 'ns-resize'
+    | 'nesw-resize'
+    | 'nwse-resize'
+    | 'col-resize'
+    | 'row-resize'
+    | 'vertical-text'
+    | 'not-allowed'
+    | 'alias'
+    | 'copy'
+    | 'context-menu';
+  /** Subtree pointer targeting. `none` passes through; descendant `auto` does not opt back in. Keyboard focus is unaffected. */
+  pointerEvents?: 'auto' | 'none';
   whiteSpace?: 'normal' | 'nowrap';
   overflow?: 'visible' | 'clip' | 'hidden' | 'auto' | 'scroll';
 

@@ -49,7 +49,7 @@ export async function createGpuiProject(projectDir, answers, cliOptions) {
     createPackageJson(projectDir, answers, cliOptions),
     createTsConfig(projectDir, answers, {
       jsxImportSource: 'retend',
-      types: ['retend-gpui/jsx-runtime'],
+      types: ['retend-gpui/jsx-runtime', 'vite/client'],
       // Generated initially by retend-start and kept in sync by retend-gpui.
       include: ['retend-gpui-env.d.ts'],
     }),

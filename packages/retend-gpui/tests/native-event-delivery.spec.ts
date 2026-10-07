@@ -265,6 +265,57 @@ describe('native event delivery', () => {
     ).toThrow('Unknown native window event');
   });
 
+  it('delivers separate ancestor enter/leave events without bubbling through none', () => {
+    const renderer = createRenderer();
+    const parent = renderer.createContainer('div');
+    const child = renderer.createContainer('div');
+    renderer.setProperty(parent, 'style', { pointerEvents: 'none' });
+    renderer.setProperty(child, 'style', { pointerEvents: 'auto' });
+    renderer.append(parent, child);
+    renderer.render(() => parent);
+    const calls: string[] = [];
+    for (const type of ['mouseenter', 'mouseleave']) {
+      parent.addEventListener(type, (event) => {
+        expect(event.target).toBe(parent);
+        expect(event.bubbles).toBe(false);
+        calls.push(`parent-${type}`);
+      });
+      parent.addEventListener(
+        type,
+        (event) => {
+          if (event.target === child) calls.push(`capture-${type}`);
+        },
+        true
+      );
+      child.addEventListener(type, (event) => {
+        expect(event.target).toBe(child);
+        calls.push(`child-${type}`);
+      });
+    }
+    parent.addEventListener('click', (event) => {
+      expect(event.target).toBe(child);
+      calls.push('parent-click');
+    });
+    native.onEvent?.({
+      event: mouseEvent(NativeEventId.MouseEnter, parent.id),
+    });
+    native.onEvent?.({ event: mouseEvent(NativeEventId.MouseEnter, child.id) });
+    native.onEvent?.({ event: mouseEvent(NativeEventId.Click, child.id) });
+    native.onEvent?.({ event: mouseEvent(NativeEventId.MouseLeave, child.id) });
+    native.onEvent?.({
+      event: mouseEvent(NativeEventId.MouseLeave, parent.id),
+    });
+    expect(calls).toEqual([
+      'parent-mouseenter',
+      'capture-mouseenter',
+      'child-mouseenter',
+      'parent-click',
+      'capture-mouseleave',
+      'child-mouseleave',
+      'parent-mouseleave',
+    ]);
+  });
+
   it('maps the native target into Retend propagation with the native payload intact', () => {
     const renderer = createRenderer();
     const parent = renderer.createContainer('div');

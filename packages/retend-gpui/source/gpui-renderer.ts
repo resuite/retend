@@ -86,6 +86,10 @@ const TRANSFORM_PROPERTY_RANGE = [
   PropertyId.Scale,
   PropertyId.TransformOrigin,
 ] as const;
+const POINTER_PROPERTY_RANGE = [
+  PropertyId.Cursor,
+  PropertyId.PointerEvents,
+] as const;
 const IMAGE_PROPERTY_RANGE = [PropertyId.Alt, PropertyId.ObjectFit] as const;
 const SVG_PROPERTY_BY_KEY = {
   content: PropertyId.Content,
@@ -1204,7 +1208,8 @@ export class RetendGpuiRenderer implements Renderer<GpuiRenderingTypes> {
         propertyIdInRange(property, STYLE_PROPERTY_RANGE) ??
         propertyIdInRange(property, LOGICAL_SPACING_RANGE) ??
         propertyIdInRange(property, TRANSFORM_PROPERTY_RANGE) ??
-        propertyIdInRange(property, TRANSITION_PROPERTY_RANGE);
+        propertyIdInRange(property, TRANSITION_PROPERTY_RANGE) ??
+        propertyIdInRange(property, POINTER_PROPERTY_RANGE);
       if (id === undefined) {
         throw new Error(`Unsupported Retend GPUI style property: ${property}.`);
       }

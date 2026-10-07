@@ -768,6 +768,36 @@ describe('Retend GPUI renderer on the Retend-owned native bridge', () => {
     ]);
   });
 
+  it('serializes cursor and pointer targeting in reactive and pseudo styles', () => {
+    const renderer = createRenderer();
+    const element = renderer.createContainer('div');
+    const style = Cell.source<GpuiStyle>({
+      cursor: 'pointer',
+      pointerEvents: 'none',
+      hover: { cursor: 'grab' },
+    });
+    const setStyle = vi.spyOn(renderer.host, 'setStyle');
+    const setPseudoStyle = vi.spyOn(renderer.host, 'setPseudoStyle');
+    renderer.setProperty(element, 'style', style);
+    expect(setStyle).toHaveBeenCalledWith(element.id, [
+      [PropertyId.Cursor, 'pointer'],
+      [PropertyId.PointerEvents, 'none'],
+    ]);
+    expect(setPseudoStyle).toHaveBeenCalledWith(element.id, StyleState.Hover, [
+      [PropertyId.Cursor, 'grab'],
+    ]);
+    style.set({ cursor: 'default', pointerEvents: 'auto' });
+    renderer.flush();
+    expect(setStyle).toHaveBeenLastCalledWith(element.id, [
+      [PropertyId.Cursor, 'default'],
+      [PropertyId.PointerEvents, 'auto'],
+    ]);
+    style.set({});
+    renderer.flush();
+    expect(setStyle).toHaveBeenLastCalledWith(element.id, []);
+    expect(debugTree(renderer).poisoned).toBe(false);
+  });
+
   it('publishes transition longhands and serializes property arrays compactly', () => {
     const renderer = createRenderer();
     const element = renderer.createContainer('div');

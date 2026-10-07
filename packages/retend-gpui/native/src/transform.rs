@@ -212,7 +212,8 @@ impl Transform {
 }
 
 pub fn wrap(inner: AnyElement, style: Option<&NativeStyle>) -> AnyElement {
-    let Some(style) = style else { return inner };
+    let element = wrap_pointer_events(inner, style.and_then(|style| style.pointer_events));
+    let Some(style) = style else { return element };
     let transform = Transform {
         translate: style.translate.unwrap_or_default(),
         rotate: style.rotate.unwrap_or_default(),
@@ -226,9 +227,85 @@ pub fn wrap(inner: AnyElement, style: Option<&NativeStyle>) -> AnyElement {
         && transform.skew == [0.0; 2]
         && transform.origin == TransformOrigin::default()
     {
-        return inner;
+        return element;
     }
-    Transformed { inner, transform }.into_any_element()
+    Transformed { inner: element, transform }.into_any_element()
+}
+
+pub fn wrap_pointer_events(inner: AnyElement, pointer_events: Option<bool>) -> AnyElement {
+    if pointer_events == Some(false) {
+        PointerTransparent { inner }.into_any_element()
+    } else {
+        inner
+    }
+}
+
+/// Subtree `pointer-events: none`: prepaint under an empty content mask so
+/// the subtree (including `auto` descendants) is pointer-transparent, while
+/// paint runs normally so layout and visuals are unaffected.
+struct PointerTransparent {
+    inner: AnyElement,
+}
+
+impl IntoElement for PointerTransparent {
+    type Element = Self;
+    fn into_element(self) -> Self {
+        self
+    }
+}
+
+impl Element for PointerTransparent {
+    type RequestLayoutState = ();
+    type PrepaintState = ();
+
+    fn id(&self) -> Option<ElementId> {
+        None
+    }
+    fn source_location(&self) -> Option<&'static std::panic::Location<'static>> {
+        None
+    }
+
+    fn request_layout(
+        &mut self,
+        _: Option<&GlobalElementId>,
+        _: Option<&InspectorElementId>,
+        window: &mut Window,
+        cx: &mut App,
+    ) -> (LayoutId, ()) {
+        (self.inner.request_layout(window, cx), ())
+    }
+
+    fn prepaint(
+        &mut self,
+        _: Option<&GlobalElementId>,
+        _: Option<&InspectorElementId>,
+        _: Bounds<Pixels>,
+        _: &mut (),
+        window: &mut Window,
+        cx: &mut App,
+    ) {
+        window.with_content_mask(
+            Some(gpui::ContentMask {
+                bounds: Bounds::default(),
+            }),
+            |window| {
+                self.inner.prepaint(window, cx);
+            },
+        );
+    }
+
+    fn paint(
+        &mut self,
+        _: Option<&GlobalElementId>,
+        _: Option<&InspectorElementId>,
+        _: Bounds<Pixels>,
+        _: &mut (),
+        _: &mut (),
+        window: &mut Window,
+        cx: &mut App,
+    ) {
+        self.inner.paint(window, cx);
+    }
 }
 
 struct Transformed {
