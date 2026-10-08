@@ -650,6 +650,9 @@ export class Router extends EventTarget {
     try {
       const path = getFullPath(window);
       await this.#load({ rawPath: path, navigate: false });
+      // History traversal (Back, Forward) loads without `routeloadcompleted`,
+      // which is where navigations apply the title; apply it here too.
+      if (this.#title) window.document.title = this.#title;
     } finally {
       this.#isNavigating = false;
     }
