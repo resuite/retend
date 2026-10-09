@@ -10,6 +10,32 @@ import {
 } from './utils.js';
 
 /**
+ * Returns a list item's nodes as they are in the tree now.
+ *
+ * `For` records an item's nodes when the item is created. A group among them
+ * (an `Await`, `If` or `Switch`, say) can later replace what sits between its
+ * own start and end markers, so the record goes stale. The item's first and
+ * last nodes never change, and everything between them belongs to the item,
+ * so its current nodes are that run of siblings.
+ *
+ * @param {any[]} nodes
+ * @returns {any[]}
+ */
+function currentItemNodes(nodes) {
+  if (nodes.length < 2) return nodes;
+  const first = nodes[0];
+  const last = nodes[nodes.length - 1];
+  if (!first.parentNode || first.parentNode !== last.parentNode) return nodes;
+
+  const current = [];
+  for (let node = first; node; node = node.nextSibling) {
+    current.push(node);
+    if (node === last) return current;
+  }
+  return nodes;
+}
+
+/**
  * @param {Array<any>} segment
  * @param {ReconcilerOptions<any>} options
  * @param {Renderer<any>} renderer
@@ -40,7 +66,7 @@ export function reconcile(segment, options, renderer) {
     if (newCache.has(key)) continue;
     // There was a previous optimization to try and remove contiguous nodes
     // at once with range.deleteContents(), but it was not worth it.
-    for (const node of value.nodes) {
+    for (const node of currentItemNodes(value.nodes)) {
       onBeforeNodeRemove?.(node, value.index.get());
       node.remove();
     }
@@ -59,8 +85,9 @@ export function reconcile(segment, options, renderer) {
   /** @type {ChildNode | null} */
   let batchTail = null;
   for (const item of newList) {
+    const cached = newCache.get(retrieveOrSetItemKey(item, i));
     // @ts-ignore: Invariant: nodes is always defined.
-    const { nodes } = newCache.get(retrieveOrSetItemKey(item, i));
+    let { nodes } = cached;
     const isAlreadyInPosition = lastInserted.nextSibling === nodes[0];
     if (isAlreadyInPosition) {
       if (batchTail) {
@@ -71,6 +98,10 @@ export function reconcile(segment, options, renderer) {
       i++;
       continue;
     }
+
+    // From here the item's nodes may move, so they must be the current ones.
+    // @ts-ignore: Invariant: cached is always defined.
+    nodes = cached.nodes = currentItemNodes(nodes);
 
     // This branch takes care of the case where one item moves
     // forward in the list, but until its correct position is reached, its nodes
@@ -94,8 +125,11 @@ export function reconcile(segment, options, renderer) {
           lastItemLastNode.nextSibling !== followingNode &&
           lastItemLastNode !== nodes[0];
         if (hasViableMoveAnchor) {
-          const fullNodeSet = newCache.get(itemKey)?.nodes;
-          if (fullNodeSet) {
+          const blocking = newCache.get(itemKey);
+          if (blocking) {
+            const fullNodeSet = (blocking.nodes = currentItemNodes(
+              blocking.nodes
+            ));
             onBeforeNodesMove?.(nodes);
             lastItemLastNode.after(...fullNodeSet);
           }
