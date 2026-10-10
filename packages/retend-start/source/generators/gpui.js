@@ -133,10 +133,9 @@ export default Root;
 async function createRouterFile(projectDir, answers) {
   const isTypeScript = answers.language === 'TypeScript';
   const extension = isTypeScript ? 'tsx' : 'jsx';
-  const content = isTypeScript
-    ? `
+  const content = `
 import { onSetup } from 'retend';
-import { useWindow } from 'retend-gpui';
+import { attachRouter, useWindow } from 'retend-gpui';
 import { Outlet, Router, RouterProvider } from 'retend/router';
 
 import App from './App';
@@ -147,38 +146,7 @@ export default function Root() {
   const window = useWindow();
   const router = new Router({ routes, linkTag: 'div' });
 
-  onSetup(() => {
-    const host = window.host as unknown as Window;
-    const detach = router.attachWindowListeners(host);
-    window.host.dispatchEvent(new Event('load'));
-    return detach;
-  });
-
-  return (
-    <RouterProvider router={router}>
-      <Outlet />
-    </RouterProvider>
-  );
-}
-`.trim()
-    : `
-import { onSetup } from 'retend';
-import { useWindow } from 'retend-gpui';
-import { Outlet, Router, RouterProvider } from 'retend/router';
-
-import App from './App';
-
-const routes = [{ path: '/', component: App }];
-
-export default function Root() {
-  const window = useWindow();
-  const router = new Router({ routes, linkTag: 'div' });
-
-  onSetup(() => {
-    const detach = router.attachWindowListeners(window.host);
-    window.host.dispatchEvent(new Event('load'));
-    return detach;
-  });
+  onSetup(() => attachRouter(router, window));
 
   return (
     <RouterProvider router={router}>

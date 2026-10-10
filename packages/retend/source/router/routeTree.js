@@ -52,14 +52,14 @@
  * only a path and a redirect, with no component or children.
  *
  * @property {string} [title]
- * The title to give the document when the route is matched.
+ * The title to set when the route is matched.
  * if there are nested routes with a title set, the title will be overwritten.
  *
  * @property {Metadata} [metadata]
  * Metadata to be associated with the route.
  *
  * @property {string} [transitionType]
- * The active view transition type for the route. This will be set on the document
+ * The active view transition type for the route. This will be set
  * whenever the route is being transitioned to.
  */
 

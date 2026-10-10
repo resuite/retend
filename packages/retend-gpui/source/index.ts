@@ -14,6 +14,7 @@ export {
 } from './events.js';
 export * from './gpui-host.js';
 export * from './gpui-renderer.js';
+export { attachRouter } from './router.js';
 export { useAppContext } from './application.js';
 export type {
   GpuiAppContext,

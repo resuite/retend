@@ -23,7 +23,7 @@ describe('production bootstrap', () => {
         Root: () => null,
         appName: 'Test',
         identifier: 'dev.retend.test',
-        options: { width: 800, height: 600, title: 'Test', location: '/' },
+        options: { width: 800, height: 600, title: 'Test', initialPath: '/' },
         nativeAddonPath: missing,
       })
     ).rejects.toThrow(

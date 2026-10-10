@@ -117,9 +117,10 @@ The context is typed from the application class. `retend-start` creates `retend-
 | `width`, `height` | Read-only Cells that track the content size. They update together on native resize events.                       |
 | `orientation`     | Read-only Cell with `portrait` or `landscape`, derived from `width` and `height`. Square windows are `portrait`. |
 | `title`           | A Cell. Setting it changes the OS window title.                                                                  |
+| `initialPath`     | The route path the window opened on, from the `initialPath` option. It never changes.                            |
 | `open(options)`   | Opens another independent window. Returns a promise of a handle.                                                 |
 | `close()`         | Requests that this window close.                                                                                 |
-| `host`            | The native host. It exposes the window's `location` and `history`, which the router uses.                        |
+| `host`            | The native host. It dispatches window lifecycle events.                                                          |
 
 The window is also an event target and emits `focus` and `blur`.
 
@@ -159,14 +160,14 @@ The `window` option in the plugin config and the `options` argument to `open()` 
 | `maximized`             | `boolean` | Opens maximized. Cannot be combined with `fullscreen`.                               |
 | `minWidth`, `minHeight` | `number`  | The smallest content size the user can resize to.                                    |
 | `maxWidth`, `maxHeight` | `number`  | The largest content size the user can resize to.                                     |
-| `location`              | `string`  | The initial route. Defaults to `/`.                                                  |
+| `initialPath`           | `string`  | The route path the window opens on, such as a deep link. Defaults to `/`.            |
 | `closeWithOpener`       | `boolean` | Whether the window closes when the window that opened it closes. Defaults to `true`. |
 
 Sizes are finite positive numbers, and each minimum cannot exceed its maximum.
 
 ## Opening More Windows
 
-`open()` creates another native window with its own Retend root. A `location` value starts it on a specific route:
+`open()` creates another native window with its own Retend root. An `initialPath` starts it on a specific route:
 
 ```tsx
 import { useWindow } from 'retend-gpui';
@@ -179,7 +180,7 @@ function OpenSettings() {
       title: 'Settings',
       width: 520,
       height: 640,
-      location: '/settings',
+      initialPath: '/settings',
     });
     settings.addEventListener('close', () => console.log('Settings closed'));
   };
@@ -192,11 +193,11 @@ The returned handle has a `close()` method and fires a `close` event. By default
 
 ## Routing
 
-A GPUI window has no browser location bar, so the router is connected to the native window explicitly. The scaffolded `router.tsx` shows the setup:
+A GPUI window has no address bar or back and forward buttons, so the router is the only thing that changes the route while the app runs. `attachRouter` connects the router to the window. The scaffolded `router.tsx` shows the setup:
 
 ```tsx
 import { onSetup } from 'retend';
-import { useWindow } from 'retend-gpui';
+import { attachRouter, useWindow } from 'retend-gpui';
 import { Outlet, Router, RouterProvider } from 'retend/router';
 
 import App from './App';
@@ -207,12 +208,7 @@ export default function Root() {
   const window = useWindow();
   const router = new Router({ routes, linkTag: 'div' });
 
-  onSetup(() => {
-    const host = window.host as unknown as Window;
-    const detach = router.attachWindowListeners(host);
-    window.host.dispatchEvent(new Event('load'));
-    return detach;
-  });
+  onSetup(() => attachRouter(router, window));
 
   return (
     <RouterProvider router={router}>
@@ -225,8 +221,8 @@ export default function Root() {
 Three details matter:
 
 - `linkTag: 'div'` gives `Link` a GPUI-compatible host element.
-- `attachWindowListeners` connects the router to the window's `location` and `history`. It returns a function that detaches them, which `onSetup` uses as its cleanup.
-- The router loads the initial route when the host receives a `load` event, so the setup dispatches one after attaching.
+- `attachRouter` navigates to `window.initialPath`. A window opened with `initialPath: '/books/42'` starts on that page, which is how deep links work. If the root remounts, for example after a hot reload of this file, the new router starts again from the initial path.
+- Route titles set the window title. A route without a title leaves the current title in place, as in a browser. `attachRouter` returns a function that stops the title updates, which `onSetup` uses as its cleanup.
 
 See [Defining Routes](/docs/defining-routes) for the router itself.
 

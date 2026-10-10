@@ -187,16 +187,6 @@ describe('native event delivery', () => {
     });
   });
 
-  it('seeds window navigation from the location option', () => {
-    const current = new RetendGpuiRenderer({ headless: true });
-    current.init({ location: '/configured?tab=1#section' });
-    renderer = current;
-
-    expect(current.host.location.pathname).toBe('/configured');
-    expect(current.host.location.search).toBe('?tab=1');
-    expect(current.host.location.hash).toBe('#section');
-  });
-
   it('releases the logical root when the native window closes', () => {
     const current = createRenderer();
     const ref = Cell.source<object | null>(null);

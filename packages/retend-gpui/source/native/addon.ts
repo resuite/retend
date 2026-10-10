@@ -19,7 +19,7 @@ export interface NativeBridgeFailure {
 
 export type NativeWindowOptions = Omit<
   GpuiWindowOptions,
-  'location' | 'closeWithOpener'
+  'initialPath' | 'closeWithOpener'
 > & {
   transparentTitlebar?: boolean;
 };

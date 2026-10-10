@@ -28,8 +28,11 @@ export interface GpuiWindowOptions {
   maxWidth?: number;
   /** Maximum native content height in logical pixels. */
   maxHeight?: number;
-  /** Initial application location. Defaults to `/`. */
-  location?: string;
+  /**
+   * Route path the window opens on, such as a deep link like `/books/42`.
+   * Set once when the window is created. Defaults to `/`.
+   */
+  initialPath?: string;
   /** Whether this window closes automatically with the window that opened it. */
   closeWithOpener?: boolean;
 }
@@ -86,9 +89,11 @@ export interface GpuiWindow extends EventTarget {
   /** Current native title. Setting the cell updates the OS window title. */
   readonly title: SourceCell<string>;
   /**
-   * Native host for this window. Exposes window-local `location` and `history`
-   * and window lifecycle events, which the router binds to during setup.
+   * Route path this window opened on, from the `initialPath` option. It never
+   * changes. `attachRouter` navigates the router to it.
    */
+  readonly initialPath: string;
+  /** Native host for this window. Dispatches window lifecycle events. */
   readonly host: GpuiHost;
   /** Opens another independent Retend root/window. */
   open(options?: GpuiWindowOptions): Promise<GpuiWindowHandle>;
@@ -102,12 +107,23 @@ interface WindowRuntime {
   open(options: GpuiWindowOptions): Promise<GpuiWindowHandle>;
 }
 
+/** @internal Inputs for constructing a {@link RuntimeGpuiWindow}. */
+export interface RuntimeGpuiWindowOptions {
+  title: string;
+  width: number;
+  height: number;
+  initialPath: string;
+  renderer: RetendGpuiRenderer;
+  runtime: WindowRuntime;
+}
+
 /** @internal Window implementation owned by the application runtime. */
 export class RuntimeGpuiWindow extends EventTarget implements GpuiWindow {
   readonly width: SourceCell<number>;
   readonly height: SourceCell<number>;
   readonly orientation: Cell<GpuiWindowOrientation>;
   readonly title: SourceCell<string>;
+  readonly initialPath: string;
   /** @internal Renderer and native host owned by this runtime window. */
   readonly renderer: RetendGpuiRenderer;
   /** @internal Lifecycle-only view returned to window openers. */
@@ -120,22 +136,18 @@ export class RuntimeGpuiWindow extends EventTarget implements GpuiWindow {
   readonly #openedWindows = new Set<GpuiWindowHandle>();
   #disposed = false;
 
-  constructor(
-    initialTitle: string,
-    initialWidth: number,
-    initialHeight: number,
-    renderer: RetendGpuiRenderer,
-    runtime: WindowRuntime
-  ) {
+  constructor(options: RuntimeGpuiWindowOptions) {
     super();
+    const { renderer } = options;
+    this.initialPath = options.initialPath;
     this.renderer = renderer;
-    this.#runtime = runtime;
-    this.width = Cell.source(initialWidth);
-    this.height = Cell.source(initialHeight);
+    this.#runtime = options.runtime;
+    this.width = Cell.source(options.width);
+    this.height = Cell.source(options.height);
     this.orientation = Cell.derived(() =>
       this.width.get() > this.height.get() ? 'landscape' : 'portrait'
     );
-    this.title = Cell.source(initialTitle);
+    this.title = Cell.source(options.title);
     this.handle = Object.assign(new EventTarget(), {
       close: () => this.close(),
     });

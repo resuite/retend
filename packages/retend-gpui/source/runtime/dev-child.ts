@@ -237,13 +237,14 @@ async function runApplication(message: DevRuntimeInitMessage): Promise<void> {
       throw error;
     }
 
-    const window = new RuntimeGpuiWindow(
-      options.title,
-      options.width ?? 800,
-      options.height ?? 600,
+    const window = new RuntimeGpuiWindow({
+      title: options.title,
+      width: options.width ?? 800,
+      height: options.height ?? 600,
+      initialPath: options.initialPath,
       renderer,
-      { close: closeWindow, open: openWindow }
-    );
+      runtime: { close: closeWindow, open: openWindow },
+    });
     windows.add(window);
     renderer.host.addEventListener(
       'close',
@@ -269,7 +270,7 @@ async function runApplication(message: DevRuntimeInitMessage): Promise<void> {
     const window = createWindow({
       ...options,
       title: options.title ?? message.appName,
-      location: options.location ?? '/',
+      initialPath: options.initialPath ?? '/',
     });
     await recoverWindow(window, Root, true);
     return window.handle;

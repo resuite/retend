@@ -22,11 +22,7 @@ it('keeps the router loaded after an HMR remount of the root', async () => {
         routes: [{ path: '/', component: () => label }],
       });
       onSetup(() => {
-        const detach = router.attachWindowListeners(
-          renderer.host as unknown as Window
-        );
-        renderer.host.dispatchEvent(new Event('load'));
-        return detach;
+        void router.navigate('/');
       });
       return (
         <RouterProvider router={router}>
@@ -46,19 +42,15 @@ it('keeps the router loaded after an HMR remount of the root', async () => {
   expect(collectText(debugTree(renderer))).toContain('V2');
 });
 
-it('does not signal a window load for a nested boundary remount', async () => {
+it('does not rerun root setup for a nested boundary remount', async () => {
   const renderer = createRenderer({ hmr: true });
-  const dispatch = vi.spyOn(renderer.host, 'dispatchEvent');
-  const loadCount = () =>
-    dispatch.mock.calls.filter(([event]) => event.type === 'load').length;
+  const rootSetup = vi.fn();
 
   function Child() {
     return <div>child</div>;
   }
   function Root() {
-    onSetup(() => {
-      renderer.host.dispatchEvent(new Event('load'));
-    });
+    onSetup(rootSetup);
     return (
       <div>
         <Child />
@@ -68,12 +60,13 @@ it('does not signal a window load for a nested boundary remount', async () => {
 
   await renderer.mount(() => <Root />);
   await tick();
-  const loadsAfterMount = loadCount();
+  const setupsAfterMount = rootSetup.mock.calls.length;
 
   function ChildV2() {
     return <div>child v2</div>;
   }
   hotReloadModule({ default: ChildV2 }, { default: Child });
   await tick();
-  expect(loadCount()).toBe(loadsAfterMount);
+  expect(collectText(debugTree(renderer))).toContain('child v2');
+  expect(rootSetup).toHaveBeenCalledTimes(setupsAfterMount);
 });

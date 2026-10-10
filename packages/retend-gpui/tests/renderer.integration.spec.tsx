@@ -1,5 +1,4 @@
 import { Cell, If, setActiveRenderer } from 'retend';
-import { Router } from 'retend/router';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import type { GpuiElement } from '../source/gpui-renderer';
@@ -30,27 +29,6 @@ import {
 afterEach(disposeRenderers);
 
 describe('Retend GPUI renderer on the Retend-owned native bridge', () => {
-  it('maintains window-local location and history state', () => {
-    const renderer = createRenderer();
-    renderer.host.resetLocation('/settings?tab=general#account');
-
-    expect(renderer.host.location.pathname).toBe('/settings');
-    expect(renderer.host.location.search).toBe('?tab=general');
-    expect(renderer.host.location.hash).toBe('#account');
-
-    renderer.host.history.pushState({ page: 2 }, '', '/projects/retend');
-    expect(renderer.host.location.href).toBe('/projects/retend');
-    expect(renderer.host.history.length).toBe(2);
-    expect(renderer.host.history.state).toEqual({ page: 2 });
-
-    let popstateCount = 0;
-    renderer.host.addEventListener('popstate', () => popstateCount++);
-    renderer.host.history.back();
-
-    expect(renderer.host.location.href).toBe('/settings?tab=general#account');
-    expect(popstateCount).toBe(1);
-  });
-
   it('keeps independent renderer roots isolated across remounts', () => {
     const first = new RetendGpuiRenderer({ headless: true });
     const second = new RetendGpuiRenderer({ headless: true });
@@ -62,8 +40,6 @@ describe('Retend GPUI renderer on the Retend-owned native bridge', () => {
     const secondRootId = second.host.rootId;
 
     try {
-      first.host.resetLocation('/first/detail');
-      second.host.resetLocation('/second/detail');
       setActiveRenderer(first);
       first.render(() => <div>{firstText}</div>);
       setActiveRenderer(second);
@@ -83,36 +59,12 @@ describe('Retend GPUI renderer on the Retend-owned native bridge', () => {
 
       expect(first.host.rootId).toBe(firstRootId);
       expect(second.host.rootId).toBe(secondRootId);
-      expect(first.host.location.href).toBe('/first/detail');
-      expect(second.host.location.href).toBe('/second/detail');
       expect(collectText(debugTree(first))).toEqual(['first-remounted']);
       expect(collectText(debugTree(second))).toEqual(['second']);
     } finally {
       first.dispose();
       second.dispose();
     }
-  });
-
-  it('supports Retend Router navigation through the window host', async () => {
-    const renderer = createRenderer();
-    const router = new Router({
-      routes: [
-        { name: 'home', path: '/', component: () => 'Home' },
-        { name: 'settings', path: '/settings', component: () => 'Settings' },
-      ],
-    });
-    const detach = router.attachWindowListeners(
-      renderer.host as unknown as Window
-    );
-
-    await router.navigate('/settings?tab=general#account');
-    expect(renderer.host.location.href).toBe('/settings?tab=general#account');
-
-    await router.replace('/');
-    expect(renderer.host.location.href).toBe('/');
-    expect(renderer.host.history.length).toBe(2);
-
-    detach();
   });
 
   it('rejects tags outside the Retend GPUI intrinsic surface', () => {

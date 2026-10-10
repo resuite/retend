@@ -13,9 +13,6 @@ export default defineConfig({
       },
       application: './source/application.ts',
       entry: './source/main.tsx',
-      system: {
-        transparentTitlebar: true,
-      },
       window: {
         title: 'Retend GPUI',
         width: 1280,

@@ -29,7 +29,7 @@ const DEFAULT_WIDTH = 800;
 const DEFAULT_HEIGHT = 600;
 
 type ProductionWindowOptions = GpuiWindowOptions &
-  Required<Pick<GpuiWindowOptions, 'title' | 'location'>>;
+  Required<Pick<GpuiWindowOptions, 'title' | 'initialPath'>>;
 
 /**
  * Inputs baked into a packaged `retend-gpui` application entry.
@@ -159,7 +159,7 @@ export async function startProductionApp<Context extends object>(
     const window = createWindow({
       ...options,
       title: options.title ?? definition.appName,
-      location: options.location ?? '/',
+      initialPath: options.initialPath ?? '/',
     });
     return mountWindow(window).then(() => window.handle);
   }
@@ -175,13 +175,14 @@ export async function startProductionApp<Context extends object>(
       throw error;
     }
 
-    const window = new RuntimeGpuiWindow(
-      options.title,
-      options.width ?? DEFAULT_WIDTH,
-      options.height ?? DEFAULT_HEIGHT,
+    const window = new RuntimeGpuiWindow({
+      title: options.title,
+      width: options.width ?? DEFAULT_WIDTH,
+      height: options.height ?? DEFAULT_HEIGHT,
+      initialPath: options.initialPath,
       renderer,
-      { close: closeWindow, open: openWindow }
-    );
+      runtime: { close: closeWindow, open: openWindow },
+    });
     windows.add(window);
     renderer.host.addEventListener(
       'close',

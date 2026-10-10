@@ -136,7 +136,7 @@ export default defineConfig({
 });
 ```
 
-Run `retend-gpui dev`. It starts Vite without an HTTP listener and forks one Node.js application process with the configured initial window. Applications can open additional independent windows through `useWindow().open(options)`. `system.transparentTitlebar` makes the native titlebar transparent on macOS and Windows and applies to every window in the application. Vite full reloads recreate application/module state and remount every live window without replacing its native window or navigation history; Vite/config restarts replace the whole application process.
+Run `retend-gpui dev`. It starts Vite without an HTTP listener and forks one Node.js application process with the configured initial window. Applications can open additional independent windows through `useWindow().open(options)`. `system.transparentTitlebar` makes the native titlebar transparent on macOS and Windows and applies to every window in the application. Vite full reloads recreate application/module state and remount every live window without replacing its native window, and a remounted router starts again from the window's `initialPath`; Vite/config restarts replace the whole application process.
 
 Components read process-wide resources with `useAppContext()`. Projects created by `retend-start` include `retend-gpui-env.d.ts` immediately, typing the context from the configured `application` module. Each dev/build startup verifies that declaration and rewrites it only when it is missing or stale, so changing the configured application path repairs the types automatically without touching the file on every run. Add it to your tsconfig `include` if you maintain the project manually; like `next-env.d.ts`, it can be committed.
 

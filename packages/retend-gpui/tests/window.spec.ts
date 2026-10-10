@@ -19,9 +19,13 @@ function createWindow(
   const renderer = {
     host: Object.assign(new EventTarget(), { setWindowTitle }),
   } as unknown as RetendGpuiRenderer;
-  return new RuntimeGpuiWindow(title, 800, 600, renderer, {
-    close() {},
-    open,
+  return new RuntimeGpuiWindow({
+    title,
+    width: 800,
+    height: 600,
+    initialPath: '/books/42',
+    renderer,
+    runtime: { close() {}, open },
   });
 }
 
@@ -63,6 +67,7 @@ describe('GPUI runtime window', () => {
 
     runtimeWindow.title.set('Updated');
     expect(setTitle).toHaveBeenCalledWith('Updated');
+    expect(runtimeWindow.initialPath).toBe('/books/42');
     runtimeWindow.dispose();
   });
 

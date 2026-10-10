@@ -20,7 +20,7 @@ export interface DevRuntimeInitMessage {
   entry: string;
   system: GpuiSystemOptions;
   options: GpuiWindowOptions &
-    Required<Pick<GpuiWindowOptions, 'title' | 'location'>>;
+    Required<Pick<GpuiWindowOptions, 'title' | 'initialPath'>>;
 }
 
 export type DevRuntimeConfig = Omit<DevRuntimeInitMessage, 'channel' | 'type'>;

@@ -192,7 +192,7 @@ function productionEntrySource(
   const windowOptions = {
     ...options.window,
     title: options.window.title ?? options.app.name,
-    location: options.window.location ?? '/',
+    initialPath: options.window.initialPath ?? '/',
   };
   const platform = nativeTargetPlatform(target);
   const windowsIcon = target.startsWith('win32-')
@@ -459,7 +459,7 @@ export function retendGpui(options: RetendGpuiOptions): RetendGpuiPlugin {
         options: {
           ...options.window,
           title: options.window.title ?? options.app.name,
-          location: options.window.location ?? '/',
+          initialPath: options.window.initialPath ?? '/',
         },
       };
     },
