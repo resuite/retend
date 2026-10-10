@@ -117,6 +117,35 @@ Retend runs capture, target, and bubble phases over the logical node tree, as in
 
 `mousedownoutside` is specific to `retend-gpui`. It fires on an element when the pointer is pressed anywhere outside it, and it is delivered to that element only. It is the natural way to close menus and popovers.
 
+## Host Events
+
+The window host (`useWindow().host`) dispatches its own events outside the element tree. Listen with `addEventListener()`:
+
+| Event               | Event class                  | Properties             |
+| ------------------- | ---------------------------- | ---------------------- |
+| `resize`            | `GpuiResizeEvent`            | `width`, `height`      |
+| `systempreferences` | `GpuiSystemPreferencesEvent` | `theme`, `accentColor` |
+| `focus`, `blur`     | `Event`                      | None                   |
+| `reload`            | `Event`                      | None                   |
+
+```tsx
+import { useWindow } from 'retend-gpui';
+import type { GpuiSystemPreferencesEvent } from 'retend-gpui';
+
+function Watcher() {
+  const window = useWindow();
+
+  window.host.addEventListener('systempreferences', (event) => {
+    const preferences = event as GpuiSystemPreferencesEvent;
+    console.log(preferences.theme, preferences.accentColor);
+  });
+
+  return <div>Watching…</div>;
+}
+```
+
+`systempreferences` fires when the OS appearance or accent color changes. In most components prefer the reactive [`useSystem()`](/docs/gpui-windows#system-preferences) Cells over manual listeners.
+
 ## Event Modifiers
 
 Modifier suffixes work on GPUI handlers. They are chained with `--`:

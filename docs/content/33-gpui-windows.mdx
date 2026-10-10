@@ -112,13 +112,14 @@ The context is typed from the application class. `retend-start` creates `retend-
 
 `useWindow()` returns the native window for the current Retend root:
 
-| Member            | Description                                                                               |
-| ----------------- | ----------------------------------------------------------------------------------------- |
-| `width`, `height` | Read-only Cells that track the content size. They update on native resize events.         |
-| `title`           | A Cell. Setting it changes the OS window title.                                           |
-| `open(options)`   | Opens another independent window. Returns a promise of a handle.                          |
-| `close()`         | Requests that this window close.                                                          |
-| `host`            | The native host. It exposes the window's `location` and `history`, which the router uses. |
+| Member            | Description                                                                                                      |
+| ----------------- | ---------------------------------------------------------------------------------------------------------------- |
+| `width`, `height` | Read-only Cells that track the content size. They update together on native resize events.                       |
+| `orientation`     | Read-only Cell with `portrait` or `landscape`, derived from `width` and `height`. Square windows are `portrait`. |
+| `title`           | A Cell. Setting it changes the OS window title.                                                                  |
+| `open(options)`   | Opens another independent window. Returns a promise of a handle.                                                 |
+| `close()`         | Requests that this window close.                                                                                 |
+| `host`            | The native host. It exposes the window's `location` and `history`, which the router uses.                        |
 
 The window is also an event target and emits `focus` and `blur`.
 
@@ -129,7 +130,8 @@ import { useWindow } from 'retend-gpui';
 function Header() {
   const window = useWindow();
   const size = Cell.derived(
-    () => `${window.width.get()} × ${window.height.get()}`
+    () =>
+      `${window.width.get()} × ${window.height.get()} (${window.orientation.get()})`
   );
 
   return (
@@ -140,6 +142,8 @@ function Header() {
   );
 }
 ```
+
+`orientation` is derived from the size, so it updates whenever a resize changes the aspect: `landscape` when the width exceeds the height, `portrait` otherwise.
 
 ## Window Options
 
@@ -226,9 +230,43 @@ Three details matter:
 
 See [Defining Routes](/docs/defining-routes) for the router itself.
 
+## System Preferences
+
+`useSystem()` returns reactive operating-system preferences shared by every window in the process, including components rendered with `renderToGpui()`:
+
+```tsx
+import { Cell } from 'retend';
+import { useSystem } from 'retend-gpui';
+
+function ThemedBadge() {
+  const system = useSystem();
+  const label = Cell.derived(() => system.theme.get() ?? 'detecting…');
+
+  return <div>Theme: {label}</div>;
+}
+```
+
+| Member        | Description                                                                                               |
+| ------------- | --------------------------------------------------------------------------------------------------------- |
+| `theme`       | A Cell with `light`, `dark`, or `null` until the native runtime reports the initial value.                |
+| `accentColor` | A Cell with the system accent as a CSS hex color, or `null` before detection or on unsupported platforms. |
+
+Both Cells start as `null` and update when the OS reports a change. `accentColor` is supported on macOS and Windows, where it follows the Windows UI accent preference rather than the DWM titlebar color. It stays `null` on platforms without a supported system accent API.
+
+For imperative code, the window host also dispatches a `systempreferences` event carrying the same values:
+
+```ts
+import type { GpuiSystemPreferencesEvent } from 'retend-gpui';
+
+window.host.addEventListener('systempreferences', (event) => {
+  const preferences = event as GpuiSystemPreferencesEvent;
+  console.log(preferences.theme, preferences.accentColor);
+});
+```
+
 ## System Options
 
-`system` holds options that apply to every window in the application:
+`system` holds static options that apply to every window in the application (as opposed to the reactive preferences above):
 
 | Option                | Description                                                                                                |
 | --------------------- | ---------------------------------------------------------------------------------------------------------- |
