@@ -573,7 +573,8 @@ export class Router extends EventTarget {
   /**
    * Adopts an external URL into the router without echoing back to history.
    * Unlike `navigate()` and `replace()`, no `routeloadcompleted` event is
-   * dispatched.
+   * dispatched. If a navigation is already in progress, the call returns
+   * without loading `path`, so the router keeps its current route.
    *
    * @param {string} path - The current host path to adopt.
    * @return {Promise<void>} A promise that resolves when the sync completes.

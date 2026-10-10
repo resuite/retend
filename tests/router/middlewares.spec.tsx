@@ -1,7 +1,3 @@
-import type { DOMRenderer } from 'retend-web';
-
-import { getActiveRenderer } from 'retend';
-import { attachRouter } from 'retend-web';
 import {
   type RouterMiddleware,
   Router,
@@ -17,8 +13,6 @@ describe('Router Middlewares', () => {
   vDomSetup();
 
   it('should execute middleware before route change', async () => {
-    const renderer = getActiveRenderer() as DOMRenderer;
-    const { host: window } = renderer;
     const middlewareSpy = vi.fn();
 
     const testMiddleware: RouterMiddleware = defineRouterMiddleware(
@@ -35,8 +29,6 @@ describe('Router Middlewares', () => {
       middlewares: [testMiddleware],
     });
 
-    attachRouter(router, window);
-
     await router.navigate('/home');
     expect(middlewareSpy).toHaveBeenCalledWith('/home', '');
 
@@ -45,8 +37,6 @@ describe('Router Middlewares', () => {
   });
 
   it('should allow middleware to cancel navigation', async () => {
-    const renderer = getActiveRenderer() as DOMRenderer;
-    const { host: window } = renderer;
     const blockingMiddleware: RouterMiddleware = defineRouterMiddleware(
       (details) => {
         if (details.to.path === '/protected' && details.from) {
@@ -64,8 +54,6 @@ describe('Router Middlewares', () => {
       middlewares: [blockingMiddleware],
     });
 
-    attachRouter(router, window);
-
     await router.navigate('/home');
     expect(router.getCurrentRoute().get().path).toBe('/home');
 
@@ -74,8 +62,6 @@ describe('Router Middlewares', () => {
   });
 
   it('should chain multiple middlewares', async () => {
-    const renderer = getActiveRenderer() as DOMRenderer;
-    const { host: window } = renderer;
     const executionOrder: string[] = [];
 
     const firstMiddleware: RouterMiddleware = defineRouterMiddleware(() => {
@@ -93,15 +79,11 @@ describe('Router Middlewares', () => {
       middlewares: [firstMiddleware, secondMiddleware],
     });
 
-    attachRouter(router, window);
-
     await router.navigate('/home');
     expect(executionOrder).toEqual(['first', 'second']);
   });
 
   it('should allow middleware to modify route', async () => {
-    const renderer = getActiveRenderer() as DOMRenderer;
-    const { host: window } = renderer;
     const redirectMiddleware = defineRouterMiddleware((details) => {
       if (details.to.path === '/new-path' && details.from) {
         return redirect(details.from.fullPath);
@@ -117,16 +99,12 @@ describe('Router Middlewares', () => {
       middlewares: [redirectMiddleware],
     });
 
-    attachRouter(router, window);
-
     await router.navigate('/old-path');
     await router.navigate('/new-path');
     expect(router.getCurrentRoute().get().path).toBe('/old-path');
   });
 
   it('should rematch route data after middleware redirects', async () => {
-    const renderer = getActiveRenderer() as DOMRenderer;
-    const { host: window } = renderer;
     const observedRouteData: Array<{
       name: string | null;
       path: string;
@@ -157,8 +135,6 @@ describe('Router Middlewares', () => {
       middlewares: [redirectMiddleware, observingMiddleware],
     });
 
-    attachRouter(router, window);
-
     await router.navigate('/private/123');
     expect(router.getCurrentRoute().get().name).toBe('login');
     expect(observedRouteData.length).toBeGreaterThan(0);
@@ -174,8 +150,6 @@ describe('Router Middlewares', () => {
   });
 
   it('should handle async middleware operations', async () => {
-    const renderer = getActiveRenderer() as DOMRenderer;
-    const { host: window } = renderer;
     const delay = (ms: number) =>
       new Promise((resolve) => setTimeout(resolve, ms));
 
@@ -192,15 +166,11 @@ describe('Router Middlewares', () => {
       middlewares: [asyncMiddleware],
     });
 
-    attachRouter(router, window);
-
     await router.navigate('/home');
     expect(router.getCurrentRoute().get().path).toBe('/home');
   });
 
   it('should provide route metadata to middleware', async () => {
-    const renderer = getActiveRenderer() as DOMRenderer;
-    const { host: window } = renderer;
     const metadataSpy = vi.fn();
 
     const metadataMiddleware = defineRouterMiddleware((details) => {
@@ -218,8 +188,6 @@ describe('Router Middlewares', () => {
       ]),
       middlewares: [metadataMiddleware],
     });
-
-    attachRouter(router, window);
 
     await router.navigate('/user/123?tab=profile');
     expect(metadataSpy).toHaveBeenCalledWith(

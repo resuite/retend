@@ -1,7 +1,6 @@
 import type { DOMRenderer } from 'retend-web';
 
 import { getActiveRenderer } from 'retend';
-import { attachRouter } from 'retend-web';
 import { Router, createRouterRoot, defineRoutes } from 'retend/router';
 import { describe, expect, it, vi } from 'vitest';
 
@@ -24,7 +23,6 @@ describe('Router Redirects', () => {
         { path: '/new-path', name: 'new-path', component: () => 'New Path' },
       ]),
     });
-    attachRouter(router, window);
     window.document.body.append(createRouterRoot(router));
 
     await router.navigate('/old-path');
@@ -43,7 +41,6 @@ describe('Router Redirects', () => {
         { path: '/new-path', name: 'new-path', component: () => 'New Path' },
       ]),
     });
-    attachRouter(router, window);
     window.document.body.append(createRouterRoot(router));
 
     await router.navigate('/old-path');
@@ -67,7 +64,6 @@ describe('Router Redirects', () => {
         },
       ]),
     });
-    attachRouter(router, window);
     window.document.body.append(createRouterRoot(router));
 
     await router.navigate('/settings');
@@ -91,7 +87,6 @@ describe('Router Redirects', () => {
         { path: '/new/:id', name: 'new-path', component: () => 'New Path' },
       ]),
     });
-    attachRouter(router, window);
     window.document.body.append(createRouterRoot(router));
 
     await router.navigate('/old/123');
@@ -120,7 +115,6 @@ describe('Router Redirects', () => {
         },
       ]),
     });
-    attachRouter(router, window);
     window.document.body.append(createRouterRoot(router));
 
     await router.navigate('/app/old');
@@ -143,7 +137,6 @@ describe('Router Redirects', () => {
         { path: '/b', name: 'b', redirect: '/a', component: () => 'B' },
       ]),
     });
-    attachRouter(router, window);
     window.document.body.append(createRouterRoot(router));
 
     await router.navigate('/a');
@@ -168,7 +161,6 @@ describe('Router Redirects', () => {
         },
       ]),
     });
-    attachRouter(router, window);
     window.document.body.append(createRouterRoot(router));
 
     await router.navigate('/same');
@@ -191,7 +183,6 @@ describe('Router Redirects', () => {
         { path: '/new', name: 'new-path', component: () => 'New Path' },
       ]),
     });
-    attachRouter(router, window);
     window.document.body.append(createRouterRoot(router));
 
     await router.navigate('/old?param=value');
@@ -215,7 +206,6 @@ describe('Router Redirects', () => {
         { path: '/new', name: 'new-path', component: () => 'New Path' },
       ]),
     });
-    attachRouter(router, window);
     window.document.body.append(createRouterRoot(router));
 
     await router.navigate('/old#section');

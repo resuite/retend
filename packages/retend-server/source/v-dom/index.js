@@ -644,8 +644,6 @@ export class VWindow extends EventTarget {
     this.MarkupContainerNode = MarkupContainerNode;
     this.sessionStorage = new VStorage();
     this.localStorage = new VStorage();
-    this.history = new VHistory(this);
-    this.location = new VLocation();
     this.scrollX = 0;
     this.scrollY = 0;
     this.innerWidth = 0;
@@ -741,118 +739,6 @@ export class VStorage {
   /** @type {Storage['removeItem']} */
   removeItem(key) {
     this.#values.delete(key);
-  }
-}
-
-export class VHistory {
-  /**@type {Array<string | URL | null | undefined>} */
-  #log;
-  /**@type {number} */
-  #cursor;
-  /** @type {VWindow} */
-  #window;
-
-  /** @param {VWindow} window */
-  constructor(window) {
-    this.#log = [];
-    this.#cursor = 0;
-    this.#window = window;
-  }
-
-  /** @type {History['go']} */
-  go(delta) {
-    if (!delta) {
-      this.#window.dispatchEvent(new Event('popstate'));
-      return;
-    }
-
-    this.#cursor += delta;
-    this.#window.location.pathname = String(this.#log[this.#cursor] || '/');
-    this.#window.dispatchEvent(new Event('popstate'));
-  }
-
-  /** @type {History['replaceState']} */
-  replaceState(_data, _unused, path) {
-    this.#log[this.#cursor] = path;
-    this.#window.location.pathname = String(path || '/');
-    this.#window.dispatchEvent(new Event('popstate'));
-  }
-
-  /** @type {History['pushState']} */
-  pushState(_data, _unused, path) {
-    this.#log[++this.#cursor] = path;
-    this.#window.location.pathname = String(path || '/');
-    this.#window.dispatchEvent(new Event('popstate'));
-  }
-
-  back() {
-    this.#cursor = Math.max(this.#cursor - 1, 0);
-    this.#window.location.pathname = String(this.#log[this.#cursor] || '/');
-    this.#window.dispatchEvent(new Event('popstate'));
-  }
-
-  get length() {
-    return this.#cursor + 1;
-  }
-}
-export class VLocation {
-  /** @type {string} */
-  #href;
-  /** @type {string} */
-  #search;
-  /** @type {string} */
-  #hash;
-  /** @type {string} */
-  #pathname;
-
-  constructor() {
-    this.#href = '';
-    this.#search = '';
-    this.#hash = '';
-    this.#pathname = '/';
-  }
-
-  get href() {
-    return this.#href;
-  }
-
-  set href(value) {
-    this.#href = value;
-    const url = new URL(value, 'http://localhost');
-    this.#pathname = url.pathname;
-    this.#search = url.search;
-    this.#hash = url.hash;
-  }
-
-  get search() {
-    return this.#search;
-  }
-
-  set search(value) {
-    this.#search = value.startsWith('?') ? value : `?${value}`;
-    this.#updateHref();
-  }
-
-  get hash() {
-    return this.#hash;
-  }
-
-  set hash(value) {
-    this.#hash = value.startsWith('#') ? value : `#${value}`;
-    this.#updateHref();
-  }
-
-  get pathname() {
-    return this.#pathname;
-  }
-
-  set pathname(value) {
-    this.#pathname = value.startsWith('/') ? value : `/${value}`;
-    this.#updateHref();
-  }
-
-  #updateHref() {
-    this.#href = `${this.#pathname}${this.#search}${this.#hash}`;
   }
 }
 

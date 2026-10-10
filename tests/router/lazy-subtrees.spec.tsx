@@ -1,7 +1,6 @@
 import type { DOMRenderer } from 'retend-web';
 
 import { getActiveRenderer } from 'retend';
-import { attachRouter } from 'retend-web';
 import {
   Router,
   createRouterRoot,
@@ -19,9 +18,6 @@ describe('Router Lazy Subtrees', () => {
   vDomSetup();
 
   it('should load a lazy subtree', async () => {
-    const renderer = getActiveRenderer() as DOMRenderer;
-    const { host: window } = renderer;
-
     const subtree = defineRoute({
       name: 'about-me',
       path: '/about',
@@ -43,7 +39,6 @@ describe('Router Lazy Subtrees', () => {
         },
       ]),
     });
-    attachRouter(router, window);
 
     await router.navigate('/home');
     const route2 = router.getCurrentRoute();
@@ -55,9 +50,6 @@ describe('Router Lazy Subtrees', () => {
   });
 
   it('should load a lazy subtree not at the root level', async () => {
-    const renderer = getActiveRenderer() as DOMRenderer;
-    const { host: window } = renderer;
-
     const nestedSubtree = defineRoute({
       name: 'lazy-nested-route',
       path: '/child',
@@ -81,7 +73,6 @@ describe('Router Lazy Subtrees', () => {
         },
       ]),
     });
-    attachRouter(router, window);
 
     await router.navigate('/parent/other');
     const route1 = router.getCurrentRoute();
@@ -93,9 +84,6 @@ describe('Router Lazy Subtrees', () => {
   });
 
   it('should throw errors if the path of the subtree is not the same as the importer', async () => {
-    const renderer = getActiveRenderer() as DOMRenderer;
-    const { host: window } = renderer;
-
     const misconfiguredSubtree = defineRoute({
       name: 'incorrect-lazy-subtree',
       path: '/this-is-the-wrong-path',
@@ -112,7 +100,6 @@ describe('Router Lazy Subtrees', () => {
         },
       ]),
     });
-    attachRouter(router, window);
 
     await expect(router.navigate('/parent-for-lazy')).rejects.toThrow(
       'Lazy subtrees must have the same path as their parents. Parent path: /parent-for-lazy, Subtree path: /this-is-the-wrong-path'
@@ -120,9 +107,6 @@ describe('Router Lazy Subtrees', () => {
   });
 
   it('should load a lazy subtree directly importing a lazy subtree', async () => {
-    const renderer = getActiveRenderer() as DOMRenderer;
-    const { host: window } = renderer;
-
     const deepestLazyComponent = defineRoute({
       name: 'deepest-lazy-component',
       path: '/lazy-chain',
@@ -143,7 +127,6 @@ describe('Router Lazy Subtrees', () => {
         },
       ]),
     });
-    attachRouter(router, window);
 
     await router.navigate('/lazy-chain');
 
@@ -153,9 +136,6 @@ describe('Router Lazy Subtrees', () => {
   });
 
   it('should load nested lazy subtrees', async () => {
-    const renderer = getActiveRenderer() as DOMRenderer;
-    const { host: window } = renderer;
-
     const financeReportsComponent = defineRoute({
       name: 'finance-reports',
       path: '/reports',
@@ -183,7 +163,6 @@ describe('Router Lazy Subtrees', () => {
         },
       ]),
     });
-    attachRouter(router, window);
 
     await router.navigate('/finance/reports');
 
@@ -226,7 +205,6 @@ describe('Router Lazy Subtrees with Advanced Matching', () => {
         },
       ]),
     });
-    attachRouter(router, window);
     window.document.body.append(createRouterRoot(router));
 
     await router.navigate('/users/123/profile');
@@ -262,7 +240,6 @@ describe('Router Lazy Subtrees with Advanced Matching', () => {
         },
       ]),
     });
-    attachRouter(router, window);
     window.document.body.append(createRouterRoot(router));
 
     await router.navigate('/products/xyz-789');
@@ -310,7 +287,6 @@ describe('Router Lazy Subtrees with Advanced Matching', () => {
         },
       ]),
     });
-    attachRouter(router, window);
     window.document.body.append(createRouterRoot(router));
 
     await router.navigate('/stores/main-street/inventory/item-456');
@@ -348,7 +324,6 @@ describe('Router Lazy Subtrees with Advanced Matching', () => {
         },
       ]),
     });
-    attachRouter(router, window);
     window.document.body.append(createRouterRoot(router));
 
     await router.navigate('/docs/guides/advanced/routing');
@@ -388,7 +363,6 @@ describe('Router Lazy Subtrees with Advanced Matching', () => {
         },
       ]),
     });
-    attachRouter(router, window);
     window.document.body.append(createRouterRoot(router));
 
     await router.navigate('/dashboard');
@@ -422,7 +396,6 @@ describe('Router Lazy Subtrees with Advanced Matching', () => {
         },
       ]),
     });
-    attachRouter(router, window);
     window.document.body.append(createRouterRoot(router));
 
     await router.navigate('/products/super-shoe-42');

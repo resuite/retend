@@ -1,7 +1,6 @@
 import type { DOMRenderer } from 'retend-web';
 
 import { Cell, For, If, getActiveRenderer } from 'retend';
-import { attachRouter } from 'retend-web';
 import {
   type AsyncRouteQuery,
   Router,
@@ -29,7 +28,6 @@ describe('useRouteQuery', () => {
       routes: [{ name: 'home', path: '/', component: Home }],
     });
 
-    attachRouter(router, window);
     window.document.body.append(createRouterRoot(router));
 
     await router.navigate('/?name=Cody');
@@ -68,11 +66,10 @@ describe('useRouteQuery', () => {
       routes: [{ name: 'card page', path: '/card', component: CardPage }],
     });
 
-    attachRouter(router, window);
     window.document.body.append(createRouterRoot(router));
 
     await router.navigate('/card?stage=design');
-    expect(window.location.href).toBe('/card?stage=design');
+    expect(router.getCurrentRoute().get().fullPath).toBe('/card?stage=design');
     expect(getTextContent(window.document.body)).toBe(
       'This is the design stage'
     );
@@ -80,7 +77,9 @@ describe('useRouteQuery', () => {
     expect(cardPageWasRun).toHaveBeenCalledTimes(1);
 
     await changeStage('development');
-    expect(window.location.href).toBe('/card?stage=development');
+    expect(router.getCurrentRoute().get().fullPath).toBe(
+      '/card?stage=development'
+    );
     expect(getTextContent(window.document.body)).toBe(
       'This is the development stage'
     );
@@ -113,11 +112,10 @@ describe('useRouteQuery', () => {
       routes: [{ name: 'card page', path: '/card', component: CardPage }],
     });
 
-    attachRouter(router, window);
     window.document.body.append(createRouterRoot(router));
 
     await router.navigate('/card?stage=design');
-    expect(window.location.href).toBe('/card?stage=design');
+    expect(router.getCurrentRoute().get().fullPath).toBe('/card?stage=design');
     expect(getTextContent(window.document.body)).toBe(
       'This is the design stage'
     );
@@ -125,12 +123,12 @@ describe('useRouteQuery', () => {
     expect(cardPageWasRun).toHaveBeenCalledTimes(1);
     await query.delete('stage');
 
-    expect(window.location.href).toBe('/card');
+    expect(router.getCurrentRoute().get().fullPath).toBe('/card');
     expect(getTextContent(window.document.body)).toBe('');
 
     await router.back();
 
-    expect(window.location.href).toBe('/card?stage=design');
+    expect(router.getCurrentRoute().get().fullPath).toBe('/card?stage=design');
     expect(getTextContent(window.document.body)).toBe(
       'This is the design stage'
     );
@@ -164,11 +162,10 @@ describe('useRouteQuery', () => {
       routes: [{ name: 'card page', path: '/card', component: CardPage }],
     });
 
-    attachRouter(router, window);
     window.document.body.append(createRouterRoot(router));
 
     await router.navigate('/card?stage=design');
-    expect(window.location.href).toBe('/card?stage=design');
+    expect(router.getCurrentRoute().get().fullPath).toBe('/card?stage=design');
     expect(getTextContent(window.document.body)).toBe(
       'This is the design stage'
     );
@@ -176,12 +173,12 @@ describe('useRouteQuery', () => {
     expect(cardPageWasRun).toHaveBeenCalledTimes(1);
     await query.clear();
 
-    expect(window.location.href).toBe('/card');
+    expect(router.getCurrentRoute().get().fullPath).toBe('/card');
     expect(getTextContent(window.document.body)).toBe('');
 
     await router.back();
 
-    expect(window.location.href).toBe('/card?stage=design');
+    expect(router.getCurrentRoute().get().fullPath).toBe('/card?stage=design');
     expect(getTextContent(window.document.body)).toBe(
       'This is the design stage'
     );
@@ -233,7 +230,6 @@ describe('useRouteQuery', () => {
       },
     ];
     const router = new Router({ routes });
-    attachRouter(router, window);
     window.document.body.append(createRouterRoot(router));
 
     await router.navigate('/list');
@@ -286,7 +282,6 @@ describe('useRouteQuery', () => {
       routes: [{ name: 'filters', path: '/filters', component: FilterPage }],
     });
 
-    attachRouter(router, window);
     window.document.body.append(createRouterRoot(router));
 
     // Initial navigation
@@ -297,12 +292,14 @@ describe('useRouteQuery', () => {
 
     // Add first filter
     await query.append('filter', 'category1');
-    expect(window.location.href).toBe('/filters?filter=category1');
+    expect(router.getCurrentRoute().get().fullPath).toBe(
+      '/filters?filter=category1'
+    );
     expect(getTextContent(window.document.body)).toContain('Filter: category1');
 
     // Add second filter
     await query.append('filter', 'category2');
-    expect(window.location.href).toBe(
+    expect(router.getCurrentRoute().get().fullPath).toBe(
       '/filters?filter=category1&filter=category2'
     );
     expect(getTextContent(window.document.body)).toContain('Filter: category1');
@@ -310,7 +307,7 @@ describe('useRouteQuery', () => {
 
     // Add third filter
     await query.append('filter', 'category3');
-    expect(window.location.href).toBe(
+    expect(router.getCurrentRoute().get().fullPath).toBe(
       '/filters?filter=category1&filter=category2&filter=category3'
     );
     expect(getTextContent(window.document.body)).toContain('Filter: category1');
@@ -319,7 +316,7 @@ describe('useRouteQuery', () => {
 
     // Navigate back should remove the last filter
     await router.back();
-    expect(window.location.href).toBe(
+    expect(router.getCurrentRoute().get().fullPath).toBe(
       '/filters?filter=category1&filter=category2'
     );
     expect(getTextContent(window.document.body)).toContain('Filter: category1');

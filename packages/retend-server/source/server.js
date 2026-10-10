@@ -101,9 +101,7 @@ async function renderPath(options) {
   await asyncLocalStorage.run(
     { renderer, path, globalData: new Map([['env:ssr', true]]) },
     async () => {
-      const { document, location } = window;
-      location.href = path;
-
+      const { document } = window;
       const router = routerModule.createRouter();
       const currentRoute = router.getCurrentRoute();
 

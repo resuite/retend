@@ -2,7 +2,6 @@ import type { DOMRenderer } from 'retend-web';
 import type { RouteChangeEvent } from 'retend/router';
 
 import { getActiveRenderer } from 'retend';
-import { attachRouter } from 'retend-web';
 import { Router, createRouterRoot, useRouter } from 'retend/router';
 import { beforeEach, describe, expect, test } from 'vitest';
 
@@ -34,7 +33,6 @@ const runFlatTests = () => {
       ],
       stackMode: true,
     });
-    attachRouter(router, window);
     window.document.body.append(createRouterRoot(router));
   });
 
@@ -132,7 +130,6 @@ const runNestedTests = () => {
       routes,
       stackMode: true,
     });
-    attachRouter(router, window);
     window.document.body.append(createRouterRoot(router));
   });
 

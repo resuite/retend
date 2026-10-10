@@ -26,14 +26,11 @@ describe('router.sync()', () => {
     router.addEventListener('routeloadcompleted', loadCompleted);
 
     // The host URL changed independently of the router.
-    window.history.pushState({}, '', '/about');
-    const historyLength = window.history.length;
     await router.sync('/about');
 
     expect(router.getCurrentRoute().get().fullPath).toBe('/about');
     expect(getTextContent(window.document.body)).toBe('About');
     expect(loadCompleted).not.toHaveBeenCalled();
-    expect(window.history.length).toBe(historyLength);
 
     router.removeEventListener('routeloadcompleted', loadCompleted);
   });

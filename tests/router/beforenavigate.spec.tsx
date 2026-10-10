@@ -1,7 +1,6 @@
 import type { DOMRenderer } from 'retend-web';
 
 import { getActiveRenderer } from 'retend';
-import { attachRouter } from 'retend-web';
 import { Router, createRouterRoot, defineRoutes } from 'retend/router';
 import { describe, expect, it, vi } from 'vitest';
 
@@ -54,7 +53,6 @@ describe('beforenavigate event', () => {
     ]);
 
     const router = new Router({ routes });
-    attachRouter(router, window);
     window.document.body.append(createRouterRoot(router));
 
     router.addEventListener('beforenavigate', listener);
