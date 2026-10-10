@@ -33,6 +33,49 @@ describe('Router Redirects', () => {
     expect(getTextContent(window.document.body)).toBe('New Path');
   });
 
+  it('should redirect from a route with no component', async () => {
+    const renderer = getActiveRenderer() as DOMRenderer;
+    const { host: window } = renderer;
+    const router = new Router({
+      routes: defineRoutes([
+        { path: '/old-path', redirect: '/new-path' },
+        { path: '/new-path', name: 'new-path', component: () => 'New Path' },
+      ]),
+    });
+    router.attachWindowListeners(window);
+    window.document.body.append(createRouterRoot(router));
+
+    await router.navigate('/old-path');
+    const route = router.getCurrentRoute();
+    expect(route.get().name).toBe('new-path');
+    expect(route.get().fullPath).toBe('/new-path');
+    expect(getTextContent(window.document.body)).toBe('New Path');
+  });
+
+  it('should redirect from an index child with no component', async () => {
+    const renderer = getActiveRenderer() as DOMRenderer;
+    const { host: window } = renderer;
+    const router = new Router({
+      routes: defineRoutes([
+        {
+          path: '/settings',
+          children: [
+            { path: '', redirect: '/settings/general' },
+            { path: 'general', name: 'general', component: () => 'General' },
+          ],
+        },
+      ]),
+    });
+    router.attachWindowListeners(window);
+    window.document.body.append(createRouterRoot(router));
+
+    await router.navigate('/settings');
+    const route = router.getCurrentRoute();
+    expect(route.get().name).toBe('general');
+    expect(route.get().fullPath).toBe('/settings/general');
+    expect(getTextContent(window.document.body)).toBe('General');
+  });
+
   it('should handle redirect with path parameters', async () => {
     const renderer = getActiveRenderer() as DOMRenderer;
     const { host: window } = renderer;
