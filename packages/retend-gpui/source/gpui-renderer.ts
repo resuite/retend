@@ -48,6 +48,7 @@ import {
   StyleState,
 } from './native/protocol.generated.js';
 import { withHMRBoundaries } from './plugins/hmr.js';
+import { runtimeGpuiSystem, SystemScope } from './system.js';
 import {
   flattenGroups,
   GpuiAnchor,
@@ -1275,7 +1276,9 @@ export async function renderToGpui(
   const renderer = new RetendGpuiRenderer();
   renderer.init(options);
   try {
-    await renderer.mount(App);
+    await renderer.mount(() =>
+      SystemScope.Provider({ value: runtimeGpuiSystem, children: App })
+    );
   } catch (error) {
     renderer.dispose();
     throw error;

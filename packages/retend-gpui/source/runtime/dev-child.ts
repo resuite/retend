@@ -18,6 +18,7 @@ import {
   NativeRendererFatalError,
   setApplicationIdentity,
 } from '../native/addon.js';
+import { runtimeGpuiSystem, SystemScope } from '../system.js';
 import {
   RuntimeGpuiWindow,
   WindowScope,
@@ -54,6 +55,7 @@ function sendControl(message: GpuiControlMessage): void {
 
 async function runApplication(message: DevRuntimeInitMessage): Promise<void> {
   const globalData = new Map<PropertyKey, unknown>();
+  const system = runtimeGpuiSystem;
   const windows = new Set<RuntimeGpuiWindow>();
   let runner: ModuleRunner | null = null;
   let application: GpuiApplication<object> | null = null;
@@ -192,9 +194,13 @@ async function runApplication(message: DevRuntimeInitMessage): Promise<void> {
       const Component = Root;
       window.renderer.clearDevelopmentError();
       await window.renderer.mount(() =>
-        WindowScope.Provider({
-          value: window,
-          children: () => window.renderer.handleComponent(Component, []),
+        SystemScope.Provider({
+          value: system,
+          children: () =>
+            WindowScope.Provider({
+              value: window,
+              children: () => window.renderer.handleComponent(Component, []),
+            }),
         })
       );
     } catch (error) {

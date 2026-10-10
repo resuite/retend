@@ -5,8 +5,6 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { setGlobalContext } from 'retend/context';
 
-import type { GpuiSystemOptions } from '../system.js';
-
 import {
   setAppContext,
   clearAppContext,
@@ -15,6 +13,11 @@ import {
 import { setAssetBase } from '../assets.js';
 import { RetendGpuiRenderer } from '../gpui-renderer.js';
 import { setApplicationIdentity, setNativeAddonPath } from '../native/addon.js';
+import {
+  runtimeGpuiSystem,
+  SystemScope,
+  type GpuiSystemOptions,
+} from '../system.js';
 import {
   RuntimeGpuiWindow,
   WindowScope,
@@ -109,6 +112,7 @@ export async function startProductionApp<Context extends object>(
   setAssetBase(resolveAssetBase());
 
   const globalData = new Map<PropertyKey, unknown>();
+  const system = runtimeGpuiSystem;
   const windows = new Set<RuntimeGpuiWindow>();
   setGlobalContext({ globalData });
 
@@ -192,9 +196,14 @@ export async function startProductionApp<Context extends object>(
 
   const mountWindow = async (window: RuntimeGpuiWindow): Promise<void> => {
     await window.renderer.mount(() =>
-      WindowScope.Provider({
-        value: window,
-        children: () => window.renderer.handleComponent(definition.Root, []),
+      SystemScope.Provider({
+        value: system,
+        children: () =>
+          WindowScope.Provider({
+            value: window,
+            children: () =>
+              window.renderer.handleComponent(definition.Root, []),
+          }),
       })
     );
   };

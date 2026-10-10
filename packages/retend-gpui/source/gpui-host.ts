@@ -17,7 +17,11 @@ import type {
   GpuiSelection,
 } from './types.js';
 
-import { GpuiApplicationErrorEvent, GpuiResizeEvent } from './events.js';
+import {
+  GpuiApplicationErrorEvent,
+  GpuiResizeEvent,
+  GpuiSystemPreferencesEvent,
+} from './events.js';
 import {
   loadNativeAddon,
   NativeRendererFatalError,
@@ -26,6 +30,7 @@ import {
 import { allocateNativeNodeId } from './native/node-id.js';
 import { CommandBatchWriter } from './native/protocol.js';
 import { nativeRuntime } from './native/runtime.js';
+import { runtimeGpuiSystem } from './system.js';
 import { validateGpuiWindowOptions, type GpuiWindowOptions } from './window.js';
 
 const LOCATION_BASE = 'retend://app/';
@@ -129,6 +134,7 @@ export interface GpuiHostOptions {
 /** Events dispatched by a window host for the lifetime of its native window. */
 export interface GpuiHostEventMap {
   resize: GpuiResizeEvent;
+  systempreferences: GpuiSystemPreferencesEvent;
   focus: Event;
   blur: Event;
   reload: Event;
@@ -449,6 +455,24 @@ export class GpuiHost extends EventTarget {
         this.dispatchEvent(new GpuiResizeEvent(event.width, event.height));
         this.flush();
         return;
+      case 'system': {
+        const accentColor = event.accentColor ?? null;
+        runtimeGpuiSystem.update(event.theme, accentColor);
+        this.dispatchEvent(
+          new GpuiSystemPreferencesEvent(event.theme, accentColor)
+        );
+        return;
+      }
+      case 'accent': {
+        const accentColor = event.accentColor ?? null;
+        runtimeGpuiSystem.updateAccent(accentColor);
+        const theme = runtimeGpuiSystem.theme.peek();
+        if (theme !== null)
+          this.dispatchEvent(
+            new GpuiSystemPreferencesEvent(theme, accentColor)
+          );
+        return;
+      }
       case 'focus':
       case 'blur':
       case 'reload':

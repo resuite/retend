@@ -3,6 +3,7 @@ import { describe, expect, it, vi } from 'vitest';
 import type { RetendGpuiRenderer } from '../source/gpui-renderer';
 import type { GpuiWindowHandle, GpuiWindowOptions } from '../source/window';
 
+import { GpuiResizeEvent } from '../source/events';
 import { RuntimeGpuiWindow } from '../source/window';
 
 class TestWindowHandle extends EventTarget implements GpuiWindowHandle {
@@ -35,11 +36,25 @@ describe('GPUI runtime window', () => {
 
     expect(runtimeWindow.width.get()).toBe(800);
     expect(runtimeWindow.height.get()).toBe(600);
+    expect(runtimeWindow.orientation.get()).toBe('landscape');
 
     runtimeWindow.width.set(1024);
     runtimeWindow.height.set(720);
     expect(runtimeWindow.width.get()).toBe(1024);
     expect(runtimeWindow.height.get()).toBe(720);
+    expect(runtimeWindow.orientation.get()).toBe('landscape');
+
+    const orientations: string[] = [];
+    const detach = runtimeWindow.orientation.listen((value) =>
+      orientations.push(value)
+    );
+    runtimeWindow.host.dispatchEvent(new GpuiResizeEvent(600, 900));
+    expect(runtimeWindow.orientation.get()).toBe('portrait');
+
+    runtimeWindow.host.dispatchEvent(new GpuiResizeEvent(600, 600));
+    expect(runtimeWindow.orientation.get()).toBe('portrait');
+    expect(orientations).toEqual(['portrait']);
+    detach();
 
     runtimeWindow.dispatchEvent(new Event('focus'));
     runtimeWindow.dispatchEvent(new Event('blur'));

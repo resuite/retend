@@ -3,6 +3,9 @@ import { Cell, createScope, useScopeContext, type SourceCell } from 'retend';
 import type { GpuiHost } from './gpui-host.js';
 import type { RetendGpuiRenderer } from './gpui-renderer.js';
 
+/** Current orientation of a native GPUI window. */
+export type GpuiWindowOrientation = 'portrait' | 'landscape';
+
 /** Options currently implemented by the Retend-owned native window bridge. */
 export interface GpuiWindowOptions {
   /** Initial native window width in logical pixels. */
@@ -78,6 +81,8 @@ export interface GpuiWindow extends EventTarget {
   readonly width: Cell<number>;
   /** Current native content height, updated from native resize events. */
   readonly height: Cell<number>;
+  /** Current orientation, derived reactively from the native content size. */
+  readonly orientation: Cell<GpuiWindowOrientation>;
   /** Current native title. Setting the cell updates the OS window title. */
   readonly title: SourceCell<string>;
   /**
@@ -101,6 +106,7 @@ interface WindowRuntime {
 export class RuntimeGpuiWindow extends EventTarget implements GpuiWindow {
   readonly width: SourceCell<number>;
   readonly height: SourceCell<number>;
+  readonly orientation: Cell<GpuiWindowOrientation>;
   readonly title: SourceCell<string>;
   /** @internal Renderer and native host owned by this runtime window. */
   readonly renderer: RetendGpuiRenderer;
@@ -126,6 +132,9 @@ export class RuntimeGpuiWindow extends EventTarget implements GpuiWindow {
     this.#runtime = runtime;
     this.width = Cell.source(initialWidth);
     this.height = Cell.source(initialHeight);
+    this.orientation = Cell.derived(() =>
+      this.width.get() > this.height.get() ? 'landscape' : 'portrait'
+    );
     this.title = Cell.source(initialTitle);
     this.handle = Object.assign(new EventTarget(), {
       close: () => this.close(),
@@ -134,8 +143,10 @@ export class RuntimeGpuiWindow extends EventTarget implements GpuiWindow {
       renderer.host.setWindowTitle(title)
     );
     renderer.host.addEventListener('resize', ({ width, height }) => {
-      this.width.set(width);
-      this.height.set(height);
+      Cell.batch(() => {
+        this.width.set(width);
+        this.height.set(height);
+      });
     });
     renderer.host.addEventListener('focus', () =>
       this.dispatchEvent(new Event('focus'))

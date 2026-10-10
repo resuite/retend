@@ -34,6 +34,8 @@ pub struct NativeWindowEventPayload {
     pub kind: String,
     pub width: Option<f64>,
     pub height: Option<f64>,
+    pub theme: Option<String>,
+    pub accent_color: Option<String>,
 }
 
 impl NativeWindowEventPayload {
@@ -42,6 +44,8 @@ impl NativeWindowEventPayload {
             kind: kind.to_string(),
             width: None,
             height: None,
+            theme: None,
+            accent_color: None,
         }
     }
 
@@ -50,6 +54,28 @@ impl NativeWindowEventPayload {
             kind: "resize".to_string(),
             width: Some(width),
             height: Some(height),
+            theme: None,
+            accent_color: None,
+        }
+    }
+
+    pub fn system(theme: &str, accent_color: Option<String>) -> Self {
+        Self {
+            kind: "system".to_string(),
+            width: None,
+            height: None,
+            theme: Some(theme.to_string()),
+            accent_color,
+        }
+    }
+
+    pub fn accent(accent_color: Option<String>) -> Self {
+        Self {
+            kind: "accent".to_string(),
+            width: None,
+            height: None,
+            theme: None,
+            accent_color,
         }
     }
 
@@ -444,6 +470,23 @@ fn transports() -> &'static Mutex<HashMap<WindowId, Arc<EventTransport>>> {
 
 fn transport(window_id: WindowId) -> Option<Arc<EventTransport>> {
     transports().lock().ok()?.get(&window_id).cloned()
+}
+
+pub fn has_window_listeners() -> bool {
+    transports().lock().is_ok_and(|entries| !entries.is_empty())
+}
+
+pub fn broadcast_accent_color(accent_color: Option<String>) {
+    let ids = transports()
+        .lock()
+        .map(|entries| entries.keys().copied().collect::<Vec<_>>())
+        .unwrap_or_default();
+    for window_id in ids {
+        emit_window(
+            window_id,
+            NativeWindowEventPayload::accent(accent_color.clone()),
+        );
+    }
 }
 
 fn report_window_delivery(delivered: bool, _kind: &str, _window_id: WindowId) -> bool {

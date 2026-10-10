@@ -66,8 +66,9 @@ import {
   GpuiScrollEvent,
   GpuiWheelEvent,
 } from '../source/events';
-import { RetendGpuiRenderer } from '../source/gpui-renderer';
+import { RetendGpuiRenderer, renderToGpui } from '../source/gpui-renderer';
 import { NativeEventId } from '../source/native/protocol.generated';
+import { runtimeGpuiSystem, useSystem } from '../source/system';
 
 let renderer: RetendGpuiRenderer | null = null;
 
@@ -243,6 +244,77 @@ describe('native event delivery', () => {
     native.onEvent?.({ window: { kind: 'close' } });
     expect(close).toHaveBeenCalledOnce();
     expect(renderer.host.isInitialized).toBe(false);
+  });
+
+  it('populates useSystem from native events in standalone renderToGpui roots', async () => {
+    let observed: ReturnType<typeof useSystem> | undefined;
+    renderer = await renderToGpui(() => {
+      observed = useSystem();
+      return 'ready';
+    });
+
+    expect(observed).toBe(runtimeGpuiSystem);
+    const preferences = vi.fn();
+    renderer.host.addEventListener('systempreferences', preferences);
+
+    native.onEvent?.({
+      window: { kind: 'system', theme: 'dark', accentColor: '#225588' },
+    });
+    expect(observed?.theme.get()).toBe('dark');
+    expect(observed?.accentColor.get()).toBe('#225588');
+    expect(preferences).toHaveBeenCalledWith(
+      expect.objectContaining({
+        type: 'systempreferences',
+        theme: 'dark',
+        accentColor: '#225588',
+      })
+    );
+
+    native.onEvent?.({ window: { kind: 'accent' } });
+    expect(observed?.theme.get()).toBe('dark');
+    expect(observed?.accentColor.get()).toBeNull();
+    expect(preferences).toHaveBeenCalledTimes(2);
+    expect(preferences.mock.lastCall?.[0]).toMatchObject({
+      theme: 'dark',
+      accentColor: null,
+    });
+  });
+
+  it('shares preferences across window hosts and ignores redundant updates', () => {
+    const first = createRenderer();
+    const firstEvent = native.onEvent;
+    const second = new RetendGpuiRenderer({ headless: true });
+    second.init();
+    const secondEvent = native.onEvent;
+    const preferences = vi.fn();
+    first.host.addEventListener('systempreferences', preferences);
+    const notified = vi.fn();
+    const unsubscribe = runtimeGpuiSystem.accentColor.listen(notified);
+
+    try {
+      firstEvent?.({
+        window: { kind: 'system', theme: 'light', accentColor: '#11aacc' },
+      });
+      expect(runtimeGpuiSystem.theme.get()).toBe('light');
+      expect(runtimeGpuiSystem.accentColor.get()).toBe('#11aacc');
+      expect(preferences).toHaveBeenCalledOnce();
+
+      secondEvent?.({
+        window: { kind: 'system', theme: 'light', accentColor: '#11aacc' },
+      });
+      expect(notified).toHaveBeenCalledTimes(1);
+
+      secondEvent?.({
+        window: { kind: 'accent', accentColor: '#778899' },
+      });
+      expect(runtimeGpuiSystem.accentColor.get()).toBe('#778899');
+      expect(notified).toHaveBeenCalledTimes(2);
+    } finally {
+      unsubscribe();
+      first.dispose();
+      second.dispose();
+      renderer = null;
+    }
   });
 
   it('flushes mutations produced by a native resize before returning to native', () => {

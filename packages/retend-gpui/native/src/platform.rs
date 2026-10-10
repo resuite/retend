@@ -1,12 +1,15 @@
 use std::{collections::HashMap, sync::Arc};
 
+#[cfg(any(target_os = "macos", target_os = "windows"))]
+use std::time::Duration;
+
 #[cfg(target_os = "windows")]
 #[path = "windows_icon.rs"]
 mod windows_icon;
 
 use gpui::{
     div, prelude::*, px, rgb, size, App, Bounds, Context, Render, Subscription, Window,
-    WindowBounds, WindowHandle, WindowOptions,
+    WindowAppearance, WindowBounds, WindowHandle, WindowOptions,
 };
 
 #[cfg(test)]
@@ -25,7 +28,7 @@ struct RetendRootView {
     window_id: WindowId,
     runtime_state: RuntimeStateRegistry,
     last_window_size: Option<(f32, f32)>,
-    _window_observers: Option<(Subscription, Subscription)>,
+    _window_observers: Option<(Subscription, Subscription, Subscription)>,
 }
 
 #[cfg(test)]
@@ -397,17 +400,115 @@ impl RetendRootView {
     }
 }
 
+fn system_theme(window: &Window) -> &'static str {
+    match window.appearance() {
+        WindowAppearance::Light | WindowAppearance::VibrantLight => "light",
+        WindowAppearance::Dark | WindowAppearance::VibrantDark => "dark",
+    }
+}
+
+#[cfg(target_os = "macos")]
+fn system_accent_color() -> Option<String> {
+    use cocoa::base::{id, nil};
+    use objc::{class, msg_send, sel, sel_impl};
+
+    unsafe {
+        let color: id = msg_send![class!(NSColor), controlAccentColor];
+        if color == nil {
+            return None;
+        }
+        let color_space: id = msg_send![class!(NSColorSpace), sRGBColorSpace];
+        let color: id = msg_send![color, colorUsingColorSpace: color_space];
+        if color == nil {
+            return None;
+        }
+
+        let mut red = 0.0f64;
+        let mut green = 0.0f64;
+        let mut blue = 0.0f64;
+        let mut alpha = 0.0f64;
+        let converted: bool = msg_send![
+            color,
+            getRed: &mut red
+            green: &mut green
+            blue: &mut blue
+            alpha: &mut alpha
+        ];
+        if !converted {
+            return None;
+        }
+        let channel = |value: f64| (value.clamp(0.0, 1.0) * 255.0).round() as u8;
+        Some(format!(
+            "#{:02x}{:02x}{:02x}",
+            channel(red),
+            channel(green),
+            channel(blue)
+        ))
+    }
+}
+
+#[cfg(target_os = "windows")]
+fn system_accent_color() -> Option<String> {
+    use windows::UI::ViewManagement::{UIColorType, UISettings};
+
+    let color = UISettings::new()
+        .ok()?
+        .GetColorValue(UIColorType::Accent)
+        .ok()?;
+    Some(format!("#{:02x}{:02x}{:02x}", color.R, color.G, color.B))
+}
+
+#[cfg(not(any(target_os = "macos", target_os = "windows")))]
+fn system_accent_color() -> Option<String> {
+    None
+}
+
+fn system_preferences_event(window: &Window) -> crate::events::NativeWindowEventPayload {
+    crate::events::NativeWindowEventPayload::system(system_theme(window), system_accent_color())
+}
+
+#[cfg(any(target_os = "macos", target_os = "windows"))]
+fn start_accent_watcher(cx: &mut App) {
+    use std::sync::atomic::{AtomicBool, Ordering};
+
+    static WATCHING: AtomicBool = AtomicBool::new(false);
+    if WATCHING.swap(true, Ordering::AcqRel) {
+        return;
+    }
+
+    let mut last_accent = system_accent_color();
+    cx.spawn(async move |cx| {
+        loop {
+            cx.background_executor()
+                .timer(Duration::from_millis(500))
+                .await;
+            if !crate::events::has_window_listeners() {
+                break;
+            }
+            let accent = system_accent_color();
+            if accent != last_accent {
+                last_accent = accent.clone();
+                crate::events::broadcast_accent_color(accent);
+            }
+        }
+        WATCHING.store(false, Ordering::Release);
+    })
+    .detach();
+}
+
 fn install_window_observers<Emit>(
     window_id: WindowId,
     constraints: WindowSizeConstraints,
     window: &mut Window,
     cx: &mut Context<RetendRootView>,
     emit: Emit,
-) -> (Subscription, Subscription)
+) -> (Subscription, Subscription, Subscription)
 where
     Emit: Fn(WindowId, crate::events::NativeWindowEventPayload) + Clone + 'static,
 {
     let emit_resize = emit.clone();
+    let emit_appearance = emit.clone();
+
     (
         cx.observe_window_bounds(window, move |view, window, cx| {
             if let Some(payload) = view.window_size_event(constraints, window) {
@@ -420,6 +521,9 @@ where
                 window_id,
                 crate::events::NativeWindowEventPayload::activation(window.is_window_active()),
             );
+        }),
+        cx.observe_window_appearance(window, move |_, window, _| {
+            emit_appearance(window_id, system_preferences_event(window));
         }),
     )
 }
@@ -469,40 +573,45 @@ fn open_gpui_window(
             titlebar.title = Some(title.into());
         }
     }
-    cx.open_window(window_options, move |window, cx| {
-        #[cfg(target_os = "windows")]
-        windows_icon::apply(window);
-        window.on_window_should_close(cx, move |_window, _cx| {
-            mark_window_closed(window_id);
-            true
-        });
-        cx.new(|cx| {
-            let mut view = RetendRootView {
-                window_id,
-                runtime_state: RuntimeStateRegistry::default(),
-                last_window_size: None,
-                _window_observers: None,
-            };
-            if let Some(payload) = view.window_size_event(constraints, window) {
-                crate::events::emit_window(window_id, payload);
-            }
-            crate::events::emit_window(
-                window_id,
-                crate::events::NativeWindowEventPayload::activation(window.is_window_active()),
-            );
-            view._window_observers = Some(install_window_observers(
-                window_id,
-                constraints,
-                window,
-                cx,
-                |window_id, payload| {
+    let handle = cx
+        .open_window(window_options, move |window, cx| {
+            #[cfg(target_os = "windows")]
+            windows_icon::apply(window);
+            window.on_window_should_close(cx, move |_window, _cx| {
+                mark_window_closed(window_id);
+                true
+            });
+            cx.new(|cx| {
+                let mut view = RetendRootView {
+                    window_id,
+                    runtime_state: RuntimeStateRegistry::default(),
+                    last_window_size: None,
+                    _window_observers: None,
+                };
+                if let Some(payload) = view.window_size_event(constraints, window) {
                     crate::events::emit_window(window_id, payload);
-                },
-            ));
-            view
+                }
+                crate::events::emit_window(
+                    window_id,
+                    crate::events::NativeWindowEventPayload::activation(window.is_window_active()),
+                );
+                crate::events::emit_window(window_id, system_preferences_event(window));
+                view._window_observers = Some(install_window_observers(
+                    window_id,
+                    constraints,
+                    window,
+                    cx,
+                    |window_id, payload| {
+                        crate::events::emit_window(window_id, payload);
+                    },
+                ));
+                view
+            })
         })
-    })
-    .map_err(|error| error.to_string())
+        .map_err(|error| error.to_string())?;
+    #[cfg(any(target_os = "macos", target_os = "windows"))]
+    start_accent_watcher(cx);
+    Ok(handle)
 }
 
 fn mark_window_closed(window_id: WindowId) {
@@ -759,9 +868,7 @@ mod imp {
                 app.setApplicationIconImage_(image);
                 let _: () = msg_send![image, release];
             } else {
-                eprintln!(
-                    "[retend-gpui] could not load the application icon at {icon_path}"
-                );
+                eprintln!("[retend-gpui] could not load the application icon at {icon_path}");
             }
             let _: () = msg_send![ns_path, release];
         }
@@ -847,7 +954,9 @@ mod imp {
                                             windows.get(&window_id).copied()
                                         };
                                         cx.update(|cx| {
-                                            execute_window_operation(window_id, window, operation, cx)
+                                            execute_window_operation(
+                                                window_id, window, operation, cx,
+                                            )
                                         });
                                     }
                                     UiCommand::Forget(window_id) => {
@@ -963,7 +1072,8 @@ mod imp {
         _icon_path: Option<&str>,
         _identifier: Option<&str>,
         _name: Option<&str>,
-    ) {}
+    ) {
+    }
 
     pub(crate) fn apply_pending_application_identity(_cx: &mut App) -> Result<(), String> {
         Ok(())

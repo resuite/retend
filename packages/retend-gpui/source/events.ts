@@ -9,6 +9,7 @@ import type {
   NativeTransitionEventPayload,
   NativeWheelEventPayload,
 } from './native/addon.js';
+import type { GpuiSystemTheme } from './system.js';
 import type { GpuiNode } from './tree/nodes.js';
 
 import { NativeEventId } from './native/protocol.generated.js';
@@ -316,6 +317,18 @@ export class GpuiResizeEvent extends Event {
     super('resize');
     this.width = width;
     this.height = height;
+  }
+}
+
+/** Dispatched when tracked operating-system preferences change. */
+export class GpuiSystemPreferencesEvent extends Event {
+  readonly theme: GpuiSystemTheme;
+  readonly accentColor: string | null;
+
+  constructor(theme: GpuiSystemTheme, accentColor: string | null) {
+    super('systempreferences');
+    this.theme = theme;
+    this.accentColor = accentColor;
   }
 }
 

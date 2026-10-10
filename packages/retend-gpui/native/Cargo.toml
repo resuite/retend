@@ -56,6 +56,7 @@ raw-window-handle = "0.6.2"
 resvg = "0.46.0"
 windows = { version = "0.61.3", features = [
   "Win32_Foundation",
+  "UI_ViewManagement",
   "Win32_Graphics_Gdi",
   "Win32_UI_WindowsAndMessaging",
 ] }
@@ -79,11 +80,13 @@ gpui-pre-windows = { git = "https://github.com/resuite/gpui-pre", rev = "ad44e46
 
 # Debug info dominates the dev target directory. Keep line tables for our own
 # crate (enough for file:line backtraces) and drop it entirely for
-# dependencies. This matches the dev profile Squire's workspaces use, so
+# dependencies. Incremental is off so rustc does not accumulate .rcgu.o
+# scratch state. This matches the dev profile Squire's workspaces use, so
 # shared dependency compilations can hit the same mbx cache keys where inputs
 # line up.
 [profile.dev]
 debug = 1
+incremental = false
 
 [profile.dev.package."*"]
 debug = false

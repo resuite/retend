@@ -8,6 +8,7 @@ export {
   GpuiMouseEvent,
   GpuiResizeEvent,
   GpuiScrollEvent,
+  GpuiSystemPreferencesEvent,
   GpuiTransitionEvent,
   GpuiWheelEvent,
 } from './events.js';
@@ -20,10 +21,16 @@ export type {
   GpuiApplication,
 } from './application.js';
 export * from './types.js';
-export type { GpuiSystemOptions } from './system.js';
+export { useSystem } from './system.js';
+export type {
+  GpuiSystem,
+  GpuiSystemOptions,
+  GpuiSystemTheme,
+} from './system.js';
 export { useWindow } from './window.js';
 export type {
   GpuiWindow,
   GpuiWindowHandle,
   GpuiWindowOptions,
+  GpuiWindowOrientation,
 } from './window.js';

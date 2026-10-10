@@ -117,6 +117,12 @@ export type NativeEventPayload =
 
 export type NativeWindowEventPayload =
   | { kind: 'resize'; width: number; height: number }
+  | {
+      kind: 'system';
+      theme: 'light' | 'dark';
+      accentColor?: string;
+    }
+  | { kind: 'accent'; accentColor?: string }
   | { kind: 'focus' | 'blur' | 'close' | 'reload' };
 
 export type NativeTransportPayload =
