@@ -1,7 +1,7 @@
 import { Cell, If, setActiveRenderer } from 'retend';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
-import type { GpuiElement } from '../source/gpui-renderer';
+import type { GpuiAudioElement, GpuiElement } from '../source/gpui-renderer';
 import type { GpuiButtonElement } from '../source/gpui-renderer';
 import type { GpuiColor, GpuiStyle } from '../source/types';
 
@@ -689,6 +689,83 @@ describe('Retend GPUI renderer on the Retend-owned native bridge', () => {
       PropertyId.Placeholder,
       'Comments'
     );
+  });
+
+  it('updates placeholder color on native text controls without rebinding the editor', () => {
+    const renderer = createRenderer();
+    const color = Cell.source<GpuiColor>('#777777');
+    const input = renderer.createContainer('input');
+    const pseudo = vi.spyOn(renderer.host, 'setPseudoStyle');
+    renderer.setProperty(input, 'style', { placeholder: { color } });
+    renderer.flush();
+    expect(pseudo).toHaveBeenCalledWith(input.id, StyleState.Placeholder, [
+      [PropertyId.Color, '#777777'],
+    ]);
+
+    color.set('#111111');
+    renderer.flush();
+    expect(pseudo).toHaveBeenLastCalledWith(input.id, StyleState.Placeholder, [
+      [PropertyId.Color, '#111111'],
+    ]);
+    renderer.setProperty(input, 'style', {});
+    renderer.flush();
+    expect(pseudo).toHaveBeenLastCalledWith(
+      input.id,
+      StyleState.Placeholder,
+      []
+    );
+  });
+
+  it('updates nonvisual audio properties and sends playback operations through the native host', () => {
+    const renderer = createRenderer();
+    const source = Cell.source('file:///tmp/chime.wav');
+    const volume = Cell.source(0.4);
+    const soundRef = Cell.source<GpuiAudioElement | null>(null);
+    const setProperty = vi.spyOn(renderer.host, 'setProperty');
+    const play = vi
+      .spyOn(renderer.host, 'playAudioNode')
+      .mockImplementation(() => {});
+    const pause = vi
+      .spyOn(renderer.host, 'pauseAudioNode')
+      .mockImplementation(() => {});
+
+    renderer.render(() => (
+      <audio
+        ref={soundRef}
+        src={source}
+        autoPlay
+        loop={false}
+        volume={volume}
+      />
+    ));
+    const sound = soundRef.get();
+    if (!sound) throw new Error('Expected audio ref to resolve.');
+    expect(nodeMap(debugTree(renderer)).get(sound.id)).toMatchObject({
+      kind: 'Audio',
+      src: 'file:///tmp/chime.wav',
+    });
+    expect(setProperty).toHaveBeenCalledWith(
+      sound.id,
+      PropertyId.Autoplay,
+      true
+    );
+    expect(setProperty).toHaveBeenCalledWith(sound.id, PropertyId.Volume, 0.4);
+    sound.play();
+    sound.pause();
+    expect(play).toHaveBeenCalledWith(sound.id);
+    expect(pause).toHaveBeenCalledWith(sound.id);
+
+    Cell.batch(() => {
+      source.set('file:///tmp/next.wav');
+      volume.set(0.2);
+    });
+    renderer.flush();
+    expect(nodeMap(debugTree(renderer)).get(sound.id)?.src).toBe(
+      'file:///tmp/next.wav'
+    );
+    expect(setProperty).toHaveBeenCalledWith(sound.id, PropertyId.Volume, 0.2);
+    renderer.unmount();
+    expect(() => sound.play()).toThrow('destroyed Retend GPUI node');
   });
 
   it('publishes complete resolved author-style snapshots', () => {

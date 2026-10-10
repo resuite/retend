@@ -362,6 +362,11 @@ export interface GpuiStyle extends GpuiStyleDeclarations {
   active?: GpuiStyleDeclarations;
 }
 
+export interface GpuiTextControlStyle extends GpuiStyle {
+  /** Placeholder text color for native input and textarea controls. */
+  placeholder?: Pick<GpuiStyleDeclarations, 'color'>;
+}
+
 /** Logical scroll offset of a native scroll container. */
 export interface GpuiScrollOffset {
   x: number;
@@ -392,6 +397,7 @@ export const GPUI_ELEMENT_TYPES = [
   'anchored',
   'button',
   'svg',
+  'audio',
 ] as const;
 
 /** Union of currently supported intrinsic element tag names. */
@@ -424,6 +430,17 @@ export interface GpuiSvgCustomProps {
   src?: string;
   /** Accessible text announced for the icon. */
   alt?: string;
+}
+
+/** Non-visual native audio playback. */
+export interface GpuiAudioCustomProps {
+  /** Local file URL, absolute path, or imported audio asset. */
+  src?: string;
+  autoPlay?: boolean;
+  loop?: boolean;
+  muted?: boolean;
+  /** Playback volume between 0 and 1. */
+  volume?: number;
 }
 
 export interface GpuiInputCustomProps {

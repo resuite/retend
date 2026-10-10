@@ -4,6 +4,7 @@ import { fileURLToPath } from 'node:url';
 
 import type {
   GpuiMeasurement,
+  GpuiPoint,
   GpuiScrollOffset,
   GpuiSelection,
 } from '../types.js';
@@ -22,6 +23,7 @@ export type NativeWindowOptions = Omit<
   'initialPath' | 'closeWithOpener'
 > & {
   transparentTitlebar?: boolean;
+  trafficLightPosition?: GpuiPoint;
 };
 
 interface NativeEventBase {
@@ -53,7 +55,7 @@ type NativeScrollEventId = NativeEventIds<'Scroll'>;
 type NativeTransitionEventId = NativeEventIds<
   'TransitionRun' | 'TransitionStart' | 'TransitionEnd' | 'TransitionCancel'
 >;
-type NativeImageEventId = NativeEventIds<'Load' | 'Error'>;
+type NativeResourceEventId = NativeEventIds<'Load' | 'Error' | 'Ended'>;
 type NativePayloadById<
   Id extends number,
   Fields = Record<never, never>,
@@ -103,7 +105,8 @@ export type NativeTransitionEventPayload = NativePayloadById<
   NativeTransitionEventId,
   { propertyName: string; elapsedTime: number }
 >;
-export type NativeImageEventPayload = NativePayloadById<NativeImageEventId>;
+export type NativeResourceEventPayload =
+  NativePayloadById<NativeResourceEventId>;
 
 export type NativeEventPayload =
   | NativeMouseEventPayload
@@ -113,7 +116,7 @@ export type NativeEventPayload =
   | NativeScrollEventPayload
   | NativeWheelEventPayload
   | NativeTransitionEventPayload
-  | NativeImageEventPayload;
+  | NativeResourceEventPayload;
 
 export type NativeWindowEventPayload =
   | { kind: 'resize'; width: number; height: number }
@@ -148,6 +151,8 @@ export interface NativeRendererBinding {
   blurNode(id: number): void;
   setSelectionRangeNode(id: number, start: number, end: number): void;
   selectNode(id: number): void;
+  playAudioNode(id: number): void;
+  pauseAudioNode(id: number): void;
   getSelectionNode(id: number): Promise<GpuiSelection>;
   scrollToNode(id: number, x: number, y: number): void;
   scrollByNode(id: number, x: number, y: number): void;

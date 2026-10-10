@@ -15,6 +15,7 @@ GPUI components use native intrinsic elements for layout, controls, images, icon
 | `textarea` | A native multi-line text editor.                | No       |
 | `img`      | A bitmap or full-color image.                   | No       |
 | `svg`      | A single-color vector icon.                     | No       |
+| `audio`    | Non-visual native audio playback.              | No       |
 | `anchored` | A floating layer for menus, tooltips, and more. | Yes      |
 
 Text is not an element. It is written as ordinary JSX content. Adjacent text nodes, including interpolations such as `Count: {count}`, render as one inline run that wraps with its container.
@@ -94,9 +95,32 @@ The controls come with default styling: comfortable padding, a 6px corner radius
     backgroundColor: '#eef2ff',
     borderColor: '#6366f1',
     focused: { borderColor: '#e11d48' },
+    placeholder: { color: '#64748b' },
   }}
 />
 ```
+
+## audio
+
+`audio` plays sound without rendering a visual control. It supports `src` (a local file, a `file:` URL, or a Vite-imported asset), `autoPlay`, `loop`, `muted`, and `volume` (between `0` and `1`). Remote audio streams are not supported. Setting `autoPlay` when a source is loaded starts playback; changing it from `false` to `true` starts an idle clip but does not override a paused clip (use `play()` to resume). Changing `loop` takes effect at the next completion without restarting the clip. `ended` and `error` events report playback completion or failure.
+
+```tsx
+import { Cell } from 'retend';
+import type { GpuiAudioElement } from 'retend-gpui';
+import chime from './chime.mp3';
+
+const sound = Cell.source<GpuiAudioElement | null>(null);
+
+return (
+  <div>
+    <audio ref={sound} src={chime} volume={0.5} />
+    <button onClick={() => sound.get()?.play()}>Play sound</button>
+    <button onClick={() => sound.get()?.pause()}>Pause sound</button>
+  </div>
+);
+```
+
+Audio decoding and playback run outside the native UI thread. Playback stops when the audio node is removed or its window closes.
 
 ## img
 

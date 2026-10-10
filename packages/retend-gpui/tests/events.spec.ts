@@ -2,7 +2,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import {
   GpuiFocusEvent,
-  GpuiImageEvent,
+  GpuiResourceEvent,
   GpuiInputEvent,
   GpuiKeyboardEvent,
   GpuiMouseEvent,
@@ -438,7 +438,7 @@ describe('Retend GPUI event dispatch', () => {
       metaKey: false,
       shiftKey: false,
     });
-    expect(load).toBeInstanceOf(GpuiImageEvent);
+    expect(load).toBeInstanceOf(GpuiResourceEvent);
     expect(load.type).toBe('load');
     expect(load.bubbles).toBe(false);
     expect(load.cancelable).toBe(false);
@@ -453,9 +453,26 @@ describe('Retend GPUI event dispatch', () => {
       metaKey: false,
       shiftKey: false,
     });
-    expect(error).toBeInstanceOf(GpuiImageEvent);
+    expect(error).toBeInstanceOf(GpuiResourceEvent);
     expect(error.type).toBe('error');
     expect(error.bubbles).toBe(false);
+  });
+
+  it('uses the shared resource event for audio completion', () => {
+    const ended = createNativeEvent({
+      eventId: NativeEventId.Ended,
+      targetId: 3,
+      timeStamp: 24,
+      altKey: false,
+      ctrlKey: false,
+      metaKey: false,
+      shiftKey: false,
+    });
+    expect(ended).toBeInstanceOf(GpuiResourceEvent);
+    expect(ended.type).toBe('ended');
+    expect(ended.bubbles).toBe(false);
+    expect(ended.cancelable).toBe(false);
+    expect(ended.timeStamp).toBe(24);
   });
 
   it('captures but does not bubble image load/error events', () => {

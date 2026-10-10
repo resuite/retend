@@ -61,7 +61,7 @@ vi.mock('../source/native/addon', async (importOriginal) => {
 import { Cell } from 'retend';
 
 import {
-  GpuiImageEvent,
+  GpuiResourceEvent,
   GpuiMouseEvent,
   GpuiScrollEvent,
   GpuiWheelEvent,
@@ -688,7 +688,7 @@ describe('native event delivery', () => {
       },
     });
     expect(imageLoad).toHaveBeenCalledOnce();
-    expect(imageLoad.mock.calls[0][0]).toBeInstanceOf(GpuiImageEvent);
+    expect(imageLoad.mock.calls[0][0]).toBeInstanceOf(GpuiResourceEvent);
     expect(imageLoad.mock.calls[0][0].type).toBe('load');
     expect(parentLoad).not.toHaveBeenCalled();
 

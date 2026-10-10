@@ -58,7 +58,7 @@ export async function createGpuiProject(projectDir, answers, cliOptions) {
       styleSupport: null,
     }),
     createZedFolder(projectDir),
-    createDocsFiles(projectDir, Boolean(answers.includeDocs)),
+    createDocsFiles(projectDir, Boolean(answers.includeDocs), 'gpui'),
   ]);
 }
 

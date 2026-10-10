@@ -103,6 +103,15 @@ export class GpuiHost extends EventTarget {
     if (this.#binding)
       throw new Error('Retend GPUI host is already initialized.');
     validateGpuiWindowOptions(options);
+    const position = system.trafficLightPosition;
+    if (
+      position &&
+      (!Number.isFinite(position.x) || !Number.isFinite(position.y))
+    ) {
+      throw new TypeError(
+        'system.trafficLightPosition must contain finite x and y coordinates.'
+      );
+    }
 
     this.#rootId = allocateNativeNodeId();
     this.#writer = new CommandBatchWriter();
@@ -111,7 +120,11 @@ export class GpuiHost extends EventTarget {
     this.#binding = new (loadNativeAddon().NativeRendererBinding)(
       this.#rootId,
       this.#headless,
-      { ...options, transparentTitlebar: system.transparentTitlebar },
+      {
+        ...options,
+        transparentTitlebar: system.transparentTitlebar,
+        trafficLightPosition: position,
+      },
       (payload) => this.#handleNativeEvent(payload)
     );
   }
@@ -228,6 +241,14 @@ export class GpuiHost extends EventTarget {
 
   setSelectionRangeNode(id: number, start: number, end: number): void {
     this.#flushBinding().setSelectionRangeNode(id, start, end);
+  }
+
+  playAudioNode(id: number): void {
+    this.#flushBinding().playAudioNode(id);
+  }
+
+  pauseAudioNode(id: number): void {
+    this.#flushBinding().pauseAudioNode(id);
   }
 
   selectNode(id: number): void {

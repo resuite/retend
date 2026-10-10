@@ -52,7 +52,7 @@ export async function createWebProject(projectDir, answers, cliOptions) {
       styleSupport: answers.useTailwind ? 'tailwind' : 'css-modules',
     }),
     createZedFolder(projectDir),
-    createDocsFiles(projectDir, Boolean(answers.includeDocs)),
+    createDocsFiles(projectDir, Boolean(answers.includeDocs), 'web'),
   ]);
 }
 

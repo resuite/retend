@@ -2,7 +2,7 @@ export {
   GpuiApplicationErrorEvent,
   GpuiEvent,
   GpuiFocusEvent,
-  GpuiImageEvent,
+  GpuiResourceEvent,
   GpuiInputEvent,
   GpuiKeyboardEvent,
   GpuiMouseEvent,

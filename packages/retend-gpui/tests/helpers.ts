@@ -17,7 +17,8 @@ export interface DebugNode {
     | 'Svg'
     | 'Input'
     | 'Textarea'
-    | 'Button';
+    | 'Button'
+    | 'Audio';
   parent: number | null;
   children: number[];
   text: string | null;

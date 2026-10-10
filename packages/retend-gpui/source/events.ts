@@ -1,7 +1,7 @@
 import type {
   NativeEventPayload,
   NativeFocusEventPayload,
-  NativeImageEventPayload,
+  NativeResourceEventPayload,
   NativeKeyboardEventPayload,
   NativeMouseEventPayload,
   NativeScrollEventPayload,
@@ -30,7 +30,7 @@ type NativeEventKind =
   | 'scroll'
   | 'wheel'
   | 'transition'
-  | 'image';
+  | 'resource';
 type NativeEventDefinition = readonly [
   type: string,
   kind: NativeEventKind,
@@ -69,9 +69,10 @@ const NATIVE_EVENTS = {
     true,
     true,
   ],
-  [NativeEventId.Load]: ['load', 'image', false, true],
-  [NativeEventId.Error]: ['error', 'image', false, true],
+  [NativeEventId.Load]: ['load', 'resource', false, true],
+  [NativeEventId.Error]: ['error', 'resource', false, true],
   [NativeEventId.ContextMenu]: ['contextmenu', 'mouse', true, true],
+  [NativeEventId.Ended]: ['ended', 'resource', false, true],
 } as const satisfies Record<NativeTransportEventId, NativeEventDefinition>;
 
 const EVENT_METADATA = new Map<string, GpuiNativeEventMetadata>(
@@ -149,8 +150,11 @@ export class GpuiScrollEvent extends GpuiEvent {
   }
 }
 
-export class GpuiImageEvent extends GpuiEvent {
-  constructor(type: 'load' | 'error', payload: NativeImageEventPayload) {
+export class GpuiResourceEvent extends GpuiEvent {
+  constructor(
+    type: 'load' | 'error' | 'ended',
+    payload: NativeResourceEventPayload
+  ) {
     super(type, { bubbles: false, cancelable: false }, payload.timeStamp);
   }
 }
@@ -295,10 +299,10 @@ export function createNativeEvent(payload: NativeEventPayload): Event {
       return new GpuiScrollEvent(payload as NativeScrollEventPayload);
     case 'wheel':
       return new GpuiWheelEvent(payload as NativeWheelEventPayload);
-    case 'image':
-      return new GpuiImageEvent(
-        type as 'load' | 'error',
-        payload as NativeImageEventPayload
+    case 'resource':
+      return new GpuiResourceEvent(
+        type as 'load' | 'error' | 'ended',
+        payload as NativeResourceEventPayload
       );
     case 'transition':
       return new GpuiTransitionEvent(

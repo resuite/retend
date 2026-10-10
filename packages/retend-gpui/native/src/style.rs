@@ -407,7 +407,7 @@ fn parse_nonnegative_length(value: &PropertyValue) -> Option<LengthValue> {
     })
 }
 
-fn parse_color(value: &PropertyValue) -> Option<u32> {
+pub(crate) fn parse_color(value: &PropertyValue) -> Option<u32> {
     let PropertyValue::String(value) = value else {
         return None;
     };

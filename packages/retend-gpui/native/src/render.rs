@@ -1018,6 +1018,7 @@ where
     let painted_content = staged_content.clone();
     let content_scroll_handle = scroll_handle.clone().filter(|_| tracks_content);
     let element = match &node.data {
+        NodeData::Audio(_) => div().hidden().into_any_element(),
         NodeData::Button
         | NodeData::Root
         | NodeData::Container

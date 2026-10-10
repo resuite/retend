@@ -1,5 +1,6 @@
 #![deny(clippy::all)]
 
+mod audio;
 #[cfg(all(test, feature = "benchmarks"))]
 mod benchmark;
 mod events;
@@ -110,6 +111,13 @@ fn scroll_coordinate(value: f64) -> Result<f32> {
 }
 
 #[napi(object)]
+#[derive(Clone, Copy)]
+pub struct NativePoint {
+    pub x: f64,
+    pub y: f64,
+}
+
+#[napi(object)]
 #[derive(Clone, Default)]
 pub struct NativeWindowOptions {
     pub title: Option<String>,
@@ -123,6 +131,7 @@ pub struct NativeWindowOptions {
     pub max_width: Option<f64>,
     pub max_height: Option<f64>,
     pub transparent_titlebar: Option<bool>,
+    pub traffic_light_position: Option<NativePoint>,
 }
 
 #[napi(object)]
@@ -194,6 +203,14 @@ impl NativeRendererBinding {
         Ok(())
     }
 
+    fn sync_audio(&self, tree: &mut NativeTree) {
+        if !self.headless {
+            if let Some(changes) = tree.take_audio_sync(self.window_id) {
+                audio::sync(self.window_id, changes);
+            }
+        }
+    }
+
     /// Opens the OS window once application content has been committed, so the
     /// window's first drawn frame already contains the app instead of an empty root.
     fn open_window(&self) -> Result<()> {
@@ -260,7 +277,11 @@ impl NativeRendererBinding {
                 return Err(bridge_error(error));
             }
         };
-        let result = with_runtime(|tree| tree.apply_commands(self.window_id, commands));
+        let result = with_runtime(|tree| {
+            tree.apply_commands(self.window_id, commands)?;
+            self.sync_audio(tree);
+            Ok(())
+        });
         if result.is_ok() {
             self.open_window()?;
         }
@@ -270,7 +291,11 @@ impl NativeRendererBinding {
 
     #[napi]
     pub fn settle(&self) -> Result<()> {
-        let destroyed = with_runtime(|tree| tree.settle(self.window_id))?;
+        let destroyed = with_runtime(|tree| {
+            let destroyed = tree.settle(self.window_id)?;
+            self.sync_audio(tree);
+            Ok(destroyed)
+        })?;
         if !destroyed.is_empty() {
             self.dispatch(WindowOperation::DestroyRuntimeNodes(destroyed));
         }
@@ -303,6 +328,24 @@ impl NativeRendererBinding {
                 control,
                 TextControlOperation::SetSelection(start, end),
             ));
+        }
+        Ok(())
+    }
+
+    #[napi]
+    pub fn play_audio_node(&self, id: u32) -> Result<()> {
+        with_runtime(|tree| tree.validate_audio_node(self.window_id, id))?;
+        if !self.headless {
+            audio::play(self.window_id, id);
+        }
+        Ok(())
+    }
+
+    #[napi]
+    pub fn pause_audio_node(&self, id: u32) -> Result<()> {
+        with_runtime(|tree| tree.validate_audio_node(self.window_id, id))?;
+        if !self.headless {
+            audio::pause(self.window_id, id);
         }
         Ok(())
     }
@@ -391,7 +434,9 @@ impl NativeRendererBinding {
     pub fn close(&self) -> Result<()> {
         platform::close_window(self.window_id);
         events::unregister(self.window_id);
-        lock_runtime()?.close_window(self.window_id);
+        let mut tree = lock_runtime()?;
+        audio::close(self.window_id);
+        tree.close_window(self.window_id);
         Ok(())
     }
 

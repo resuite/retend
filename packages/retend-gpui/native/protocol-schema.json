@@ -16,7 +16,8 @@
   "styleStates": {
     "Hover": 1,
     "Active": 2,
-    "Focused": 3
+    "Focused": 3,
+    "Placeholder": 4
   },
   "elementKinds": {
     "Root": 1,
@@ -27,7 +28,8 @@
     "Textarea": 6,
     "Anchored": 7,
     "Button": 8,
-    "Svg": 9
+    "Svg": 9,
+    "Audio": 10
   },
   "valueKinds": {
     "Null": 0,
@@ -117,7 +119,11 @@
     "TransformOrigin": 82,
     "Content": 83,
     "Cursor": 84,
-    "PointerEvents": 85
+    "PointerEvents": 85,
+    "Autoplay": 86,
+    "Loop": 87,
+    "Muted": 88,
+    "Volume": 89
   },
   "nativeEvents": {
     "Click": 1,
@@ -142,6 +148,7 @@
     "Load": 20,
     "Error": 21,
     "ContextMenu": 22,
-    "Wheel": 23
+    "Wheel": 23,
+    "Ended": 24
   }
 }

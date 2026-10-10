@@ -92,6 +92,7 @@ fn ensure_text_control_entity<T: 'static>(
             value: &snapshot.value,
             value_revision: snapshot.value_revision,
             placeholder: &snapshot.placeholder,
+            placeholder_color: snapshot.placeholder_color,
             min_rows: snapshot.min_rows,
             max_rows: snapshot.max_rows,
         },
@@ -150,6 +151,7 @@ pub(crate) fn prepare_frame<T: 'static>(
                     value,
                     value_revision: *value_revision,
                     placeholder,
+                    placeholder_color: node.placeholder_color,
                     min_rows: *min_rows,
                     max_rows: *max_rows,
                 },
@@ -307,7 +309,11 @@ impl Render for RetendRootView {
                                 let reloaded = crate::runtime()
                                     .lock()
                                     .ok()
-                                    .is_some_and(|mut tree| tree.reload_window(window_id).is_ok());
+                                    .is_some_and(|mut tree| {
+                                        let reloaded = tree.reload_window(window_id).is_ok();
+                                        if reloaded { crate::audio::close(window_id); }
+                                        reloaded
+                                    });
                                 if reloaded {
                                     runtime_state.clear();
                                     crate::events::emit_window(
@@ -569,6 +575,11 @@ fn open_gpui_window(
     };
     if let Some(titlebar) = window_options.titlebar.as_mut() {
         titlebar.appears_transparent = options.transparent_titlebar.unwrap_or(false);
+        #[cfg(target_os = "macos")]
+        if let Some(position) = options.traffic_light_position {
+            titlebar.traffic_light_position =
+                Some(gpui::point(px(position.x as f32), px(position.y as f32)));
+        }
         if let Some(title) = options.title {
             titlebar.title = Some(title.into());
         }
@@ -617,6 +628,7 @@ fn open_gpui_window(
 fn mark_window_closed(window_id: WindowId) {
     crate::events::emit_close(window_id);
     if let Ok(mut tree) = crate::runtime().lock() {
+        crate::audio::close(window_id);
         tree.close_window(window_id);
     }
     remove_registered_window(window_id);

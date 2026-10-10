@@ -21,6 +21,16 @@ use crate::{
     BridgeFailure, NativeMeasurement, NativeScrollOffset, NativeSelection,
 };
 
+fn text_control_editor_style(placeholder_color: Option<u32>, cx: &App) -> InputEditorStyle {
+    InputEditorStyle {
+        selection: gpui_base::Theme::global(cx).tokens.colors.selection,
+        muted_foreground: placeholder_color
+            .map(|color| gpui::rgba(color).into())
+            .unwrap_or_default(),
+        ..Default::default()
+    }
+}
+
 pub type Measurement = NativeMeasurement;
 
 type QueryCallback<T> = Box<dyn FnOnce(Result<T, BridgeFailure>) + Send>;
@@ -85,6 +95,7 @@ pub struct TextControlConfig<'a> {
     pub value: &'a str,
     pub value_revision: u64,
     pub placeholder: &'a str,
+    pub placeholder_color: Option<u32>,
     pub min_rows: Option<u32>,
     pub max_rows: Option<u32>,
 }
@@ -133,6 +144,7 @@ struct TextControlRuntimeState {
     editor: TextControlEditor,
     value_revision: u64,
     placeholder: String,
+    placeholder_color: Option<u32>,
     min_rows: Option<u32>,
     max_rows: Option<u32>,
     last_value: String,
@@ -347,6 +359,7 @@ impl RuntimeStateRegistry {
             value,
             value_revision,
             placeholder,
+            placeholder_color,
             min_rows,
             max_rows,
         } = config;
@@ -360,18 +373,41 @@ impl RuntimeStateRegistry {
                 let revision_changed = control.value_revision != value_revision;
                 let rows_changed = control.min_rows != min_rows || control.max_rows != max_rows;
                 let placeholder_changed = control.placeholder != placeholder;
+                let placeholder_color_changed = control.placeholder_color != placeholder_color;
                 control.value_revision = value_revision;
                 control.min_rows = min_rows;
                 control.max_rows = max_rows;
                 control.placeholder.clone_from(&placeholder);
+                control.placeholder_color = placeholder_color;
                 (
                     control.editor.clone(),
                     revision_changed,
                     rows_changed,
                     placeholder_changed,
+                    placeholder_color_changed,
                 )
             });
-        if let Some((editor, revision_changed, rows_changed, placeholder_changed)) = existing {
+        if let Some((
+            editor,
+            revision_changed,
+            rows_changed,
+            placeholder_changed,
+            placeholder_color_changed,
+        )) = existing
+        {
+            if placeholder_color_changed {
+                let style = text_control_editor_style(placeholder_color, cx);
+                match &editor {
+                    TextControlEditor::Input(editor) => editor.update(cx, |editor, cx| {
+                        editor.set_editor_style(style);
+                        cx.notify();
+                    }),
+                    TextControlEditor::Textarea(editor) => editor.update(cx, |editor, cx| {
+                        editor.set_editor_style(style);
+                        cx.notify();
+                    }),
+                }
+            }
             if placeholder_changed {
                 match &editor {
                     TextControlEditor::Input(editor) => editor.update(cx, |editor, cx| {
@@ -411,10 +447,7 @@ impl RuntimeStateRegistry {
 
         let value = text_control_value(kind, value);
         // An unset selection resolves to the near-white accent, not the palette's selection token.
-        let editor_style = InputEditorStyle {
-            selection: gpui_base::Theme::global(cx).tokens.colors.selection,
-            ..Default::default()
-        };
+        let editor_style = text_control_editor_style(placeholder_color, cx);
         let runtime = Rc::downgrade(&self.0);
         let (editor, events) = match kind {
             TextControlKind::Input => {
@@ -451,6 +484,7 @@ impl RuntimeStateRegistry {
                 editor: editor.clone(),
                 value_revision,
                 placeholder,
+                placeholder_color,
                 min_rows,
                 max_rows,
                 last_value: value,
@@ -1387,6 +1421,7 @@ mod frame_tests {
                                 value: &value,
                                 value_revision: 1,
                                 placeholder: "placeholder",
+                                placeholder_color: None,
                                 min_rows: Some(2),
                                 max_rows: Some(4),
                             },
@@ -1423,6 +1458,7 @@ mod frame_tests {
                                 value: "must not replace the same revision",
                                 value_revision: 1,
                                 placeholder: "new placeholder",
+                                placeholder_color: None,
                                 min_rows: Some(3),
                                 max_rows: Some(5),
                             },

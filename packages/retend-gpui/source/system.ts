@@ -1,5 +1,7 @@
 import { Cell, createScope, useScopeContext, type SourceCell } from 'retend';
 
+import type { GpuiPoint } from './types.js';
+
 /** Process-wide native system integration options for a Retend GPUI application. */
 export interface GpuiSystemOptions {
   /**
@@ -7,6 +9,8 @@ export interface GpuiSystemOptions {
    * extend behind the window controls. Supported by GPUI on macOS and Windows.
    */
   transparentTitlebar?: boolean;
+  /** macOS-only traffic-light origin in logical pixels from the titlebar's top-left. */
+  trafficLightPosition?: GpuiPoint;
 }
 
 /** Current operating-system light/dark preference. */
