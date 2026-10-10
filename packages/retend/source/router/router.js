@@ -36,7 +36,7 @@ import {
 import { Lazy } from './lazy.js';
 import { RouterMiddlewareResponse } from './middleware.js';
 import { RouteTree } from './routeTree.js';
-import { constructURL, getFullPath } from './utils.js';
+import { constructURL } from './utils.js';
 
 export * from './lazy.js';
 export * from './routeTree.js';
@@ -104,6 +104,10 @@ export class Router extends EventTarget {
     return this.#isNavigating;
   }
 
+  get title() {
+    return this.#title;
+  }
+
   /** @param {RouterOptions} routeOptions */
   constructor(routeOptions) {
     super();
@@ -126,12 +130,11 @@ export class Router extends EventTarget {
 
     this.navigate = this.navigate.bind(this);
     this.replace = this.replace.bind(this);
+    this.sync = this.sync.bind(this);
     this.back = this.back.bind(this);
     this.lock = this.lock.bind(this);
     this.unlock = this.unlock.bind(this);
     this.getCurrentRoute = this.getCurrentRoute.bind(this);
-    this.#windowEventHandler = this.#windowEventHandler.bind(this);
-    this.attachWindowListeners = this.attachWindowListeners.bind(this);
   }
 
   /** @param {string} path */
@@ -567,6 +570,24 @@ export class Router extends EventTarget {
     }
   }
 
+  /**
+   * Adopts an external URL into the router without echoing back to history.
+   * Unlike `navigate()` and `replace()`, no `routeloadcompleted` event is
+   * dispatched.
+   *
+   * @param {string} path - The current host path to adopt.
+   * @return {Promise<void>} A promise that resolves when the sync completes.
+   */
+  async sync(path) {
+    if (this.#isNavigating) return;
+    this.#isNavigating = true;
+    try {
+      await this.#load({ rawPath: path, navigate: false });
+    } finally {
+      this.#isNavigating = false;
+    }
+  }
+
   async back() {
     const lastPath = this.#history[this.#history.length - 2];
     if (!lastPath) return;
@@ -641,67 +662,6 @@ export class Router extends EventTarget {
   removeEventListener(type, listener, options) {
     super.removeEventListener(type, /**@type {any} */ (listener), options);
   }
-
-  /** @param {Event} event */
-  #windowEventHandler = async (event) => {
-    if (this.#isNavigating) return;
-    const window = /** @type {Window} */ (event.currentTarget);
-    this.#isNavigating = true;
-    try {
-      const path = getFullPath(window);
-      await this.#load({ rawPath: path, navigate: false });
-      // History traversal (Back, Forward) loads without `routeloadcompleted`,
-      // which is where navigations apply the title; apply it here too.
-      if (this.#title) window.document.title = this.#title;
-    } finally {
-      this.#isNavigating = false;
-    }
-  };
-
-  /** @param {Window} window */
-  attachWindowListeners = (window) => {
-    const handleRoutePrevented = () => {
-      window.history.replaceState({}, '', this.#lock);
-    };
-    /** @param {RouteLoadCompletedEvent} event */
-    const handleRouteLoadCompleted = (event) => {
-      const { newHistoryLength, oldHistoryLength, replace, fullPath, title } =
-        event;
-      if (title) {
-        window.document.title = title;
-      }
-      const goingBack = newHistoryLength < oldHistoryLength;
-      if (goingBack) {
-        const negativeDiff = newHistoryLength - oldHistoryLength;
-        window?.history.go(negativeDiff);
-        return;
-      }
-
-      const isSamePath = getFullPath(window) === fullPath;
-      if (isSamePath) return;
-
-      const nextPath = fullPath;
-      if (replace || newHistoryLength === oldHistoryLength) {
-        window.history?.replaceState(null, '', nextPath);
-      } else window.history?.pushState(null, '', nextPath);
-    };
-
-    window?.addEventListener('popstate', this.#windowEventHandler);
-    window?.addEventListener('hashchange', this.#windowEventHandler);
-    window?.addEventListener('load', this.#windowEventHandler);
-    window?.addEventListener('DOMContentLoaded', this.#windowEventHandler);
-    this.addEventListener('routelockprevented', handleRoutePrevented);
-    this.addEventListener('routeloadcompleted', handleRouteLoadCompleted);
-
-    return () => {
-      window?.removeEventListener('popstate', this.#windowEventHandler);
-      window?.removeEventListener('hashchange', this.#windowEventHandler);
-      window?.removeEventListener('load', this.#windowEventHandler);
-      window?.removeEventListener('DOMContentLoaded', this.#windowEventHandler);
-      this.removeEventListener('routelockprevented', handleRoutePrevented);
-      this.removeEventListener('routeloadcompleted', handleRouteLoadCompleted);
-    };
-  };
 
   /**
    * Locks the router to the current route. Blocks navigation attempts handled *internally*

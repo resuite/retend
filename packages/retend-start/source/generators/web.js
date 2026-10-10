@@ -205,11 +205,11 @@ hydrate(createRouter, {
 /// <reference types="retend-web/jsx-runtime" />
 import { createRouterRoot } from 'retend/router';
 import { createRouter } from './router';
-import { renderToDOM } from 'retend-web';
+import { attachRouter, renderToDOM } from 'retend-web';
 import { RetendDevTools } from 'retend-web-devtools';
 
 const router = createRouter();
-router.attachWindowListeners(window);
+attachRouter(router, window);
 
 const root = window.document.getElementById('app');
 const renderApp = () => (

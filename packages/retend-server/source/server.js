@@ -106,8 +106,6 @@ async function renderPath(options) {
 
       const router = routerModule.createRouter();
       const currentRoute = router.getCurrentRoute();
-      // @ts-expect-error: window is mocked by vdom.
-      router.attachWindowListeners(window);
 
       addMetaListener(router, document);
 
@@ -125,6 +123,8 @@ async function renderPath(options) {
       appElement.replaceChildren(...[renderedRoot].flat());
 
       await router.navigate(path);
+      // No window binding during prerender, so apply the route title explicitly.
+      if (router.title) document.title = router.title;
       await retendModule.waitForAsyncBoundaries();
       let stalledTeleports = false;
       while (document.teleportMounts.length) {

@@ -1,6 +1,7 @@
 import type { DOMRenderer } from 'retend-web';
 
 import { Cell, For, If, getActiveRenderer } from 'retend';
+import { attachRouter } from 'retend-web';
 import {
   type AsyncRouteQuery,
   Router,
@@ -28,7 +29,7 @@ describe('useRouteQuery', () => {
       routes: [{ name: 'home', path: '/', component: Home }],
     });
 
-    router.attachWindowListeners(window);
+    attachRouter(router, window);
     window.document.body.append(createRouterRoot(router));
 
     await router.navigate('/?name=Cody');
@@ -67,7 +68,7 @@ describe('useRouteQuery', () => {
       routes: [{ name: 'card page', path: '/card', component: CardPage }],
     });
 
-    router.attachWindowListeners(window);
+    attachRouter(router, window);
     window.document.body.append(createRouterRoot(router));
 
     await router.navigate('/card?stage=design');
@@ -112,7 +113,7 @@ describe('useRouteQuery', () => {
       routes: [{ name: 'card page', path: '/card', component: CardPage }],
     });
 
-    router.attachWindowListeners(window);
+    attachRouter(router, window);
     window.document.body.append(createRouterRoot(router));
 
     await router.navigate('/card?stage=design');
@@ -163,7 +164,7 @@ describe('useRouteQuery', () => {
       routes: [{ name: 'card page', path: '/card', component: CardPage }],
     });
 
-    router.attachWindowListeners(window);
+    attachRouter(router, window);
     window.document.body.append(createRouterRoot(router));
 
     await router.navigate('/card?stage=design');
@@ -232,7 +233,7 @@ describe('useRouteQuery', () => {
       },
     ];
     const router = new Router({ routes });
-    router.attachWindowListeners(window);
+    attachRouter(router, window);
     window.document.body.append(createRouterRoot(router));
 
     await router.navigate('/list');
@@ -285,7 +286,7 @@ describe('useRouteQuery', () => {
       routes: [{ name: 'filters', path: '/filters', component: FilterPage }],
     });
 
-    router.attachWindowListeners(window);
+    attachRouter(router, window);
     window.document.body.append(createRouterRoot(router));
 
     // Initial navigation

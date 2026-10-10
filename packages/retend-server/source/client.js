@@ -9,7 +9,7 @@ import {
   runPendingSetupEffects,
   waitForAsyncBoundaries,
 } from 'retend';
-import { DOMRenderer } from 'retend-web';
+import { DOMRenderer, attachRouter } from 'retend-web';
 import { getGlobalContext, setGlobalContext } from 'retend/context';
 import { createRouterRoot } from 'retend/router';
 
@@ -146,7 +146,7 @@ export async function hydrate(routerFn, options = {}) {
   let detachRouter = () => {};
   try {
     const router = routerFn();
-    detachRouter = router.attachWindowListeners(window);
+    detachRouter = attachRouter(router, window);
     await router.navigate(location.pathname + location.search + location.hash);
 
     const shouldHydrate = root.dataset.retendHydration === '1';

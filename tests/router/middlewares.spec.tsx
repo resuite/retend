@@ -1,6 +1,7 @@
 import type { DOMRenderer } from 'retend-web';
 
 import { getActiveRenderer } from 'retend';
+import { attachRouter } from 'retend-web';
 import {
   type RouterMiddleware,
   Router,
@@ -34,7 +35,7 @@ describe('Router Middlewares', () => {
       middlewares: [testMiddleware],
     });
 
-    router.attachWindowListeners(window);
+    attachRouter(router, window);
 
     await router.navigate('/home');
     expect(middlewareSpy).toHaveBeenCalledWith('/home', '');
@@ -63,7 +64,7 @@ describe('Router Middlewares', () => {
       middlewares: [blockingMiddleware],
     });
 
-    router.attachWindowListeners(window);
+    attachRouter(router, window);
 
     await router.navigate('/home');
     expect(router.getCurrentRoute().get().path).toBe('/home');
@@ -92,7 +93,7 @@ describe('Router Middlewares', () => {
       middlewares: [firstMiddleware, secondMiddleware],
     });
 
-    router.attachWindowListeners(window);
+    attachRouter(router, window);
 
     await router.navigate('/home');
     expect(executionOrder).toEqual(['first', 'second']);
@@ -116,7 +117,7 @@ describe('Router Middlewares', () => {
       middlewares: [redirectMiddleware],
     });
 
-    router.attachWindowListeners(window);
+    attachRouter(router, window);
 
     await router.navigate('/old-path');
     await router.navigate('/new-path');
@@ -156,7 +157,7 @@ describe('Router Middlewares', () => {
       middlewares: [redirectMiddleware, observingMiddleware],
     });
 
-    router.attachWindowListeners(window);
+    attachRouter(router, window);
 
     await router.navigate('/private/123');
     expect(router.getCurrentRoute().get().name).toBe('login');
@@ -191,7 +192,7 @@ describe('Router Middlewares', () => {
       middlewares: [asyncMiddleware],
     });
 
-    router.attachWindowListeners(window);
+    attachRouter(router, window);
 
     await router.navigate('/home');
     expect(router.getCurrentRoute().get().path).toBe('/home');
@@ -218,7 +219,7 @@ describe('Router Middlewares', () => {
       middlewares: [metadataMiddleware],
     });
 
-    router.attachWindowListeners(window);
+    attachRouter(router, window);
 
     await router.navigate('/user/123?tab=profile');
     expect(metadataSpy).toHaveBeenCalledWith(

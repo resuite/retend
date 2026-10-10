@@ -1,6 +1,7 @@
 import type { DOMRenderer } from 'retend-web';
 
 import { createScope, getActiveRenderer, useScopeContext } from 'retend';
+import { attachRouter } from 'retend-web';
 import { resetGlobalContext } from 'retend/context';
 import { Router, createRouterRoot, useRouter } from 'retend/router';
 import { afterAll, beforeEach, describe, expect, it } from 'vitest';
@@ -57,7 +58,7 @@ describe('Scopes in Routing', () => {
       ],
     });
 
-    router.attachWindowListeners(window);
+    attachRouter(router, window);
     window.document.body.append(createRouterRoot(router));
 
     await router.navigate('/content');
@@ -129,7 +130,7 @@ describe('Scopes in Routing', () => {
       ],
     });
 
-    router.attachWindowListeners(window);
+    attachRouter(router, window);
     window.document.body.append(createRouterRoot(router));
 
     await router.navigate('/user');
@@ -199,7 +200,7 @@ describe('Scopes in Routing', () => {
       ],
     });
 
-    router.attachWindowListeners(window);
+    attachRouter(router, window);
     window.document.body.append(createRouterRoot(router));
 
     await router.navigate('/child/grandchild');
@@ -264,7 +265,7 @@ describe('Scopes in Routing', () => {
       ],
     });
 
-    router.attachWindowListeners(window);
+    attachRouter(router, window);
     window.document.body.append(createRouterRoot(router));
 
     await router.navigate('/protected');
@@ -325,7 +326,7 @@ describe('Scopes in Routing', () => {
       ],
     });
 
-    router.attachWindowListeners(window);
+    attachRouter(router, window);
     window.document.body.append(createRouterRoot(router));
 
     await router.navigate('/content');

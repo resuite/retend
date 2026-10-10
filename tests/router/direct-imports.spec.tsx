@@ -1,6 +1,7 @@
 import type { DOMRenderer } from 'retend-web';
 
 import { getActiveRenderer } from 'retend';
+import { attachRouter } from 'retend-web';
 import {
   Link,
   Outlet,
@@ -25,7 +26,7 @@ describe('Router Direct Imports', () => {
         { path: '/about', name: 'about', component: () => 'About' },
       ]),
     });
-    router.attachWindowListeners(window);
+    attachRouter(router, window);
     const Component = () => {
       // Test that Link component can be used directly
       const linkElement = renderer.render(
@@ -57,7 +58,7 @@ describe('Router Direct Imports', () => {
         { path: '/', name: 'home', component: () => 'Home' },
       ]),
     });
-    router.attachWindowListeners(window);
+    attachRouter(router, window);
     const Component = () => {
       const outlet = renderer.render(Outlet());
       expect(outlet).toBeDefined();
@@ -82,7 +83,7 @@ describe('Router Direct Imports', () => {
       ]),
       linkTag: 'span',
     });
-    router.attachWindowListeners(window);
+    attachRouter(router, window);
     const Component = () => {
       const linkElement = renderer.render(
         Link({ href: '/about', children: 'About Link' })
@@ -111,7 +112,7 @@ describe('Router Direct Imports', () => {
         { path: '/about', name: 'about', component: () => 'About' },
       ]),
     });
-    router.attachWindowListeners(window);
+    attachRouter(router, window);
     const Component = () => {
       const linkElement = renderer.render(
         router.Link({
@@ -183,7 +184,7 @@ describe('Router Direct Imports', () => {
         },
       ]),
     });
-    router.attachWindowListeners(window);
+    attachRouter(router, window);
     window.document.body.append(createRouterRoot(router));
 
     await router.navigate('/');
@@ -209,7 +210,7 @@ describe('Router Direct Imports', () => {
         },
       ]),
     });
-    router.attachWindowListeners(window);
+    attachRouter(router, window);
     window.document.body.append(createRouterRoot(router));
 
     await router.navigate('/article');

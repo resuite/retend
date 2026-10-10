@@ -1,6 +1,7 @@
 import type { DOMRenderer } from 'retend-web';
 
 import { getActiveRenderer } from 'retend';
+import { attachRouter } from 'retend-web';
 import { Router, createRouterRoot, defineRoutes } from 'retend/router';
 import { describe, expect, it, vi } from 'vitest';
 
@@ -22,7 +23,7 @@ describe('router.lock()', () => {
     ]);
 
     const router = new Router({ routes });
-    router.attachWindowListeners(window);
+    attachRouter(router, window);
     window.document.body.append(createRouterRoot(router));
 
     await router.navigate('/');
@@ -51,7 +52,7 @@ describe('router.lock()', () => {
     ]);
 
     const router = new Router({ routes });
-    router.attachWindowListeners(window);
+    attachRouter(router, window);
     window.document.body.append(createRouterRoot(router));
 
     await router.navigate('/');
@@ -108,7 +109,7 @@ describe('router.lock()', () => {
     ]);
 
     const router = new Router({ routes });
-    router.attachWindowListeners(window);
+    attachRouter(router, window);
 
     router.addEventListener('routelockprevented', listener);
 

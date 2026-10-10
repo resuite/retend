@@ -3,6 +3,7 @@ import type { DOMRenderer } from 'retend-web';
 import { getActiveRenderer } from 'retend';
 import { Cell } from 'retend';
 import { VWindow } from 'retend-server/v-dom';
+import { attachRouter } from 'retend-web';
 import {
   type RouteComponent,
   Router,
@@ -47,7 +48,7 @@ describe('Router Metadata', () => {
     const currentRoute = router.getCurrentRoute();
     const metadata = Cell.derived(() => currentRoute.get().metadata);
 
-    router.attachWindowListeners(window);
+    attachRouter(router, window);
     window.document.body.append(createRouterRoot(router));
 
     await router.navigate('/');
@@ -154,7 +155,7 @@ describe('Router Metadata', () => {
     const currentRoute = router.getCurrentRoute();
     const metadata = Cell.derived(() => currentRoute.get().metadata);
 
-    router.attachWindowListeners(window);
+    attachRouter(router, window);
     window.document.body.append(createRouterRoot(router));
 
     await router.navigate('/dashboard/users');
@@ -195,7 +196,7 @@ describe('Router Metadata', () => {
     const currentRoute = router.getCurrentRoute();
     const metadata = Cell.derived(() => currentRoute.get().metadata);
 
-    router.attachWindowListeners(window);
+    attachRouter(router, window);
     window.document.body.append(createRouterRoot(router));
 
     await router.navigate('/products/123');
@@ -233,7 +234,7 @@ describe('Router Metadata', () => {
     const currentRoute = router.getCurrentRoute();
     const metadata = Cell.derived(() => currentRoute.get().metadata);
 
-    router.attachWindowListeners(window);
+    attachRouter(router, window);
     window.document.body.append(createRouterRoot(router));
 
     await router.navigate('/products/123');
@@ -272,7 +273,7 @@ describe('Router Metadata', () => {
     const currentRoute = router.getCurrentRoute();
     const metadata = Cell.derived(() => currentRoute.get().metadata);
 
-    router.attachWindowListeners(window);
+    attachRouter(router, window);
     window.document.body.append(createRouterRoot(router));
 
     await router.navigate('/users/1/posts/100');
@@ -307,7 +308,7 @@ describe('Router Metadata', () => {
     const currentRoute = router.getCurrentRoute();
     const metadata = Cell.derived(() => currentRoute.get().metadata);
 
-    router.attachWindowListeners(window);
+    attachRouter(router, window);
     window.document.body.append(createRouterRoot(router));
 
     await router.navigate('/search?q=javascript');
@@ -355,7 +356,7 @@ describe('Router Metadata', () => {
     const route = router.getCurrentRoute();
     const metadata = Cell.derived(() => route.get().metadata);
 
-    router.attachWindowListeners(window);
+    attachRouter(router, window);
     window.document.body.append(createRouterRoot(router));
 
     await router.navigate('/home');
@@ -445,7 +446,7 @@ describe('Router Metadata', () => {
     const route = router.getCurrentRoute();
     const metadata = Cell.derived(() => route.get().metadata);
 
-    router.attachWindowListeners(window);
+    attachRouter(router, window);
     window.document.body.append(createRouterRoot(router));
 
     await router.navigate('/home');
@@ -507,7 +508,7 @@ describe('Router Metadata', () => {
     const currentRoute = router.getCurrentRoute();
     const metadata = Cell.derived(() => currentRoute.get().metadata);
 
-    router.attachWindowListeners(window);
+    attachRouter(router, window);
     window.document.body.append(createRouterRoot(router));
 
     await router.navigate('/products/123');
@@ -563,7 +564,7 @@ describe('Router Metadata', () => {
     const currentRoute = router.getCurrentRoute();
     const metadata = Cell.derived(() => currentRoute.get().metadata);
 
-    router.attachWindowListeners(window);
+    attachRouter(router, window);
     window.document.body.append(createRouterRoot(router));
 
     await router.navigate('/products/123/456');
@@ -599,7 +600,7 @@ describe('Router Metadata', () => {
     const currentRoute = router.getCurrentRoute();
     const metadata = Cell.derived(() => currentRoute.get().metadata);
 
-    router.attachWindowListeners(window);
+    attachRouter(router, window);
     window.document.body.append(createRouterRoot(router));
 
     await router.navigate('/blog?pageId=123');
@@ -637,7 +638,7 @@ describe('Router Metadata', () => {
       ]),
     });
 
-    router.attachWindowListeners(window);
+    attachRouter(router, window);
     window.document.body.append(createRouterRoot(router));
 
     await router.navigate('/blog/123');
@@ -687,7 +688,7 @@ describe('Router Metadata', () => {
       ]),
     });
 
-    router.attachWindowListeners(window);
+    attachRouter(router, window);
     window.document.body.append(createRouterRoot(router));
 
     await router.navigate('/blog/123');
@@ -742,7 +743,7 @@ describe('Router Metadata', () => {
       ]),
     });
 
-    router.attachWindowListeners(window);
+    attachRouter(router, window);
     window.document.body.append(createRouterRoot(router));
 
     await router.navigate('/products/123');

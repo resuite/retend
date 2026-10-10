@@ -9,6 +9,7 @@ import {
   runPendingSetupEffects,
 } from 'retend';
 import { UniqueTransition } from 'retend-utils/components';
+import { attachRouter } from 'retend-web';
 import {
   Router,
   createRouterRoot,
@@ -78,7 +79,7 @@ describe('Router Unique', () => {
       },
     ]);
     const router = new Router({ routes });
-    router.attachWindowListeners(window);
+    attachRouter(router, window);
     window.document.body.append(createRouterRoot(router));
     await runPendingSetupEffects();
 
@@ -145,7 +146,7 @@ describe('Router Unique', () => {
       },
     ]);
     const router = new Router({ routes });
-    router.attachWindowListeners(window);
+    attachRouter(router, window);
     window.document.body.append(createRouterRoot(router));
     await runPendingSetupEffects();
 
@@ -259,7 +260,7 @@ describe('Router Unique', () => {
     window.history.replaceState(null, '', '/gallery/1');
 
     const router = new Router({ routes, stackMode: true });
-    const detach = router.attachWindowListeners(window);
+    const detach = attachRouter(router, window);
     window.document.body.append(createRouterRoot(router));
     await runPendingSetupEffects();
 

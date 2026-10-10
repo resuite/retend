@@ -1,6 +1,7 @@
 import type { DOMRenderer } from 'retend-web';
 
 import { getActiveRenderer, onSetup, runPendingSetupEffects } from 'retend';
+import { attachRouter } from 'retend-web';
 import {
   Outlet,
   Router,
@@ -53,7 +54,7 @@ describe('onSetup with routing', () => {
     const { host: window } = renderer;
 
     const router = new Router({ routes });
-    router.attachWindowListeners(window);
+    attachRouter(router, window);
     window.document.body.append(createRouterRoot(router));
     await runPendingSetupEffects();
 
@@ -120,7 +121,7 @@ describe('onSetup with routing', () => {
     const { host: window } = renderer;
 
     const router = new Router({ routes });
-    router.attachWindowListeners(window);
+    attachRouter(router, window);
     window.document.body.append(createRouterRoot(router));
 
     await router.navigate('/parent');
