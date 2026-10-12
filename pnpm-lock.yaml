@@ -401,6 +401,9 @@ importers:
       csstype:
         specifier: ^3.2.3
         version: 3.2.3
+      oxc-parser:
+        specifier: ^0.115.0
+        version: 0.115.0
     devDependencies:
       retend:
         specifier: workspace:*

@@ -177,25 +177,76 @@ export function Panel() {
     }
   };
 
-  // The host can connect before its ShadowRoot is attached, so wait for a node inside it.
+  // The host can connect before its ShadowRoot is attached.
   onConnected(panelRef, (panelElement) => {
-    const shadowRoot = panelElement.getRootNode();
-    if (!(shadowRoot instanceof window.ShadowRoot)) return;
+    const root = panelElement.getRootNode();
+    if (!(root instanceof window.ShadowRoot)) return;
+    const host = root.host;
+    if (!(host instanceof HTMLElement)) return;
 
-    requestAnimationFrame(() => {
+    // Modal dialogs make elements outside them inert, including other popovers.
+    // A manual popover inside the current modal stays interactive in the top layer.
+    let pendingFrame: number | null = null;
+    const syncTopLayer = () => {
+      pendingFrame = null;
+      if (!host.isConnected) return;
+
+      const modals =
+        document.querySelectorAll<HTMLDialogElement>('dialog:modal');
+      const container = modals.item(modals.length - 1) ?? document.body;
+      if (host.matches(':popover-open')) host.hidePopover();
+      if (host.parentElement !== container) container.append(host);
+      host.showPopover();
+    };
+    const scheduleSync = () => {
+      if (pendingFrame !== null) return;
+      pendingFrame = requestAnimationFrame(syncTopLayer);
+    };
+    syncTopLayer();
+
+    const observer = new MutationObserver((records) => {
+      if (records.some(({ target }) => target instanceof HTMLDialogElement)) {
+        scheduleSync();
+      }
+    });
+    observer.observe(document.documentElement, {
+      attributes: true,
+      attributeFilter: ['open'],
+      subtree: true,
+    });
+    const onToggle = (event: Event) => {
+      const target = event.target;
+      if (
+        target instanceof HTMLElement &&
+        target !== host &&
+        target.hasAttribute('popover')
+      ) {
+        scheduleSync();
+      }
+    };
+    document.addEventListener('toggle', onToggle, true);
+
+    const styleFrame = requestAnimationFrame(() => {
       const styleTag = document.getElementById(VITE_STYLE_ID);
       if (!styleTag) return;
-
       const stylesheet = new CSSStyleSheet();
       stylesheet.replace(styleTag.innerHTML).then((sheet) => {
-        shadowRoot.adoptedStyleSheets.push(sheet);
+        if (host.isConnected) root.adoptedStyleSheets.push(sheet);
       });
     });
+
+    return () => {
+      observer.disconnect();
+      document.removeEventListener('toggle', onToggle, true);
+      cancelAnimationFrame(styleFrame);
+      if (pendingFrame !== null) cancelAnimationFrame(pendingFrame);
+      if (host.matches(':popover-open')) host.hidePopover();
+    };
   });
 
   return (
     <Teleport to="body">
-      <retend-web-devtools style={{ display: 'contents' }}>
+      <retend-web-devtools popover="manual">
         <ShadowRoot>
           <div
             ref={panelRef}
@@ -236,7 +287,6 @@ export function Panel() {
                     ))}
                   </div>
                   <div class={classes.header}>
-                    <span class={classes.title}>Component Tree</span>
                     <PanelHeaderTools panel={panel} />
                   </div>
                 </div>

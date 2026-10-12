@@ -3,6 +3,7 @@ import type { JSX } from 'retend/jsx-runtime';
 
 import { Cell, createUnique, For, If, onSetup, type SourceCell } from 'retend';
 import { UniqueTransition } from 'retend-utils/components';
+import { RetendDevTools } from 'retend-web-devtools';
 
 const appStyles: JSX.StyleValue = {
   display: 'flex',
@@ -118,11 +119,13 @@ const App = () => {
   const selected = Cell.source(0);
 
   return (
-    <div style={appStyles}>
-      {For(containers, (_, index) => (
-        <Container selected={selected} index={index} />
-      ))}
-    </div>
+    <RetendDevTools>
+      <div style={appStyles}>
+        {For(containers, (_, index) => (
+          <Container selected={selected} index={index} />
+        ))}
+      </div>
+    </RetendDevTools>
   );
 };
 

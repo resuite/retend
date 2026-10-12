@@ -1,4 +1,6 @@
 export * from '@/components/icons/CheckIcon';
+export * from '@/components/icons/CodeIcon';
+export * from '@/components/icons/ImageIcon';
 export * from '@/components/icons/ChevronDownIcon';
 export * from '@/components/icons/ChevronRightIcon';
 export * from '@/components/icons/CloseIcon';

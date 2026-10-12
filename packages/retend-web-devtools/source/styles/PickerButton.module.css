@@ -18,6 +18,13 @@
     border-color: var(--retend-devtools-accent);
   }
 
+  &:disabled {
+    opacity: 0.5;
+    cursor: default;
+    color: var(--retend-devtools-header-button-text);
+    border-color: var(--retend-devtools-header-button-border);
+  }
+
   &:focus-visible {
     outline: 2px solid var(--retend-devtools-accent);
     outline-offset: 2px;

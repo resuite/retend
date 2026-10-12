@@ -59,7 +59,8 @@
     "build": "node scripts/build.js"
   },
   "dependencies": {
-    "csstype": "^3.2.3"
+    "csstype": "^3.2.3",
+    "oxc-parser": "^0.115.0"
   },
   "devDependencies": {
     "retend": "workspace:*",
