@@ -189,14 +189,19 @@ export function Panel() {
     let pendingFrame: number | null = null;
     const syncTopLayer = () => {
       pendingFrame = null;
-      if (!host.isConnected) return;
-
       const modals =
         document.querySelectorAll<HTMLDialogElement>('dialog:modal');
       const container = modals.item(modals.length - 1) ?? document.body;
-      if (host.matches(':popover-open')) host.hidePopover();
-      if (host.parentElement !== container) container.append(host);
-      host.showPopover();
+      if (!host.isConnected) {
+        // The previous container was removed with us in it (e.g. an HMR
+        // range replacement deleted the open dialog). Re-attach instead
+        // of vanishing.
+        container.append(host);
+      } else {
+        if (host.matches(':popover-open')) host.hidePopover();
+        if (host.parentElement !== container) container.append(host);
+      }
+      if (!host.matches(':popover-open')) host.showPopover();
     };
     const scheduleSync = () => {
       if (pendingFrame !== null) return;
@@ -205,7 +210,19 @@ export function Panel() {
     syncTopLayer();
 
     const observer = new MutationObserver((records) => {
-      if (records.some(({ target }) => target instanceof HTMLDialogElement)) {
+      if (
+        records.some(
+          ({ target, removedNodes, type }) =>
+            target instanceof HTMLDialogElement ||
+            (type === 'childList' &&
+              Array.from(removedNodes).some(
+                (node) =>
+                  node instanceof HTMLDialogElement ||
+                  node === host ||
+                  (node instanceof Element && node.contains(host))
+              ))
+        )
+      ) {
         scheduleSync();
       }
     });
@@ -213,6 +230,7 @@ export function Panel() {
       attributes: true,
       attributeFilter: ['open'],
       subtree: true,
+      childList: true,
     });
     const onToggle = (event: Event) => {
       const target = event.target;
