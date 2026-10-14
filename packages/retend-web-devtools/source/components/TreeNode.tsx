@@ -177,10 +177,10 @@ export function TreeNode(props: TreeNodeProps) {
         <div class={classes.node}>
           <div
             ref={containerRef}
+            data-selected={selectedState}
             class={classes.nodeHeader}
             onClick={onNodeClick}
             onPointerEnter={onPointerEnter}
-            data-selected={selectedState}
           >
             {If(hasChildren, {
               true: () => (

@@ -105,29 +105,29 @@ export function InspectorPanel() {
       <div class={classes.sideInspectorHeader}>
         <span class={classes.sideInspectorTitle}>Inspector</span>
         <div
-          class={classes.inspectorActions}
           role="toolbar"
           aria-label="Component actions"
+          class={classes.inspectorActions}
         >
           {If(definition, () => (
             <button
               type="button"
-              class={headerButtonClasses.headerButton}
-              onClick={() => void viewSource()}
               disabled={sourcePending}
               aria-label="Open component definition in editor"
               title={sourceTitle}
+              class={headerButtonClasses.headerButton}
+              onClick={() => void viewSource()}
             >
               <CodeIcon />
             </button>
           ))}
           <button
             type="button"
-            class={headerButtonClasses.headerButton}
-            onClick={() => void copyScreenshot()}
             disabled={copyScreenshotTask.pending}
             aria-label={screenshotLabel}
             title={screenshotLabel}
+            class={headerButtonClasses.headerButton}
+            onClick={() => void copyScreenshot()}
           >
             {If(hasCopiedScreenshot, {
               true: () => <CheckIcon />,
@@ -136,10 +136,10 @@ export function InspectorPanel() {
           </button>
           <button
             type="button"
-            class={headerButtonClasses.headerButton}
-            onClick={inspector.closeInspector}
             aria-label="Close inspector"
             title="Close inspector"
+            class={headerButtonClasses.headerButton}
+            onClick={inspector.closeInspector}
           >
             <CloseIcon />
           </button>
@@ -147,12 +147,12 @@ export function InspectorPanel() {
       </div>
       <div class={classes.sideInspectorDetails}>
         {If(sourceError, () => (
-          <p class={classes.inspectorActionError} role="alert">
+          <p role="alert" class={classes.inspectorActionError}>
             {sourceError}
           </p>
         ))}
         {If(screenshotError, () => (
-          <p class={classes.inspectorActionError} role="alert">
+          <p role="alert" class={classes.inspectorActionError}>
             {screenshotError}
           </p>
         ))}

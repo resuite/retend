@@ -93,14 +93,14 @@ export function PickerButton() {
   return (
     <button
       type="button"
+      aria-label="Pick component from page (Escape to cancel)"
+      aria-pressed={devRenderer.isPickerActive}
+      title="Pick component from page (Esc to cancel)"
       class={[
         classes.headerButton,
         { [classes.headerButtonActive]: devRenderer.isPickerActive },
       ]}
       onClick={togglePicker}
-      aria-label="Pick component from page (Escape to cancel)"
-      aria-pressed={devRenderer.isPickerActive}
-      title="Pick component from page (Esc to cancel)"
     >
       <PickerIcon />
     </button>

@@ -250,6 +250,7 @@ export function Panel() {
         <ShadowRoot>
           <div
             ref={panelRef}
+            data-retend-devtools
             class={[
               classes.panel,
               {
@@ -262,7 +263,6 @@ export function Panel() {
               },
             ]}
             style={panelStyle}
-            data-retend-devtools
           >
             {If(panel.panelIsOpen, () => (
               <div
@@ -275,8 +275,8 @@ export function Panel() {
                 ]}
               >
                 <div
-                  class={classes.content}
                   data-picker-is-active={devRenderer.isPickerActive}
+                  class={classes.content}
                 >
                   <div class={classes.bodyContainer}>
                     <div class={classes.body}>
@@ -295,6 +295,8 @@ export function Panel() {
             <HighlightOverlay />
             <button
               type="button"
+              aria-label="Toggle Retend DevTools"
+              title="Toggle Retend DevTools"
               class={[
                 classes.button,
                 { [classes.buttonOpen]: panel.panelIsOpen },
@@ -303,8 +305,6 @@ export function Panel() {
               onPointerDown={onPointerDown}
               onPointerMove={onPointerMove}
               onPointerUp={onPointerUp}
-              aria-label="Toggle Retend DevTools"
-              title="Toggle Retend DevTools"
             >
               RT
             </button>

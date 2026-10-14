@@ -3128,6 +3128,91 @@ const requireNamedHandlersForComplexJsxEvents = {
   },
 };
 
+const jsxPropsOrder = {
+  meta: {
+    docs: {
+      description: 'enforce JSX attribute order',
+    },
+    schema: [],
+    messages: {
+      unexpected:
+        'Move `{{current}}` before `{{previous}}`. Use JSX attribute order: ref/key, other props, class, event handlers and function props, style.',
+    },
+  },
+  createOnce(context) {
+    const getRank = (attribute) => {
+      const name = getJsxAttributeName(attribute);
+      if (name === null) {
+        return null;
+      }
+
+      // `ref` and `key` are special JSX attributes, not props.
+      if (name === 'ref' || name === 'key') {
+        return 0;
+      }
+
+      if (name === 'class' || name === 'className') {
+        return 2;
+      }
+
+      if (name === 'style') {
+        return 4;
+      }
+
+      if (getRetendEventAttributeParts(name)) {
+        return 3;
+      }
+
+      if (attribute.value?.type === 'JSXExpressionContainer') {
+        const expression = unwrapExpression(attribute.value.expression);
+        if (
+          expression?.type === 'ArrowFunctionExpression' ||
+          expression?.type === 'FunctionExpression'
+        ) {
+          return 3;
+        }
+      }
+
+      return 1;
+    };
+
+    return {
+      JSXElement(node) {
+        let maxRank = -1;
+        let maxRankName = null;
+
+        for (const attribute of node.openingElement.attributes) {
+          if (attribute.type !== 'JSXAttribute') {
+            // Spread contents are unknown and override earlier props,
+            // so restart ordering after them.
+            maxRank = -1;
+            maxRankName = null;
+            continue;
+          }
+
+          const rank = getRank(attribute);
+          if (rank === null) {
+            continue;
+          }
+
+          const name = getJsxAttributeName(attribute);
+          if (rank < maxRank) {
+            context.report({
+              node: attribute.name,
+              messageId: 'unexpected',
+              data: { current: name, previous: maxRankName },
+            });
+            continue;
+          }
+
+          maxRank = rank;
+          maxRankName = name;
+        }
+      },
+    };
+  },
+};
+
 const plugin = {
   meta: {
     name: 'retend',
@@ -3135,6 +3220,7 @@ const plugin = {
   rules: {
     'component-statement-order': componentStatementOrder,
     'invalid-event-modifiers': invalidEventModifiers,
+    'jsx-props-order': jsxPropsOrder,
     'max-component-lines': maxComponentLines,
     'max-jsx-components-per-file': maxJsxComponentsPerFile,
     'no-async-component': noAsyncComponent,

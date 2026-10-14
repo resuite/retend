@@ -3,6 +3,7 @@
   "rules": {
     "retend/component-statement-order": "error",
     "retend/invalid-event-modifiers": "error",
+    "retend/jsx-props-order": "error",
     "retend/max-component-lines": "error",
     "retend/max-jsx-components-per-file": "error",
     "retend/no-async-component": "error",
