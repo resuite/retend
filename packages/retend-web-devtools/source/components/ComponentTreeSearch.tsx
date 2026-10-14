@@ -46,14 +46,18 @@ export function ComponentTreeSearch(props: ComponentTreeSearchProps) {
         ))}
       </div>
 
-      {For(props.roots, (root) => (
-        <TreeNode
-          node={root}
-          depth={0}
-          forceExpanded={search.forceExpanded}
-          visibleNodes={search.visibleNodes}
-        />
-      ))}
+      <div class={classes.treeContent}>
+        <div class={classes.treeNodes}>
+          {For(props.roots, (root) => (
+            <TreeNode
+              node={root}
+              depth={0}
+              forceExpanded={search.forceExpanded}
+              visibleNodes={search.visibleNodes}
+            />
+          ))}
+        </div>
+      </div>
     </>
   );
 }

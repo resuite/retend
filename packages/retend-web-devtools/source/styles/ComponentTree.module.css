@@ -5,10 +5,29 @@
   display: flex;
   flex-direction: column;
   user-select: none;
+  width: 100%;
+  min-width: 0;
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+}
 
-  &[data-inspector-panel-open] {
-    padding-bottom: calc(var(--retend-devtools-panel-height) / 2);
-  }
+.treeContent {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+}
+
+.tree[data-inspector-panel-open] .treeContent {
+  padding-bottom: calc(var(--retend-devtools-panel-height) / 2);
+  box-sizing: border-box;
+}
+
+.treeNodes {
+  display: flex;
+  flex-direction: column;
+  width: max-content;
+  min-width: 100%;
 }
 
 .searchRow {
@@ -18,11 +37,12 @@
   padding: 0.75rem 0.5rem;
   border-bottom: 1px solid var(--retend-devtools-panel-border);
   flex-shrink: 0;
-  position: sticky;
-  top: 0;
   background: var(--retend-devtools-panel-bg);
   z-index: 10;
   margin-bottom: 0.5rem;
+  width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
 
   &:has(:focus-visible) {
     border-color: var(--retend-devtools-tree-accent);
@@ -113,20 +133,20 @@
 }
 
 .node {
-  width: 100%;
-  min-width: 0;
+  width: max-content;
+  min-width: 100%;
 }
 
 .nodeHeader {
   display: grid;
-  grid-template-columns: 0.875rem minmax(0, 1fr);
+  grid-template-columns: 0.875rem auto;
   align-items: center;
   padding: 0.3rem 0.375rem;
   border-radius: 0.1875rem;
   cursor: default;
   white-space: nowrap;
-  width: 100%;
-  min-width: 0;
+  width: max-content;
+  min-width: 100%;
   box-sizing: border-box;
   scroll-margin-top: calc(var(--retend-devtools-panel-height) / 4);
 
@@ -156,9 +176,9 @@
 
 .componentName {
   display: block;
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
+  width: max-content;
+  max-width: none;
+  overflow: visible;
   white-space: nowrap;
   color: var(--retend-devtools-tree-accent);
   font-weight: 500;
@@ -188,6 +208,8 @@
 .children {
   border-left: 1px solid var(--retend-devtools-children-border);
   margin-left: 1rem;
+  width: max-content;
+  min-width: calc(100% - 1rem);
 }
 
 .providerChainHeader {
@@ -205,17 +227,22 @@
   margin-left: 0.6875rem;
   border-left: 1px solid var(--retend-devtools-children-border);
   padding: 0.125rem 0;
+  width: max-content;
+  min-width: calc(100% - 0.6875rem);
 }
 
 .providerChainItem {
   display: grid;
-  grid-template-columns: 1fr;
+  grid-template-columns: auto;
   align-items: center;
   padding: 0.125rem 0.375rem 0.125rem 0.625rem;
   border-radius: 0.1875rem;
   cursor: default;
   white-space: nowrap;
   opacity: 0.65;
+  width: max-content;
+  min-width: 100%;
+  box-sizing: border-box;
 
   &:hover {
     background: var(--retend-devtools-row-hover);
@@ -224,6 +251,6 @@
 }
 
 .providerContinuation {
-  width: 100%;
-  min-width: 0;
+  width: max-content;
+  min-width: 100%;
 }
