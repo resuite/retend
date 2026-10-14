@@ -65,6 +65,7 @@
   box-sizing: border-box;
   padding: 1rem 1.25rem;
   overflow-y: scroll;
+  overflow-x: hidden;
 }
 
 .sideInspectorSection {
@@ -103,6 +104,10 @@
   line-height: 1.5;
   overflow-wrap: anywhere;
   box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.02);
+  min-width: 0;
+  max-width: 100%;
+  overflow: hidden;
+  box-sizing: border-box;
 }
 
 .sideInspectorComponentName {
@@ -184,6 +189,9 @@
   vertical-align: baseline;
   padding: 0.5rem 0;
   word-break: break-word;
+  overflow-wrap: anywhere;
+  min-width: 0;
+  max-width: 100%;
 }
 
 .propNestedKey {
@@ -248,8 +256,10 @@
 }
 
 .propExpandable {
-  display: inline-block;
+  display: block;
   vertical-align: top;
+  min-width: 0;
+  max-width: 100%;
 }
 
 .propSummary {
@@ -278,6 +288,9 @@
   border-left: 1px solid var(--retend-devtools-inspector-border);
   overflow-x: auto;
   overflow-y: hidden;
+  min-width: 0;
+  max-width: 100%;
+  box-sizing: border-box;
 }
 
 .propNested .propsTable {
