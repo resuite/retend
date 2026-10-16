@@ -38,6 +38,10 @@ thread_local! {
 }
 
 fn emit_focus_event(window_id: WindowId, id: NodeId, event: NativeEventId, window: &mut Window) {
+    #[cfg(target_os = "macos")]
+    if event == NativeEventId::Blur {
+        crate::macos_text_services::disable(window);
+    }
     #[cfg(test)]
     TEST_FOCUS_EVENTS.with(|events| events.borrow_mut().push((window_id, id, event)));
     if crate::runtime()
@@ -1385,6 +1389,48 @@ mod tests {
             assert!(!runtime_state.focus_handle(2).unwrap().is_focused(window));
         })
         .unwrap();
+    }
+
+    #[cfg(target_os = "macos")]
+    #[gpui::test]
+    fn repeated_secondary_clicks_on_text_controls_do_not_reenter_editor_updates(
+        cx: &mut TestAppContext,
+    ) {
+        use gpui::{point, Modifiers, MouseButton};
+
+        fn verify(cx: &mut TestAppContext, kind: ElementKind) {
+            let (tree, window_id) = text_control_tree(kind, Some("hello world"));
+            let runtime_state = RuntimeStateRegistry::default();
+            let (_, cx) = cx.add_window_view({
+                let runtime_state = runtime_state.clone();
+                move |_, _| FocusTreeView {
+                    tree,
+                    runtime_state,
+                    window_id,
+                }
+            });
+            cx.update(|window, cx| {
+                window.activate_window();
+                window.draw(cx).clear(cx);
+            });
+
+            crate::macos_text_services::take_test_context_menus();
+            let target = point(px(12.0), px(12.0));
+            for _ in 0..2 {
+                cx.simulate_mouse_down(target, MouseButton::Right, Modifiers::default());
+                cx.simulate_mouse_up(target, MouseButton::Right, Modifiers::default());
+                cx.run_until_parked();
+            }
+            assert_eq!(
+                crate::macos_text_services::take_test_context_menus(),
+                2,
+                "{kind:?} must present the menu twice without reentrant entity access"
+            );
+        }
+
+        cx.update(crate::render::init);
+        verify(cx, ElementKind::Input);
+        verify(cx, ElementKind::Textarea);
     }
 
     #[gpui::test]

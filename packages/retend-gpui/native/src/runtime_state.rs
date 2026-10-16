@@ -7,7 +7,7 @@ use std::{
 
 use gpui::{
     point, px, App, AppContext, Bounds, Context, Entity, EntityInputHandler, FocusHandle,
-    Focusable, Pixels, Point, ScrollHandle, Subscription, TransformationMatrix, Window,
+    Focusable, Pixels, Point, ScrollHandle, Subscription, TransformationMatrix, WeakEntity, Window,
 };
 use gpui_base::input::{
     InputBaseState, InputEditorStyle, InputEvent, InputModeKind, InputState, TextareaState,
@@ -20,6 +20,72 @@ use crate::{
     tree::{NativeTree, NodeData, NodeId, TextControlKind, WindowId},
     BridgeFailure, NativeMeasurement, NativeScrollOffset, NativeSelection,
 };
+
+#[cfg(any(target_os = "macos", target_os = "windows"))]
+fn install_native_text_menu<M: InputModeKind + 'static>(
+    editor: &mut InputBaseState<M>,
+    weak_editor: WeakEntity<InputBaseState<M>>,
+) {
+    use gpui_base::input::{Copy, Cut, Paste, SelectAll};
+
+    editor.on_context_menu(Rc::new(move |menu, capabilities, position, window, cx| {
+        let editable = capabilities.is_editable();
+        let menu = menu
+            .menu_with_disabled(
+                "Cut",
+                !(editable && capabilities.is_copyable()),
+                Box::new(Cut),
+            )
+            .menu_with_disabled("Copy", !capabilities.is_copyable(), Box::new(Copy))
+            .menu_with_disabled(
+                "Paste",
+                !(editable && cx.read_from_clipboard().is_some()),
+                Box::new(Paste),
+            )
+            .separator()
+            .menu("Select All", Box::new(SelectAll));
+
+        #[cfg(target_os = "windows")]
+        {
+            let _ = &weak_editor;
+            crate::windows_text_menu::show(menu, position, window, cx);
+        }
+
+        #[cfg(target_os = "macos")]
+        {
+            // gpui-base invokes this handler inside InputBaseState::update,
+            // even though it defers the context-menu callback itself.
+            // A second defer is needed before the editor can be read.
+            let editor = weak_editor.clone();
+            let window_handle = Window::window_handle(window);
+            let services_enabled = !capabilities.is_masked();
+            cx.defer(move |cx| {
+                let Some(entity) = editor.upgrade() else {
+                    return;
+                };
+                let (original, range) = {
+                    let state = entity.read(cx);
+                    (state.value().to_string(), state.selected_range())
+                };
+                let _ = window_handle.update(cx, |_, window, cx| {
+                    crate::macos_text_services::show(
+                        crate::macos_text_services::MenuRequest {
+                            original,
+                            range,
+                            editable,
+                            services_enabled,
+                            editor,
+                        },
+                        menu,
+                        position,
+                        window,
+                        cx,
+                    );
+                });
+            });
+        }
+    }));
+}
 
 fn text_control_editor_style(placeholder_color: Option<u32>, cx: &App) -> InputEditorStyle {
     InputEditorStyle {
@@ -453,6 +519,8 @@ impl RuntimeStateRegistry {
             TextControlKind::Input => {
                 let editor = cx.new(|cx| {
                     let mut editor = InputState::new(window, cx);
+                    #[cfg(any(target_os = "macos", target_os = "windows"))]
+                    install_native_text_menu(&mut editor, cx.weak_entity());
                     editor.set_value(value.clone(), window, cx);
                     editor.set_placeholder(placeholder.clone(), window, cx);
                     editor.set_editor_style(editor_style.clone());
@@ -466,6 +534,8 @@ impl RuntimeStateRegistry {
             TextControlKind::Textarea => {
                 let editor = cx.new(|cx| {
                     let mut editor = TextareaState::new(window, cx);
+                    #[cfg(any(target_os = "macos", target_os = "windows"))]
+                    install_native_text_menu(&mut editor, cx.weak_entity());
                     configure_textarea(&mut editor, min_rows, max_rows, cx);
                     editor.set_value(value.clone(), window, cx);
                     editor.set_placeholder(placeholder.clone(), window, cx);

@@ -19,7 +19,14 @@ export default function App() {
           backgroundColor: 'beige',
         }}
       >
-        hsj
+        <input
+          style={{
+            height: '90px',
+            width: '100%',
+            borderColor: 'black',
+            borderWidth: 3,
+          }}
+        />
       </div>
     </div>
   );

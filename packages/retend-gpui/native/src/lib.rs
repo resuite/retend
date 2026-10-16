@@ -7,6 +7,10 @@ mod events;
 #[cfg(all(test, feature = "benchmarks"))]
 mod hardening_benchmark;
 mod motion;
+#[cfg(target_os = "macos")]
+mod macos_text_services;
+#[cfg(target_os = "windows")]
+mod windows_text_menu;
 mod platform;
 mod protocol;
 mod protocol_generated;

@@ -100,6 +100,8 @@ The controls come with default styling: comfortable padding, a 6px corner radius
 />
 ```
 
+On macOS and Windows, right-clicking an `input` or `textarea` opens an OS-native editing menu with Cut, Copy, Paste, and Select All. On macOS, spelling corrections come from the system spell checker, and supported systems can add Writing Tools through AppKit. Password-masked values are not shared with these text services. No JSX setup is required. Linux does not yet expose a native editing context menu.
+
 ## audio
 
 `audio` plays sound without rendering a visual control. It supports `src` (a local file, a `file:` URL, or a Vite-imported asset), `autoPlay`, `loop`, `muted`, and `volume` (between `0` and `1`). Remote audio streams are not supported. Setting `autoPlay` when a source is loaded starts playback; changing it from `false` to `true` starts an idle clip but does not override a paused clip (use `play()` to resume). Changing `loop` takes effect at the next completion without restarting the clip. `ended` and `error` events report playback completion or failure.
