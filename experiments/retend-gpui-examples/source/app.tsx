@@ -1,4 +1,23 @@
+import { Cell } from 'retend';
+import { useWindow } from 'retend-gpui';
+
 export default function App() {
+  const window = useWindow();
+  const lastSelection = Cell.source('Nothing selected');
+
+  async function showMenu(x: number, y: number) {
+    const selected = await window.showMenu({
+      position: { x, y },
+      items: [
+        { id: 'open', label: 'Open' },
+        { id: 'rename', label: 'Rename' },
+        { type: 'separator' },
+        { id: 'remove', label: 'Move to Trash', disabled: true },
+      ],
+    });
+    lastSelection.set(selected ?? 'Menu dismissed');
+  }
+
   return (
     <div
       style={{
@@ -7,24 +26,57 @@ export default function App() {
         display: 'flex',
         justifyContent: 'center',
         alignItems: 'center',
+        backgroundColor: '#f5f5f3',
       }}
     >
       <div
         style={{
           display: 'flex',
-          justifyContent: 'center',
-          alignItems: 'center',
-          height: 300,
-          width: 300,
-          backgroundColor: 'beige',
+          flexDirection: 'column',
+          width: 350,
+          gap: 16,
+          padding: 24,
+          backgroundColor: '#fff',
+          borderRadius: 12,
+          borderWidth: 1,
+          borderColor: '#dededb',
         }}
       >
-        <input
+        <div style={{ fontSize: 18, fontWeight: 600 }}>Native menus</div>
+        <div
+          onContextMenu={(event) => {
+            void showMenu(event.clientX, event.clientY);
+          }}
           style={{
-            height: '90px',
+            padding: 20,
+            backgroundColor: '#f4f4f2',
+            borderRadius: 8,
+            borderColor: '#e6e6e2',
+            borderWidth: 1,
+          }}
+        >
+          Right-click this area
+        </div>
+        <button
+          onClick={(event) => void showMenu(event.clientX, event.clientY)}
+          style={{
+            height: 40,
+            backgroundColor: '#242424',
+            color: '#fff',
+            borderRadius: 8,
+          }}
+        >
+          Open a native menu
+        </button>
+        <div>{lastSelection}</div>
+        <input
+          placeholder="Right-click for the system text menu"
+          style={{
+            height: 40,
             width: '100%',
-            borderColor: 'black',
-            borderWidth: 3,
+            borderColor: '#cacaca',
+            borderWidth: 1,
+            borderRadius: 7,
           }}
         />
       </div>

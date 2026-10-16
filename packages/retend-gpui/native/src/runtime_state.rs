@@ -25,10 +25,20 @@ use crate::{
 fn install_native_text_menu<M: InputModeKind + 'static>(
     editor: &mut InputBaseState<M>,
     weak_editor: WeakEntity<InputBaseState<M>>,
+    window_id: WindowId,
+    node_id: NodeId,
 ) {
     use gpui_base::input::{Copy, Cut, Paste, SelectAll};
 
     editor.on_context_menu(Rc::new(move |menu, capabilities, position, window, cx| {
+        // The JavaScript event is delivered asynchronously, so preventDefault()
+        // cannot cancel an already-open OS popup. A contextmenu listener opts
+        // into managing this control's menu instead of the built-in text menu.
+        if crate::runtime().lock().is_ok_and(|tree| {
+            tree.has_subscription_in_path(window_id, node_id, NativeEventId::ContextMenu)
+        }) {
+            return;
+        }
         let editable = capabilities.is_editable();
         let menu = menu
             .menu_with_disabled(
@@ -48,7 +58,15 @@ fn install_native_text_menu<M: InputModeKind + 'static>(
         #[cfg(target_os = "windows")]
         {
             let _ = &weak_editor;
-            crate::windows_text_menu::show(menu, position, window, cx);
+            let handle = Window::window_handle(window);
+            crate::native_menu::present(menu, position, window, cx, move |result, app| {
+                let _ = handle.update(app, |_, window, app| {
+                    if let Ok(Some(action)) = result {
+                        window.dispatch_action(action, app);
+                    }
+                    window.refresh();
+                });
+            });
         }
 
         #[cfg(target_os = "macos")]
@@ -520,7 +538,7 @@ impl RuntimeStateRegistry {
                 let editor = cx.new(|cx| {
                     let mut editor = InputState::new(window, cx);
                     #[cfg(any(target_os = "macos", target_os = "windows"))]
-                    install_native_text_menu(&mut editor, cx.weak_entity());
+                    install_native_text_menu(&mut editor, cx.weak_entity(), window_id, id);
                     editor.set_value(value.clone(), window, cx);
                     editor.set_placeholder(placeholder.clone(), window, cx);
                     editor.set_editor_style(editor_style.clone());
@@ -535,7 +553,7 @@ impl RuntimeStateRegistry {
                 let editor = cx.new(|cx| {
                     let mut editor = TextareaState::new(window, cx);
                     #[cfg(any(target_os = "macos", target_os = "windows"))]
-                    install_native_text_menu(&mut editor, cx.weak_entity());
+                    install_native_text_menu(&mut editor, cx.weak_entity(), window_id, id);
                     configure_textarea(&mut editor, min_rows, max_rows, cx);
                     editor.set_value(value.clone(), window, cx);
                     editor.set_placeholder(placeholder.clone(), window, cx);

@@ -6,11 +6,10 @@ mod benchmark;
 mod events;
 #[cfg(all(test, feature = "benchmarks"))]
 mod hardening_benchmark;
-mod motion;
 #[cfg(target_os = "macos")]
 mod macos_text_services;
-#[cfg(target_os = "windows")]
-mod windows_text_menu;
+mod motion;
+mod native_menu;
 mod platform;
 mod protocol;
 mod protocol_generated;
@@ -21,6 +20,8 @@ mod style;
 mod transform;
 mod tree;
 mod wheel;
+#[cfg(target_os = "windows")]
+mod windows_text_menu;
 
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Mutex, OnceLock};
@@ -161,6 +162,14 @@ pub struct NativeScrollOffset {
 pub struct NativeSelection {
     pub start: u32,
     pub end: u32,
+}
+
+#[napi(object)]
+pub struct NativePopupMenuItem {
+    pub id: Option<String>,
+    pub label: Option<String>,
+    pub separator: Option<bool>,
+    pub disabled: Option<bool>,
 }
 
 #[napi]
@@ -423,6 +432,31 @@ impl NativeRendererBinding {
         with_runtime(|tree| tree.attach_javascript_stack(self.window_id, javascript_stack))?;
         platform::invalidate_window(self.window_id);
         Ok(())
+    }
+
+    #[napi]
+    pub fn show_menu<'env>(
+        &self,
+        env: &'env Env,
+        x: f64,
+        y: f64,
+        items: Vec<NativePopupMenuItem>,
+    ) -> Result<Object<'env>> {
+        if !x.is_finite()
+            || !y.is_finite()
+            || x.abs() > f64::from(f32::MAX)
+            || y.abs() > f64::from(f32::MAX)
+        {
+            return Err(bridge_error(BridgeFailure::new(
+                "INVALID_MENU_POSITION",
+                "Menu coordinates must be finite values within GPUI limits.",
+            )));
+        }
+        let items = native_menu::validate_items(items).map_err(bridge_error)?;
+        let (x, y) = (x as f32, y as f32);
+        self.query(env, |responder| {
+            self.dispatch(WindowOperation::ShowMenu(items, x, y, responder))
+        })
     }
 
     #[napi]

@@ -31,7 +31,12 @@ import { allocateNativeNodeId } from './native/node-id.js';
 import { CommandBatchWriter } from './native/protocol.js';
 import { nativeRuntime } from './native/runtime.js';
 import { runtimeGpuiSystem } from './system.js';
-import { validateGpuiWindowOptions, type GpuiWindowOptions } from './window.js';
+import {
+  validateGpuiWindowOptions,
+  validateGpuiMenuOptions,
+  type GpuiMenuOptions,
+  type GpuiWindowOptions,
+} from './window.js';
 
 export interface GpuiHostOptions {
   /** Creates the retained native tree without opening an OS window. */
@@ -131,6 +136,23 @@ export class GpuiHost extends EventTarget {
 
   setWindowTitle(title: string): void {
     this.#requireBinding().setWindowTitle(title);
+  }
+
+  /** Presents an operating-system popup menu in this window. */
+  async showMenu(options: GpuiMenuOptions): Promise<string | null> {
+    validateGpuiMenuOptions(options);
+    const { x, y } = options.position;
+    return this.#query((binding) =>
+      binding.showMenu(
+        x,
+        y,
+        options.items.map((item) =>
+          item.type === 'separator'
+            ? { separator: true }
+            : { id: item.id, label: item.label, disabled: item.disabled }
+        )
+      )
+    );
   }
 
   /** @internal Reports a recoverable application error to this window runtime. */

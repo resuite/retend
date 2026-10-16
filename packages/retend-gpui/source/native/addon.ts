@@ -143,6 +143,16 @@ export class NativeRendererFatalError extends Error {
   }
 }
 
+interface NativeMenuActionItem {
+  id: string;
+  label: string;
+  disabled?: boolean;
+}
+
+interface NativeMenuSeparatorItem {
+  separator: true;
+}
+
 export interface NativeRendererBinding {
   readonly windowId: number;
   applyCommandBatch(buffer: Uint8Array): void;
@@ -161,6 +171,11 @@ export interface NativeRendererBinding {
   measureNode(id: number): Promise<GpuiMeasurement>;
   reportFatal(javascriptStack: string): void;
   setWindowTitle(title: string): void;
+  showMenu(
+    x: number,
+    y: number,
+    items: readonly (NativeMenuActionItem | NativeMenuSeparatorItem)[]
+  ): Promise<string | null>;
   close(): void;
   isNodePresented(id: number): boolean;
   debugTreeJson(): string;

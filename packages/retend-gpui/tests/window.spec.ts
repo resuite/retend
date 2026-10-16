@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from 'vitest';
+import { describe, expect, expectTypeOf, it, vi } from 'vitest';
 
 import type { RetendGpuiRenderer } from '../source/gpui-renderer';
 import type { GpuiWindowHandle, GpuiWindowOptions } from '../source/window';
@@ -30,6 +30,29 @@ function createWindow(
 }
 
 describe('GPUI runtime window', () => {
+  it('forwards native popup selections and refuses menus after disposal', async () => {
+    const window = createWindow();
+    const showMenu = vi.fn().mockResolvedValue('rename');
+    Object.assign(window.host, { showMenu });
+    const options = {
+      position: { x: 24, y: 40 },
+      items: [
+        { id: 'open', label: 'Open' },
+        { id: 'rename', label: 'Rename' },
+      ],
+    } as const;
+
+    const selection = window.showMenu(options);
+    expectTypeOf(selection).toEqualTypeOf<Promise<'open' | 'rename' | null>>();
+    await expect(selection).resolves.toBe('rename');
+    expect(showMenu).toHaveBeenCalledExactlyOnceWith(options);
+    window.dispose();
+    await expect(window.showMenu(options)).rejects.toThrow(
+      'closed GPUI window'
+    );
+    expect(showMenu).toHaveBeenCalledTimes(1);
+  });
+
   it('tracks native size and focus while keeping title writable', () => {
     const setTitle = vi.fn();
     const runtimeWindow = createWindow(undefined, setTitle, 'Initial');

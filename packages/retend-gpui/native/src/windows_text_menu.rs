@@ -2,9 +2,7 @@
 
 use std::ffi::c_void;
 
-use gpui::{App, Pixels, Point, Window};
 use gpui_base::input::{NativeMenu, NativeMenuItem};
-use raw_window_handle::{HasWindowHandle, RawWindowHandle};
 use windows::{
     core::PCWSTR,
     Win32::{
@@ -18,37 +16,12 @@ use windows::{
     },
 };
 
-pub(crate) fn show(menu: NativeMenu, position: Point<Pixels>, window: &mut Window, cx: &mut App) {
-    let Ok(native) = HasWindowHandle::window_handle(window) else {
-        return;
-    };
-    let RawWindowHandle::Win32(native) = native.as_raw() else {
-        return;
-    };
-
-    let hwnd = native.hwnd.get();
-    let scale = window.scale_factor();
-    let x = (f32::from(position.x) * scale).round() as i32;
-    let y = (f32::from(position.y) * scale).round() as i32;
-    let window_handle = Window::window_handle(window);
-
-    // TrackPopupMenuEx enters the OS's modal menu loop. Run it after GPUI
-    // releases its app borrow and dispatch the chosen action afterwards.
-    cx.spawn(async move |cx| {
-        let selected = unsafe { popup(hwnd, x, y, menu) };
-        cx.update(|app| {
-            let _ = window_handle.update(app, |_, window, app| {
-                if let Some(action) = selected {
-                    window.dispatch_action(action, app);
-                }
-                window.refresh();
-            });
-        });
-    })
-    .detach();
-}
-
-unsafe fn popup(hwnd: isize, x: i32, y: i32, menu: NativeMenu) -> Option<Box<dyn gpui::Action>> {
+pub(crate) unsafe fn popup(
+    hwnd: isize,
+    x: i32,
+    y: i32,
+    menu: NativeMenu,
+) -> Option<Box<dyn gpui::Action>> {
     // SAFETY: GPUI created this HWND on the current UI thread. The popup
     // menu is destroyed before its HWND can be released.
     unsafe {

@@ -33,5 +33,8 @@ export type {
   GpuiWindow,
   GpuiWindowHandle,
   GpuiWindowOptions,
+  GpuiMenuItem,
+  GpuiMenuOptions,
+  GpuiMenuActionId,
   GpuiWindowOrientation,
 } from './window.js';

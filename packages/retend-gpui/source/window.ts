@@ -2,6 +2,7 @@ import { Cell, createScope, useScopeContext, type SourceCell } from 'retend';
 
 import type { GpuiHost } from './gpui-host.js';
 import type { RetendGpuiRenderer } from './gpui-renderer.js';
+import type { GpuiPoint } from './types.js';
 
 /** Current orientation of a native GPUI window. */
 export type GpuiWindowOrientation = 'portrait' | 'landscape';
@@ -72,6 +73,55 @@ export function validateGpuiWindowOptions(options: GpuiWindowOptions): void {
   }
 }
 
+/** One action in an operating-system popup menu. */
+export type GpuiMenuItem =
+  | { id: string; label: string; disabled?: boolean; type?: never }
+  | { type: 'separator'; id?: never; label?: never; disabled?: never };
+
+/** Coordinates are relative to the current window's content, in logical pixels. */
+export interface GpuiMenuOptions<
+  Items extends readonly GpuiMenuItem[] = readonly GpuiMenuItem[],
+> {
+  position: GpuiPoint;
+  items: Items;
+}
+
+export type GpuiMenuActionId<Items extends readonly GpuiMenuItem[]> = Extract<
+  Items[number],
+  { id: string }
+>['id'];
+
+/** @internal Checks the public menu contract before crossing the native bridge. */
+export function validateGpuiMenuOptions(options: GpuiMenuOptions): void {
+  const { x, y } = options.position;
+  if (!Number.isFinite(x) || !Number.isFinite(y)) {
+    throw new TypeError('Menu coordinates must be finite numbers.');
+  }
+  if (
+    Math.abs(x) > 3.4028234663852886e38 ||
+    Math.abs(y) > 3.4028234663852886e38
+  ) {
+    throw new RangeError('Menu coordinates must be within GPUI limits.');
+  }
+  const ids = new Set<string>();
+  for (const item of options.items) {
+    if (item.type === 'separator') continue;
+    if (typeof item.id !== 'string' || item.id.length === 0) {
+      throw new TypeError('A menu item needs a non-empty id.');
+    }
+    if (typeof item.label !== 'string' || item.label.length === 0) {
+      throw new TypeError('A menu item needs a non-empty label.');
+    }
+    if (ids.has(item.id)) {
+      throw new TypeError('Menu item IDs must be unique.');
+    }
+    ids.add(item.id);
+  }
+  if (ids.size === 0) {
+    throw new TypeError('A menu must contain at least one actionable item.');
+  }
+}
+
 /** Lifecycle-only handle returned from {@link GpuiWindow.open}. */
 export interface GpuiWindowHandle extends EventTarget {
   /** Requests that this native window close. */
@@ -97,6 +147,10 @@ export interface GpuiWindow extends EventTarget {
   readonly host: GpuiHost;
   /** Opens another independent Retend root/window. */
   open(options?: GpuiWindowOptions): Promise<GpuiWindowHandle>;
+  /** Opens an OS popup menu and returns the selected item's ID, or null on dismissal. */
+  showMenu<const Items extends readonly GpuiMenuItem[]>(
+    options: GpuiMenuOptions<Items>
+  ): Promise<GpuiMenuActionId<Items> | null>;
   /** Requests that this native window close. */
   close(): void;
 }
@@ -186,6 +240,19 @@ export class RuntimeGpuiWindow extends EventTarget implements GpuiWindow {
       once: true,
     });
     return handle;
+  }
+
+  showMenu<const Items extends readonly GpuiMenuItem[]>(
+    options: GpuiMenuOptions<Items>
+  ): Promise<GpuiMenuActionId<Items> | null> {
+    if (this.#disposed) {
+      return Promise.reject(
+        new Error('Cannot open a menu on a closed GPUI window.')
+      );
+    }
+    return this.host.showMenu(
+      options
+    ) as Promise<GpuiMenuActionId<Items> | null>;
   }
 
   close(): void {

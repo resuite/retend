@@ -199,6 +199,12 @@ pub(crate) enum WindowOperation {
     Layout(LayoutOperation),
     DestroyRuntimeNodes(Vec<NodeId>),
     SetTitle(String),
+    ShowMenu(
+        Vec<crate::native_menu::MenuItem>,
+        f32,
+        f32,
+        QueryResponder<Option<String>>,
+    ),
     Close,
 }
 
@@ -207,6 +213,9 @@ impl WindowOperation {
         match self {
             Self::Layout(operation) => operation.reject(crate::BridgeFailure::closed_window()),
             Self::TextControl(_, _, TextControlOperation::GetSelection(responder)) => {
+                responder.respond(Err(crate::BridgeFailure::closed_window()))
+            }
+            Self::ShowMenu(_, _, _, responder) => {
                 responder.respond(Err(crate::BridgeFailure::closed_window()))
             }
             _ => {}
@@ -270,6 +279,9 @@ fn execute_window_operation(
                 cx.notify();
             }
             WindowOperation::SetTitle(title) => window.set_window_title(title),
+            WindowOperation::ShowMenu(items, x, y, responder) => {
+                crate::native_menu::show(items.clone(), *x, *y, window, cx, responder.clone());
+            }
             WindowOperation::Close => window.remove_window(),
         }
     });

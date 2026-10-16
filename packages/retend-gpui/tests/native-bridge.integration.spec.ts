@@ -36,6 +36,54 @@ afterEach(() => {
 });
 
 describe('Retend-owned native bridge', () => {
+  it('returns null for a headless native menu without opening an OS popup', async () => {
+    const host = createHost();
+    await expect(
+      host.showMenu({
+        position: { x: 18, y: 24 },
+        items: [
+          { id: 'open', label: 'Open' },
+          { type: 'separator' },
+          { id: 'remove', label: 'Remove', disabled: true },
+        ],
+      })
+    ).resolves.toBeNull();
+  });
+
+  it('rejects ambiguous native menu definitions at the bridge boundary', async () => {
+    const host = createHost();
+    const menu = (items: Parameters<GpuiHost['showMenu']>[0]['items']) =>
+      host.showMenu({ position: { x: 0, y: 0 }, items });
+    await expect(menu([])).rejects.toThrow('at least one actionable item');
+    await expect(menu([{ type: 'separator' }])).rejects.toThrow(
+      'at least one actionable item'
+    );
+    await expect(menu([{ id: '', label: 'Empty' }])).rejects.toThrow(
+      'non-empty id'
+    );
+    await expect(menu([{ id: 'x', label: '' }])).rejects.toThrow(
+      'non-empty label'
+    );
+    await expect(
+      menu([
+        { id: 'x', label: 'One' },
+        { id: 'x', label: 'Two' },
+      ])
+    ).rejects.toThrow('unique');
+    await expect(
+      host.showMenu({
+        position: { x: Number.NaN, y: 0 },
+        items: [{ id: 'x', label: 'One' }],
+      })
+    ).rejects.toThrow('finite');
+    await expect(
+      host.showMenu({
+        position: { x: 1e60, y: 0 },
+        items: [{ id: 'x', label: 'One' }],
+      })
+    ).rejects.toThrow('Menu coordinates');
+  });
+
   it('flushes synchronous mutations in one queued microtask', async () => {
     const host = createHost();
     const node = host.createText('batched');

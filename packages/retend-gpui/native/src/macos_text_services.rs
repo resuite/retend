@@ -11,17 +11,25 @@ use std::{
 };
 
 use cocoa::{
-    base::{id, nil, BOOL, NO, YES},
-    foundation::{NSPoint, NSRect, NSString},
+    base::{id, nil, NO},
+    foundation::NSString,
 };
-use gpui::{Action, App, Pixels, Point, WeakEntity, Window};
-use gpui_base::input::{InputBaseState, InputModeKind, NativeMenu, NativeMenuItem};
+#[cfg(not(test))]
+use cocoa::{
+    base::{BOOL, YES},
+    foundation::{NSPoint, NSRect},
+};
+#[cfg(not(test))]
+use gpui::Action;
+use gpui::{App, Pixels, Point, WeakEntity, Window};
+#[cfg(not(test))]
+use gpui_base::input::NativeMenuItem;
+use gpui_base::input::{InputBaseState, InputModeKind, NativeMenu};
+use objc::{class, msg_send, sel, sel_impl};
+#[cfg(not(test))]
 use objc::{
-    class,
     declare::ClassDecl,
-    msg_send,
     runtime::{Class, Object, Sel},
-    sel, sel_impl,
 };
 use raw_window_handle::{HasWindowHandle, RawWindowHandle};
 
@@ -33,7 +41,7 @@ pub(crate) struct MenuRequest<M: InputModeKind + 'static> {
     pub services_enabled: bool,
 }
 
-fn view_ptr(window: &Window) -> Option<usize> {
+pub(crate) fn view_ptr(window: &Window) -> Option<usize> {
     let handle = HasWindowHandle::window_handle(window).ok()?;
     let RawWindowHandle::AppKit(handle) = handle.as_raw() else {
         return None;
@@ -112,30 +120,26 @@ pub(crate) fn show<M: InputModeKind + 'static>(
     native_menu.items.extend(menu.items);
 
     let handle = Window::window_handle(window);
-    cx.spawn(async move |cx| {
-        let selected = unsafe { show_context_menu(view, position, native_menu) };
-        cx.update(|app| {
-            let _ = handle.update(app, |_, window, app| {
-                if let Some(action) = selected {
-                    if let Some(correction) = action.as_any().downcast_ref::<SpellingCorrection>() {
-                        if let Some(entity) = editor.upgrade() {
-                            // Do not overwrite edits made after this menu was opened.
-                            if entity.read(app).value().as_ref() == original {
-                                entity.update(app, |editor, cx| {
-                                    editor.set_selected_range(correction.range.clone(), cx);
-                                    editor.replace(correction.word.clone(), window, cx);
-                                });
-                            }
+    crate::native_menu::present(native_menu, position, window, cx, move |result, app| {
+        let _ = handle.update(app, |_, window, app| {
+            if let Ok(Some(action)) = result {
+                if let Some(correction) = action.as_any().downcast_ref::<SpellingCorrection>() {
+                    if let Some(entity) = editor.upgrade() {
+                        // Ignore text altered since the menu was created.
+                        if entity.read(app).value().as_ref() == original {
+                            entity.update(app, |editor, cx| {
+                                editor.set_selected_range(correction.range.clone(), cx);
+                                editor.replace(correction.word.clone(), window, cx);
+                            });
                         }
-                    } else {
-                        window.dispatch_action(action, app);
                     }
+                } else {
+                    window.dispatch_action(action, app);
                 }
-                window.refresh();
-            });
+            }
+            window.refresh();
         });
-    })
-    .detach();
+    });
 }
 
 #[repr(C)]
@@ -240,11 +244,13 @@ fn spelling_suggestions(text: &str, selection: &Range<usize>) -> Vec<(String, Ra
     }
 }
 
+#[cfg(not(test))]
 extern "C" fn menu_clicked(this: &mut Object, _: Sel, sender: id) {
     let tag: isize = unsafe { msg_send![sender, tag] };
     unsafe { this.set_ivar("selectedTag", tag) };
 }
 
+#[cfg(not(test))]
 fn menu_target_class() -> &'static Class {
     static TARGET: std::sync::OnceLock<usize> = std::sync::OnceLock::new();
     let pointer = *TARGET.get_or_init(|| {
@@ -264,7 +270,8 @@ fn menu_target_class() -> &'static Class {
 
 // The menu runs outside GPUI's App borrow; AppKit can synchronously ask the
 // first responder for its selected text and later deliver replacements.
-unsafe fn show_context_menu(
+#[cfg(not(test))]
+pub(crate) unsafe fn show_context_menu(
     view: usize,
     position: Point<Pixels>,
     menu: NativeMenu,

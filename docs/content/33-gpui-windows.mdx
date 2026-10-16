@@ -119,6 +119,7 @@ The context is typed from the application class. `retend-start` creates `retend-
 | `title`           | A Cell. Setting it changes the OS window title.                                                                  |
 | `initialPath`     | The route path the window opened on, from the `initialPath` option. It never changes.                            |
 | `open(options)`   | Opens another independent window. Returns a promise of a handle.                                                 |
+| `showMenu(options)` | Shows an OS-native popup menu and resolves to its selected item ID or `null` on dismissal.                         |
 | `close()`         | Requests that this window close.                                                                                 |
 | `host`            | The native host. It dispatches window lifecycle events.                                                          |
 
@@ -145,6 +146,44 @@ function Header() {
 ```
 
 `orientation` is derived from the size, so it updates whenever a resize changes the aspect: `landscape` when the width exceeds the height, `portrait` otherwise.
+
+## Native Popup Menus
+
+Use `showMenu()` for context menus and menus opened from buttons. It uses the operating system's menu appearance and keyboard navigation, not a GPUI-rendered dropdown.
+
+```tsx
+import { useWindow } from 'retend-gpui';
+
+function FileRow() {
+  const window = useWindow();
+
+  async function openMenu(x: number, y: number) {
+    const selected = await window.showMenu({
+      position: { x, y },
+      items: [
+        { id: 'open', label: 'Open' },
+        { id: 'rename', label: 'Rename' },
+        { type: 'separator' },
+        { id: 'delete', label: 'Move to Trash', disabled: true },
+      ],
+    });
+    if (selected === 'open') openFile();
+    if (selected === 'rename') renameFile();
+  }
+
+  return (
+    <div onContextMenu={(event) => void openMenu(event.clientX, event.clientY)}>
+      Right-click a file
+    </div>
+  );
+}
+```
+
+The `position` is in logical pixels relative to the window's content. Menus can also be opened programmatically, for example from a toolbar button. Each action needs a unique nonempty `id` and `label`; separators use `{ type: 'separator' }`. Dismissing a menu without selecting an action resolves to `null`. TypeScript infers the permitted result IDs from an inline `items` array (for example, `'open' | 'rename' | 'delete' | null`). Closing the window before presentation rejects the promise.
+
+On `input` and `textarea`, Retend normally provides the OS editing menu. Registering an `onContextMenu` listener opts into replacing that default: the handler must call `showMenu()` if it wants a menu. Since JavaScript events are delivered asynchronously, `preventDefault()` does not cancel an already-open OS popup.
+
+Native popup menus are supported on macOS and Windows. They do not currently provide custom JSX content or nested submenus. Linux does not support this API yet.
 
 ## Window Options
 
