@@ -1,0 +1,121 @@
+name: Publish Retend Release
+
+on:
+  push:
+    branches: [main]
+
+# npm versions are immutable; finish or repair one release before starting another.
+concurrency:
+  group: retend-release-main
+  queue: max
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  version:
+    runs-on: ubuntu-latest
+    outputs:
+      changed: ${{ steps.detect.outputs.changed }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Check version against previous main
+        id: detect
+        env:
+          BEFORE_SHA: ${{ github.event.before }}
+        run: |
+          set -euo pipefail
+          test -n "$BEFORE_SHA" && [[ ! "$BEFORE_SHA" =~ ^0+$ ]]
+          CURRENT=$(jq -r .version package.json)
+          PREVIOUS=$(git show "$BEFORE_SHA:package.json" | jq -r .version)
+          git fetch origin --tags
+          if [[ "$CURRENT" == "$PREVIOUS" ]]; then
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+            echo "Version $CURRENT unchanged; not publishing."
+          else
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+            TAG="v$CURRENT"
+            if git rev-parse --verify --quiet "refs/tags/$TAG" >/dev/null; then
+              test "$(git rev-parse "$TAG^{}")" = "$GITHUB_SHA" || {
+                echo "::error::Tag $TAG belongs to a different commit"
+                exit 1
+              }
+            fi
+          fi
+
+  verify:
+    uses: ./.github/workflows/tests.yml
+    permissions:
+      contents: read
+
+  native:
+    needs: version
+    if: vars.AUTO_RELEASE_ENABLED == 'true' && needs.version.outputs.changed == 'true'
+    uses: ./.github/workflows/build-native.yml
+    permissions:
+      contents: read
+
+  publish:
+    if: vars.AUTO_RELEASE_ENABLED == 'true' && needs.version.outputs.changed == 'true'
+    needs: [version, verify, native]
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write
+      id-token: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10.6.3
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          registry-url: https://registry.npmjs.org
+      - run: npm install --global npm@^11.15.0
+      - run: pnpm install --frozen-lockfile --ignore-scripts
+      - name: Download native addons
+        uses: actions/download-artifact@v4
+        with:
+          pattern: retend-gpui-native-*
+          path: .release-artifacts
+      - name: Verify and collect native artifacts
+        run: node scripts/release/collect-native.mjs .release-artifacts
+      - name: Build JavaScript packages
+        run: pnpm run build
+      - name: Verify npm packages without publishing
+        run: node scripts/release/publish.mjs --dry-run
+      - name: Publish npm packages
+        run: node scripts/release/publish.mjs
+      - name: Create GitHub release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          VERSION=$(node scripts/release/version.mjs current)
+          TAG="v$VERSION"
+          ASSETS=(packages/retend-gpui/native/npm/*/*.node)
+          git fetch origin --tags
+          if git rev-parse --verify --quiet "refs/tags/$TAG" >/dev/null; then
+            test "$(git rev-parse "$TAG^{}")" = "$GITHUB_SHA" || {
+              echo "::error::Tag $TAG points to a different commit"
+              exit 1
+            }
+          fi
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            gh api "repos/$GITHUB_REPOSITORY/releases/tags/$TAG" \
+              --jq '.assets[] | [.name, .digest] | @tsv' | sort > /tmp/release-assets
+            for asset in "${ASSETS[@]}"; do
+              filename="${asset##*/}"
+              digest="sha256:$(sha256sum "$asset" | cut -d' ' -f1)"
+              printf '%s\t%s\n' "$filename" "$digest"
+            done | sort > /tmp/expected-assets
+            diff -u /tmp/expected-assets /tmp/release-assets
+          else
+            gh release create "$TAG" "${ASSETS[@]}" \
+              --target "$GITHUB_SHA" \
+              --title "Retend $TAG" \
+              --generate-notes --latest
+          fi

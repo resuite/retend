@@ -1,10 +1,7 @@
 name: Build Native Addon
 
 on:
-  # Build release artifacts from the exact commit merged into main.
-  # npm publishing remains a separate, manual operation.
-  push:
-    branches: [main]
+  workflow_call:
   workflow_dispatch:
 
 jobs:
@@ -53,8 +50,8 @@ jobs:
   build:
     name: ${{ matrix.target }}
     runs-on: ${{ matrix.runner }}
-    # Linux remains experimental; Windows native builds must be green.
-    continue-on-error: ${{ startsWith(matrix.target, 'linux') }}
+    # Every configured target must build before npm publishing can begin.
+    # Linux remains experimental to users, not optional in our releases.
     strategy:
       fail-fast: false
       matrix:
@@ -103,6 +100,8 @@ jobs:
       - run: pnpm install --frozen-lockfile --ignore-scripts
       - name: Build release addon
         run: pnpm --dir packages/retend-gpui run native:build:release -- --target=${{ matrix.target }} --locked
+      - name: Smoke-load native addon on target runner
+        run: node -e "const addon = require('./packages/retend-gpui/native/npm/${{ matrix.target }}/retend-gpui-native.${{ matrix.target }}.node'); if (Object.keys(addon).length === 0) throw new Error('Native addon has no exports')"
       - name: Upload addon
         uses: actions/upload-artifact@v4
         with:
