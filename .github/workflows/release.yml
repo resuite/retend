@@ -36,6 +36,11 @@ jobs:
             echo "changed=false" >> "$GITHUB_OUTPUT"
             echo "Version $CURRENT unchanged; not publishing."
           else
+            NOTES_FILE="changelogs/$CURRENT.md"
+            test -s "$NOTES_FILE" || {
+              echo "::error::Missing release notes: $NOTES_FILE"
+              exit 1
+            }
             echo "changed=true" >> "$GITHUB_OUTPUT"
             TAG="v$CURRENT"
             if git rev-parse --verify --quiet "refs/tags/$TAG" >/dev/null; then
@@ -117,5 +122,5 @@ jobs:
             gh release create "$TAG" "${ASSETS[@]}" \
               --target "$GITHUB_SHA" \
               --title "Retend $TAG" \
-              --generate-notes --latest
+              --notes-file "changelogs/$VERSION.md" --latest
           fi

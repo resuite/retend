@@ -1,6 +1,6 @@
 {
   "name": "retend-gpui-native-linux-arm64-gnu",
-  "version": "0.0.36",
+  "version": "0.0.37",
   "description": "Native desktop rendering for the Retend UI framework through GPUI.",
   "keywords": [
     "desktop",

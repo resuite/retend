@@ -13,8 +13,9 @@ pnpm release:bump
 ```
 
 This increments the patch version across the root manifest, eight package
-manifests, and five native manifests. Review and commit those changes with the
-other release changes, then merge into `main`. The next release from
+manifests, and five native manifests. Include a nonempty
+`changelogs/X.Y.Z.md` entry for that version. Review and commit those changes
+with the other release changes, then merge into `main`. The next release from
 `0.0.36` is `0.0.37`. There is no bump on docs-only merges or unrelated
 changes; they still receive build and test coverage.
 
@@ -32,7 +33,7 @@ changes; they still receive build and test coverage.
    `npm publish --dry-run` for versions not already published.
 5. Publish using npm's GitHub Actions trusted publishing. Native packages
    precede the main `retend-gpui` package. After every npm package succeeds,
-   create the `vX.Y.Z` GitHub release with release notes and five addons.
+   create the `vX.Y.Z` GitHub release using `changelogs/X.Y.Z.md` and five addons.
 
 All jobs use the merge commit. No generated version commit, branch bypass,
 or separate release commit is required.
