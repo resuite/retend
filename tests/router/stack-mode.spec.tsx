@@ -33,7 +33,6 @@ const runFlatTests = () => {
       ],
       stackMode: true,
     });
-    router.attachWindowListeners(window);
     window.document.body.append(createRouterRoot(router));
   });
 
@@ -131,7 +130,6 @@ const runNestedTests = () => {
       routes,
       stackMode: true,
     });
-    router.attachWindowListeners(window);
     window.document.body.append(createRouterRoot(router));
   });
 

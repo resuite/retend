@@ -61,12 +61,14 @@ vi.mock('../source/native/addon', async (importOriginal) => {
 import { Cell } from 'retend';
 
 import {
-  GpuiImageEvent,
+  GpuiResourceEvent,
   GpuiMouseEvent,
   GpuiScrollEvent,
+  GpuiWheelEvent,
 } from '../source/events';
-import { RetendGpuiRenderer } from '../source/gpui-renderer';
+import { RetendGpuiRenderer, renderToGpui } from '../source/gpui-renderer';
 import { NativeEventId } from '../source/native/protocol.generated';
+import { runtimeGpuiSystem, useSystem } from '../source/system';
 
 let renderer: RetendGpuiRenderer | null = null;
 
@@ -185,16 +187,6 @@ describe('native event delivery', () => {
     });
   });
 
-  it('seeds window navigation from the location option', () => {
-    const current = new RetendGpuiRenderer({ headless: true });
-    current.init({ location: '/configured?tab=1#section' });
-    renderer = current;
-
-    expect(current.host.location.pathname).toBe('/configured');
-    expect(current.host.location.search).toBe('?tab=1');
-    expect(current.host.location.hash).toBe('#section');
-  });
-
   it('releases the logical root when the native window closes', () => {
     const current = createRenderer();
     const ref = Cell.source<object | null>(null);
@@ -244,6 +236,77 @@ describe('native event delivery', () => {
     expect(renderer.host.isInitialized).toBe(false);
   });
 
+  it('populates useSystem from native events in standalone renderToGpui roots', async () => {
+    let observed: ReturnType<typeof useSystem> | undefined;
+    renderer = await renderToGpui(() => {
+      observed = useSystem();
+      return 'ready';
+    });
+
+    expect(observed).toBe(runtimeGpuiSystem);
+    const preferences = vi.fn();
+    renderer.host.addEventListener('systempreferences', preferences);
+
+    native.onEvent?.({
+      window: { kind: 'system', theme: 'dark', accentColor: '#225588' },
+    });
+    expect(observed?.theme.get()).toBe('dark');
+    expect(observed?.accentColor.get()).toBe('#225588');
+    expect(preferences).toHaveBeenCalledWith(
+      expect.objectContaining({
+        type: 'systempreferences',
+        theme: 'dark',
+        accentColor: '#225588',
+      })
+    );
+
+    native.onEvent?.({ window: { kind: 'accent' } });
+    expect(observed?.theme.get()).toBe('dark');
+    expect(observed?.accentColor.get()).toBeNull();
+    expect(preferences).toHaveBeenCalledTimes(2);
+    expect(preferences.mock.lastCall?.[0]).toMatchObject({
+      theme: 'dark',
+      accentColor: null,
+    });
+  });
+
+  it('shares preferences across window hosts and ignores redundant updates', () => {
+    const first = createRenderer();
+    const firstEvent = native.onEvent;
+    const second = new RetendGpuiRenderer({ headless: true });
+    second.init();
+    const secondEvent = native.onEvent;
+    const preferences = vi.fn();
+    first.host.addEventListener('systempreferences', preferences);
+    const notified = vi.fn();
+    const unsubscribe = runtimeGpuiSystem.accentColor.listen(notified);
+
+    try {
+      firstEvent?.({
+        window: { kind: 'system', theme: 'light', accentColor: '#11aacc' },
+      });
+      expect(runtimeGpuiSystem.theme.get()).toBe('light');
+      expect(runtimeGpuiSystem.accentColor.get()).toBe('#11aacc');
+      expect(preferences).toHaveBeenCalledOnce();
+
+      secondEvent?.({
+        window: { kind: 'system', theme: 'light', accentColor: '#11aacc' },
+      });
+      expect(notified).toHaveBeenCalledTimes(1);
+
+      secondEvent?.({
+        window: { kind: 'accent', accentColor: '#778899' },
+      });
+      expect(runtimeGpuiSystem.accentColor.get()).toBe('#778899');
+      expect(notified).toHaveBeenCalledTimes(2);
+    } finally {
+      unsubscribe();
+      first.dispose();
+      second.dispose();
+      renderer = null;
+    }
+  });
+
   it('flushes mutations produced by a native resize before returning to native', () => {
     const renderer = createRenderer();
     renderer.host.addEventListener('resize', () => {
@@ -262,6 +325,57 @@ describe('native event delivery', () => {
     expect(() =>
       native.onEvent?.({ window: { kind: 'future-window-event' } } as never)
     ).toThrow('Unknown native window event');
+  });
+
+  it('delivers separate ancestor enter/leave events without bubbling through none', () => {
+    const renderer = createRenderer();
+    const parent = renderer.createContainer('div');
+    const child = renderer.createContainer('div');
+    renderer.setProperty(parent, 'style', { pointerEvents: 'none' });
+    renderer.setProperty(child, 'style', { pointerEvents: 'auto' });
+    renderer.append(parent, child);
+    renderer.render(() => parent);
+    const calls: string[] = [];
+    for (const type of ['mouseenter', 'mouseleave']) {
+      parent.addEventListener(type, (event) => {
+        expect(event.target).toBe(parent);
+        expect(event.bubbles).toBe(false);
+        calls.push(`parent-${type}`);
+      });
+      parent.addEventListener(
+        type,
+        (event) => {
+          if (event.target === child) calls.push(`capture-${type}`);
+        },
+        true
+      );
+      child.addEventListener(type, (event) => {
+        expect(event.target).toBe(child);
+        calls.push(`child-${type}`);
+      });
+    }
+    parent.addEventListener('click', (event) => {
+      expect(event.target).toBe(child);
+      calls.push('parent-click');
+    });
+    native.onEvent?.({
+      event: mouseEvent(NativeEventId.MouseEnter, parent.id),
+    });
+    native.onEvent?.({ event: mouseEvent(NativeEventId.MouseEnter, child.id) });
+    native.onEvent?.({ event: mouseEvent(NativeEventId.Click, child.id) });
+    native.onEvent?.({ event: mouseEvent(NativeEventId.MouseLeave, child.id) });
+    native.onEvent?.({
+      event: mouseEvent(NativeEventId.MouseLeave, parent.id),
+    });
+    expect(calls).toEqual([
+      'parent-mouseenter',
+      'capture-mouseenter',
+      'child-mouseenter',
+      'parent-click',
+      'capture-mouseleave',
+      'child-mouseleave',
+      'parent-mouseleave',
+    ]);
   });
 
   it('maps the native target into Retend propagation with the native payload intact', () => {
@@ -339,6 +453,78 @@ describe('native event delivery', () => {
       button: 2,
       buttons: 2,
     });
+  });
+
+  it('subscribes onWheel and delivers every delta through capture and bubble', () => {
+    const current = createRenderer();
+    const subscriptions = vi.spyOn(current, 'nativeSubscriptionChanged');
+    const parent = current.createContainer('div');
+    const child = current.createContainer('div');
+    current.append(parent, child);
+    const order: string[] = [];
+    const received: GpuiWheelEvent[] = [];
+    parent.addEventListener('wheel', () => order.push('capture'), true);
+    current.setProperty(child, 'onWheel--once', () => order.push('target'));
+    current.setProperty(parent, 'onWheel', (event: GpuiWheelEvent) => {
+      order.push('bubble');
+      received.push(event);
+    });
+    current.render(() => parent);
+    expect(subscriptions).toHaveBeenCalledWith(
+      parent,
+      NativeEventId.Wheel,
+      true
+    );
+    expect(subscriptions).toHaveBeenCalledWith(
+      child,
+      NativeEventId.Wheel,
+      true
+    );
+
+    for (const touchPhase of ['started', 'moved', 'ended'] as const) {
+      native.onEvent?.({
+        event: {
+          eventId: NativeEventId.Wheel,
+          targetId: child.id,
+          timeStamp: 12.5,
+          clientX: 20,
+          clientY: 30,
+          deltaX: -1,
+          deltaY: 2,
+          deltaMode: 0,
+          touchPhase,
+          altKey: false,
+          ctrlKey: true,
+          metaKey: false,
+          shiftKey: true,
+        },
+      });
+    }
+    expect(order).toEqual([
+      'capture',
+      'target',
+      'bubble',
+      'capture',
+      'bubble',
+      'capture',
+      'bubble',
+    ]);
+    expect(received.map((event) => event.touchPhase)).toEqual([
+      'started',
+      'moved',
+      'ended',
+    ]);
+    expect(
+      received.every(
+        (event) => event instanceof GpuiWheelEvent && event.target === child
+      )
+    ).toBe(true);
+    expect(received.reduce((sum, event) => sum + event.deltaY, 0)).toBe(6);
+    expect(subscriptions).toHaveBeenCalledWith(
+      child,
+      NativeEventId.Wheel,
+      false
+    );
   });
 
   it('delivers mixed continuous bursts in callback order with target and propagation semantics intact', () => {
@@ -502,7 +688,7 @@ describe('native event delivery', () => {
       },
     });
     expect(imageLoad).toHaveBeenCalledOnce();
-    expect(imageLoad.mock.calls[0][0]).toBeInstanceOf(GpuiImageEvent);
+    expect(imageLoad.mock.calls[0][0]).toBeInstanceOf(GpuiResourceEvent);
     expect(imageLoad.mock.calls[0][0].type).toBe('load');
     expect(parentLoad).not.toHaveBeenCalled();
 

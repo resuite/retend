@@ -2,6 +2,10 @@ import { Cell, createScope, useScopeContext, type SourceCell } from 'retend';
 
 import type { GpuiHost } from './gpui-host.js';
 import type { RetendGpuiRenderer } from './gpui-renderer.js';
+import type { GpuiPoint } from './types.js';
+
+/** Current orientation of a native GPUI window. */
+export type GpuiWindowOrientation = 'portrait' | 'landscape';
 
 /** Options currently implemented by the Retend-owned native window bridge. */
 export interface GpuiWindowOptions {
@@ -25,8 +29,11 @@ export interface GpuiWindowOptions {
   maxWidth?: number;
   /** Maximum native content height in logical pixels. */
   maxHeight?: number;
-  /** Initial application location. Defaults to `/`. */
-  location?: string;
+  /**
+   * Route path the window opens on, such as a deep link like `/books/42`.
+   * Set once when the window is created. Defaults to `/`.
+   */
+  initialPath?: string;
   /** Whether this window closes automatically with the window that opened it. */
   closeWithOpener?: boolean;
 }
@@ -66,6 +73,55 @@ export function validateGpuiWindowOptions(options: GpuiWindowOptions): void {
   }
 }
 
+/** One action in an operating-system popup menu. */
+export type GpuiMenuItem =
+  | { id: string; label: string; disabled?: boolean; type?: never }
+  | { type: 'separator'; id?: never; label?: never; disabled?: never };
+
+/** Coordinates are relative to the current window's content, in logical pixels. */
+export interface GpuiMenuOptions<
+  Items extends readonly GpuiMenuItem[] = readonly GpuiMenuItem[],
+> {
+  position: GpuiPoint;
+  items: Items;
+}
+
+export type GpuiMenuActionId<Items extends readonly GpuiMenuItem[]> = Extract<
+  Items[number],
+  { id: string }
+>['id'];
+
+/** @internal Checks the public menu contract before crossing the native bridge. */
+export function validateGpuiMenuOptions(options: GpuiMenuOptions): void {
+  const { x, y } = options.position;
+  if (!Number.isFinite(x) || !Number.isFinite(y)) {
+    throw new TypeError('Menu coordinates must be finite numbers.');
+  }
+  if (
+    Math.abs(x) > 3.4028234663852886e38 ||
+    Math.abs(y) > 3.4028234663852886e38
+  ) {
+    throw new RangeError('Menu coordinates must be within GPUI limits.');
+  }
+  const ids = new Set<string>();
+  for (const item of options.items) {
+    if (item.type === 'separator') continue;
+    if (typeof item.id !== 'string' || item.id.length === 0) {
+      throw new TypeError('A menu item needs a non-empty id.');
+    }
+    if (typeof item.label !== 'string' || item.label.length === 0) {
+      throw new TypeError('A menu item needs a non-empty label.');
+    }
+    if (ids.has(item.id)) {
+      throw new TypeError('Menu item IDs must be unique.');
+    }
+    ids.add(item.id);
+  }
+  if (ids.size === 0) {
+    throw new TypeError('A menu must contain at least one actionable item.');
+  }
+}
+
 /** Lifecycle-only handle returned from {@link GpuiWindow.open}. */
 export interface GpuiWindowHandle extends EventTarget {
   /** Requests that this native window close. */
@@ -78,15 +134,23 @@ export interface GpuiWindow extends EventTarget {
   readonly width: Cell<number>;
   /** Current native content height, updated from native resize events. */
   readonly height: Cell<number>;
+  /** Current orientation, derived reactively from the native content size. */
+  readonly orientation: Cell<GpuiWindowOrientation>;
   /** Current native title. Setting the cell updates the OS window title. */
   readonly title: SourceCell<string>;
   /**
-   * Native host for this window. Exposes window-local `location` and `history`
-   * and window lifecycle events, which the router binds to during setup.
+   * Route path this window opened on, from the `initialPath` option. It never
+   * changes. `attachRouter` navigates the router to it.
    */
+  readonly initialPath: string;
+  /** Native host for this window. Dispatches window lifecycle events. */
   readonly host: GpuiHost;
   /** Opens another independent Retend root/window. */
   open(options?: GpuiWindowOptions): Promise<GpuiWindowHandle>;
+  /** Opens an OS popup menu and returns the selected item's ID, or null on dismissal. */
+  showMenu<const Items extends readonly GpuiMenuItem[]>(
+    options: GpuiMenuOptions<Items>
+  ): Promise<GpuiMenuActionId<Items> | null>;
   /** Requests that this native window close. */
   close(): void;
 }
@@ -97,11 +161,23 @@ interface WindowRuntime {
   open(options: GpuiWindowOptions): Promise<GpuiWindowHandle>;
 }
 
+/** @internal Inputs for constructing a {@link RuntimeGpuiWindow}. */
+export interface RuntimeGpuiWindowOptions {
+  title: string;
+  width: number;
+  height: number;
+  initialPath: string;
+  renderer: RetendGpuiRenderer;
+  runtime: WindowRuntime;
+}
+
 /** @internal Window implementation owned by the application runtime. */
 export class RuntimeGpuiWindow extends EventTarget implements GpuiWindow {
   readonly width: SourceCell<number>;
   readonly height: SourceCell<number>;
+  readonly orientation: Cell<GpuiWindowOrientation>;
   readonly title: SourceCell<string>;
+  readonly initialPath: string;
   /** @internal Renderer and native host owned by this runtime window. */
   readonly renderer: RetendGpuiRenderer;
   /** @internal Lifecycle-only view returned to window openers. */
@@ -114,19 +190,18 @@ export class RuntimeGpuiWindow extends EventTarget implements GpuiWindow {
   readonly #openedWindows = new Set<GpuiWindowHandle>();
   #disposed = false;
 
-  constructor(
-    initialTitle: string,
-    initialWidth: number,
-    initialHeight: number,
-    renderer: RetendGpuiRenderer,
-    runtime: WindowRuntime
-  ) {
+  constructor(options: RuntimeGpuiWindowOptions) {
     super();
+    const { renderer } = options;
+    this.initialPath = options.initialPath;
     this.renderer = renderer;
-    this.#runtime = runtime;
-    this.width = Cell.source(initialWidth);
-    this.height = Cell.source(initialHeight);
-    this.title = Cell.source(initialTitle);
+    this.#runtime = options.runtime;
+    this.width = Cell.source(options.width);
+    this.height = Cell.source(options.height);
+    this.orientation = Cell.derived(() =>
+      this.width.get() > this.height.get() ? 'landscape' : 'portrait'
+    );
+    this.title = Cell.source(options.title);
     this.handle = Object.assign(new EventTarget(), {
       close: () => this.close(),
     });
@@ -134,8 +209,10 @@ export class RuntimeGpuiWindow extends EventTarget implements GpuiWindow {
       renderer.host.setWindowTitle(title)
     );
     renderer.host.addEventListener('resize', ({ width, height }) => {
-      this.width.set(width);
-      this.height.set(height);
+      Cell.batch(() => {
+        this.width.set(width);
+        this.height.set(height);
+      });
     });
     renderer.host.addEventListener('focus', () =>
       this.dispatchEvent(new Event('focus'))
@@ -163,6 +240,19 @@ export class RuntimeGpuiWindow extends EventTarget implements GpuiWindow {
       once: true,
     });
     return handle;
+  }
+
+  showMenu<const Items extends readonly GpuiMenuItem[]>(
+    options: GpuiMenuOptions<Items>
+  ): Promise<GpuiMenuActionId<Items> | null> {
+    if (this.#disposed) {
+      return Promise.reject(
+        new Error('Cannot open a menu on a closed GPUI window.')
+      );
+    }
+    return this.host.showMenu(
+      options
+    ) as Promise<GpuiMenuActionId<Items> | null>;
   }
 
   close(): void {

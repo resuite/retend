@@ -14,7 +14,7 @@
     "noEmit": true,
     "jsx": "react-jsx",
     "jsxImportSource": "retend",
-    "types": ["retend-gpui/jsx-runtime"]
+    "types": ["retend-gpui/jsx-runtime", "vite/client"]
   },
   "include": ["source", "retend-gpui-env.d.ts"]
 }

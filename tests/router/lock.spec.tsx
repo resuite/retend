@@ -1,10 +1,11 @@
 import type { DOMRenderer } from 'retend-web';
 
 import { getActiveRenderer } from 'retend';
+import { attachRouter } from 'retend-web';
 import { Router, createRouterRoot, defineRoutes } from 'retend/router';
 import { describe, expect, it, vi } from 'vitest';
 
-import { getTextContent, vDomSetup } from '../setup.tsx';
+import { getTextContent, routerSetupBrowser, vDomSetup } from '../setup.tsx';
 
 describe('router.lock()', () => {
   vDomSetup();
@@ -22,7 +23,6 @@ describe('router.lock()', () => {
     ]);
 
     const router = new Router({ routes });
-    router.attachWindowListeners(window);
     window.document.body.append(createRouterRoot(router));
 
     await router.navigate('/');
@@ -35,37 +35,6 @@ describe('router.lock()', () => {
 
     router.unlock();
     await router.navigate('/about');
-
-    expect(getTextContent(window.document.body)).toBe('About');
-  });
-
-  it('should prevent navigation when window.location is changed while locked', async () => {
-    const renderer = getActiveRenderer() as DOMRenderer;
-    const { host: window } = renderer;
-    const Home = () => <div>Home</div>;
-    const About = () => <div>About</div>;
-
-    const routes = defineRoutes([
-      { name: 'home', path: '/', component: Home },
-      { name: 'about', path: '/about', component: About },
-    ]);
-
-    const router = new Router({ routes });
-    router.attachWindowListeners(window);
-    window.document.body.append(createRouterRoot(router));
-
-    await router.navigate('/');
-    expect(getTextContent(window.document.body)).toBe('Home');
-
-    router.lock();
-    window.history.pushState({}, '', '/about');
-    await new Promise((resolve) => setTimeout(resolve, 0));
-
-    expect(getTextContent(window.document.body)).toBe('Home');
-
-    router.unlock();
-    window.history.pushState({}, '', '/about');
-    await new Promise((resolve) => setTimeout(resolve, 0));
 
     expect(getTextContent(window.document.body)).toBe('About');
   });
@@ -96,8 +65,6 @@ describe('router.lock()', () => {
   });
 
   it('routelockprevented event is dispatched in replace() when navigation is prevented by lock', async () => {
-    const renderer = getActiveRenderer() as DOMRenderer;
-    const { host: window } = renderer;
     const listener = vi.fn();
     const Home = () => <div>Home</div>;
     const About = () => <div>About</div>;
@@ -108,7 +75,6 @@ describe('router.lock()', () => {
     ]);
 
     const router = new Router({ routes });
-    router.attachWindowListeners(window);
 
     router.addEventListener('routelockprevented', listener);
 
@@ -121,5 +87,44 @@ describe('router.lock()', () => {
 
     router.unlock();
     router.removeEventListener('routelockprevented', listener);
+  });
+});
+
+describe('router.lock() attached to a window', () => {
+  routerSetupBrowser();
+
+  it('restores the locked URL when the user goes back while locked', async () => {
+    const renderer = getActiveRenderer() as DOMRenderer;
+    const { host: window } = renderer;
+    const Home = () => <div>Home</div>;
+    const About = () => <div>About</div>;
+
+    const routes = defineRoutes([
+      { name: 'home', path: '/', component: Home },
+      { name: 'about', path: '/about', component: About },
+    ]);
+
+    const router = new Router({ routes });
+    const detach = attachRouter(router, window);
+    window.document.body.append(createRouterRoot(router));
+
+    await router.navigate('/');
+    await router.navigate('/about');
+    expect(getTextContent(window.document.body)).toBe('About');
+
+    router.lock();
+    const prevented = new Promise<void>((resolve) => {
+      router.addEventListener('routelockprevented', () => resolve(), {
+        once: true,
+      });
+    });
+    window.history.back();
+    await prevented;
+
+    expect(getTextContent(window.document.body)).toBe('About');
+    expect(window.location.pathname).toBe('/about');
+
+    router.unlock();
+    detach();
   });
 });

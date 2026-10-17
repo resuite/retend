@@ -28,8 +28,32 @@ pub struct TextControlSnapshot {
     pub value: String,
     pub value_revision: u64,
     pub placeholder: String,
+    pub placeholder_color: Option<u32>,
     pub min_rows: Option<u32>,
     pub max_rows: Option<u32>,
+}
+
+#[derive(Clone, Debug, PartialEq)]
+pub struct AudioConfig {
+    pub id: NodeId,
+    pub src: Option<String>,
+    pub autoplay: bool,
+    pub looping: bool,
+    pub muted: bool,
+    pub volume: f32,
+}
+
+impl AudioConfig {
+    fn new(id: NodeId) -> Self {
+        Self {
+            id,
+            src: None,
+            autoplay: false,
+            looping: false,
+            muted: false,
+            volume: 1.0,
+        }
+    }
 }
 
 pub type FocusTarget = (isize, Option<TextControlSnapshot>);
@@ -44,6 +68,18 @@ fn invalid<T>(
     message: impl Into<String>,
 ) -> Result<T, BridgeFailure> {
     Err(BridgeFailure::command(index, code, message))
+}
+
+fn audio_boolean(index: usize, value: PropertyValue, name: &str) -> Result<bool, BridgeFailure> {
+    match value {
+        PropertyValue::Null => Ok(false),
+        PropertyValue::Boolean(value) => Ok(value),
+        _ => invalid(
+            index,
+            "INVALID_PROPERTY_VALUE",
+            format!("Audio {name} must be a boolean or null."),
+        ),
+    }
 }
 
 fn nullable_string(
@@ -385,6 +421,7 @@ pub enum NodeData {
         max_rows: Option<u32>,
     },
     Button,
+    Audio(AudioConfig),
 }
 
 /// Inline SVG markup, prepared once when the property is set: the renderer
@@ -420,6 +457,7 @@ pub struct NativeNode {
     hover_style: Option<Vec<(PropertyId, PropertyValue)>>,
     focused_style: Option<Vec<(PropertyId, PropertyValue)>>,
     active_style: Option<Vec<(PropertyId, PropertyValue)>>,
+    pub(crate) placeholder_color: Option<u32>,
     hovered: bool,
     focused: bool,
     pub(crate) motion: MotionBridgeState,
@@ -440,6 +478,7 @@ impl NativeNode {
             hover_style: None,
             focused_style: None,
             active_style: None,
+            placeholder_color: None,
             hovered: false,
             focused: false,
             motion: MotionBridgeState::default(),
@@ -471,6 +510,7 @@ impl NativeNode {
                 value: value.clone(),
                 value_revision: *value_revision,
                 placeholder: placeholder.clone(),
+                placeholder_color: self.placeholder_color,
                 min_rows: *min_rows,
                 max_rows: *max_rows,
             }),
@@ -522,6 +562,11 @@ impl NativeNode {
             Some(StyleState::Hover) => self.hover_style = Some(properties),
             Some(StyleState::Focused) => self.focused_style = Some(properties),
             Some(StyleState::Active) => self.active_style = Some(properties),
+            Some(StyleState::Placeholder) => {
+                self.placeholder_color = properties
+                    .last()
+                    .and_then(|(_, value)| crate::style::parse_color(value));
+            }
         }
     }
 
@@ -556,6 +601,8 @@ pub struct WindowState {
     pub pending_detached: HashSet<NodeId>,
     pub mousedownoutside_subscribers: HashSet<NodeId>,
     active_nodes: HashSet<NodeId>,
+    audio_ids: HashSet<NodeId>,
+    audio_dirty: HashSet<NodeId>,
     pub fatal: Option<FatalDiagnostic>,
 }
 
@@ -600,6 +647,8 @@ impl NativeTree {
                 pending_detached: HashSet::new(),
                 mousedownoutside_subscribers: HashSet::new(),
                 active_nodes: HashSet::new(),
+                audio_ids: HashSet::new(),
+                audio_dirty: HashSet::new(),
                 fatal: None,
             },
         );
@@ -625,6 +674,8 @@ impl NativeTree {
         window.pending_detached.clear();
         window.mousedownoutside_subscribers.clear();
         window.active_nodes.clear();
+        window.audio_ids.clear();
+        window.audio_dirty.clear();
         window.fatal = None;
         Ok(())
     }
@@ -642,6 +693,22 @@ impl NativeTree {
         }
         let mut style_nodes = HashSet::new();
         for (index, command) in commands.into_iter().enumerate() {
+            let audio_changed = match &command {
+                Command::SetProperty {
+                    id,
+                    property:
+                        PropertyId::Src
+                        | PropertyId::Autoplay
+                        | PropertyId::Loop
+                        | PropertyId::Muted
+                        | PropertyId::Volume,
+                    ..
+                } if self.windows[&window_id].audio_ids.contains(id) => vec![*id],
+                Command::InsertChild { child_id, .. } | Command::RemoveChild { child_id, .. } => {
+                    self.audio_in_subtree(window_id, *child_id)
+                }
+                _ => Vec::new(),
+            };
             let style_node = match &command {
                 Command::SetStyle { id, .. } | Command::SetPseudoStyle { id, .. } => Some(*id),
                 _ => None,
@@ -652,6 +719,11 @@ impl NativeTree {
                     .expect("validated window must still exist while applying a command batch");
                 return Err(error);
             }
+            self.windows
+                .get_mut(&window_id)
+                .expect("validated window")
+                .audio_dirty
+                .extend(audio_changed);
             if let Some(id) = style_node {
                 style_nodes.insert(id);
             }
@@ -921,6 +993,75 @@ impl NativeTree {
         Ok(node)
     }
 
+    pub fn validate_audio_node(
+        &self,
+        window_id: WindowId,
+        id: NodeId,
+    ) -> Result<(), BridgeFailure> {
+        match &self.validated_node(window_id, id)?.data {
+            NodeData::Audio(_) if self.is_presented(window_id, id) => Ok(()),
+            NodeData::Audio(_) => Err(BridgeFailure::new(
+                "DETACHED_NODE",
+                "Cannot play or pause a detached audio node.",
+            )),
+            _ => Err(BridgeFailure::new(
+                "INVALID_NODE_KIND",
+                "Audio operations require an audio node.",
+            )),
+        }
+    }
+
+    fn audio_in_subtree(&self, window_id: WindowId, subtree: NodeId) -> Vec<NodeId> {
+        self.windows[&window_id]
+            .audio_ids
+            .iter()
+            .copied()
+            .filter(|id| {
+                let mut current = Some(*id);
+                while let Some(node_id) = current {
+                    if node_id == subtree {
+                        return true;
+                    }
+                    current = self.nodes[&node_id].parent;
+                }
+                false
+            })
+            .collect()
+    }
+
+    pub fn take_audio_sync(
+        &mut self,
+        window_id: WindowId,
+    ) -> Option<Vec<(NodeId, Option<AudioConfig>)>> {
+        let dirty = std::mem::take(
+            &mut self
+                .windows
+                .get_mut(&window_id)
+                .expect("validated window")
+                .audio_dirty,
+        );
+        if dirty.is_empty() {
+            return None;
+        }
+        Some(
+            dirty
+                .into_iter()
+                .map(|id| {
+                    let config = self.nodes.get(&id).and_then(|node| {
+                        if !self.is_presented(window_id, id) {
+                            return None;
+                        }
+                        match &node.data {
+                            NodeData::Audio(config) => Some(config.clone()),
+                            _ => None,
+                        }
+                    });
+                    (id, config)
+                })
+                .collect(),
+        )
+    }
+
     pub fn validate_node(&self, window_id: WindowId, id: NodeId) -> Result<(), BridgeFailure> {
         self.validated_node(window_id, id).map(|_| ())
     }
@@ -1032,6 +1173,7 @@ impl NativeTree {
                         ("Svg", None, path.as_deref().and_then(|path| path.to_str()))
                     }
                     NodeData::Button => ("Button", None, None),
+                    NodeData::Audio(config) => ("Audio", None, config.src.as_deref()),
                     NodeData::TextControl { kind, .. } => (
                         match kind {
                             TextControlKind::Input => "Input",
@@ -1086,6 +1228,7 @@ impl NativeTree {
                 window.mousedownoutside_subscribers.remove(&id);
             }
             window.active_nodes.remove(&id);
+            window.audio_ids.remove(&id);
         }
         for child_id in node.children {
             self.destroy_subtree(child_id, destroyed);
@@ -1116,6 +1259,7 @@ impl NativeTree {
                         content: None,
                     },
                     ElementKind::Button => NodeData::Button,
+                    ElementKind::Audio => NodeData::Audio(AudioConfig::new(id)),
                     ElementKind::Input | ElementKind::Textarea => NodeData::TextControl {
                         kind: if matches!(kind, ElementKind::Input) {
                             TextControlKind::Input
@@ -1260,6 +1404,44 @@ impl NativeTree {
                         },
                     ) => {
                         *rows = textarea_rows(index, value)?;
+                        Ok(())
+                    }
+                    (PropertyId::Src, NodeData::Audio(config)) => {
+                        config.src = nullable_string(
+                            index,
+                            value,
+                            "Audio src must be a local file path, file URL, or null.",
+                        )?;
+                        Ok(())
+                    }
+                    (PropertyId::Autoplay, NodeData::Audio(config)) => {
+                        config.autoplay = audio_boolean(index, value, "autoPlay")?;
+                        Ok(())
+                    }
+                    (PropertyId::Loop, NodeData::Audio(config)) => {
+                        config.looping = audio_boolean(index, value, "loop")?;
+                        Ok(())
+                    }
+                    (PropertyId::Muted, NodeData::Audio(config)) => {
+                        config.muted = audio_boolean(index, value, "muted")?;
+                        Ok(())
+                    }
+                    (PropertyId::Volume, NodeData::Audio(config)) => {
+                        config.volume = match value {
+                            PropertyValue::Null => 1.0,
+                            PropertyValue::Number(value)
+                                if value.is_finite() && (0.0..=1.0).contains(&value) =>
+                            {
+                                value as f32
+                            }
+                            _ => {
+                                return invalid(
+                                    index,
+                                    "INVALID_PROPERTY_VALUE",
+                                    "Audio volume must be between 0 and 1.",
+                                )
+                            }
+                        };
                         Ok(())
                     }
                     (PropertyId::Src, NodeData::Image { src, location, .. }) => {
@@ -1425,6 +1607,18 @@ impl NativeTree {
                 "Anchored nodes cannot use margins; use gap/offset or wrap the anchored node instead.",
             );
         }
+        if matches!(state, Some(StyleState::Placeholder))
+            && (!matches!(node.data, NodeData::TextControl { .. })
+                || properties
+                    .iter()
+                    .any(|(property, _)| *property != PropertyId::Color))
+        {
+            return invalid(
+                index,
+                "UNSUPPORTED_PROPERTY",
+                "Placeholder style is only supported on input and textarea, and accepts color only.",
+            );
+        }
         for (property, _) in &properties {
             if !NativeStyle::supports_property(*property) {
                 return invalid(
@@ -1478,7 +1672,15 @@ impl NativeTree {
             error.command_index = Some(index);
             error
         })?;
+        let is_audio = matches!(data, NodeData::Audio(_));
         self.nodes.insert(id, NativeNode::new(window_id, data));
+        if is_audio {
+            self.windows
+                .get_mut(&window_id)
+                .expect("validated window")
+                .audio_ids
+                .insert(id);
+        }
         Ok(())
     }
 
@@ -1557,6 +1759,7 @@ impl NativeTree {
                 NodeData::Text(_) => (false, "Text"),
                 NodeData::Image { .. } => (false, "Image"),
                 NodeData::Svg { .. } => (false, "Svg"),
+                NodeData::Audio(_) => (false, "Audio"),
                 NodeData::TextControl { kind, .. } => (
                     false,
                     match kind {
@@ -1717,6 +1920,281 @@ mod tests {
             state,
             properties,
         }
+    }
+
+    #[test]
+    fn placeholder_style_tracks_color_independently_of_control_style() {
+        for kind in [ElementKind::Input, ElementKind::Textarea] {
+            let (mut tree, window, root) = setup();
+            tree.apply_commands(
+                window,
+                vec![
+                    Command::CreateNode { id: 2, kind },
+                    Command::InsertChild {
+                        parent_id: root,
+                        child_id: 2,
+                        before_id: 0,
+                    },
+                    pseudo_style(
+                        2,
+                        StyleState::Placeholder,
+                        vec![(
+                            PropertyId::Color,
+                            PropertyValue::String("#123456".to_owned()),
+                        )],
+                    ),
+                ],
+            )
+            .unwrap();
+            let snapshot = tree.text_control_snapshot(window, 2).unwrap();
+            assert_eq!(snapshot.placeholder_color, Some(0x123456ff));
+            assert!(tree.nodes[&2]
+                .style
+                .as_ref()
+                .is_none_or(|style| style.color.is_none()));
+
+            tree.apply_commands(
+                window,
+                vec![pseudo_style(2, StyleState::Placeholder, vec![])],
+            )
+            .unwrap();
+            assert_eq!(
+                tree.text_control_snapshot(window, 2)
+                    .unwrap()
+                    .placeholder_color,
+                None
+            );
+        }
+    }
+
+    #[test]
+    fn placeholder_styles_reject_unrelated_nodes_and_layout_declarations() {
+        for (kind, property) in [
+            (ElementKind::Container, PropertyId::Color),
+            (ElementKind::Input, PropertyId::Padding),
+        ] {
+            let (mut tree, window, _) = setup();
+            tree.apply_commands(window, vec![Command::CreateNode { id: 2, kind }])
+                .unwrap();
+            let error = tree
+                .apply_commands(
+                    window,
+                    vec![pseudo_style(
+                        2,
+                        StyleState::Placeholder,
+                        vec![(property, PropertyValue::Number(8.0))],
+                    )],
+                )
+                .unwrap_err();
+            assert_eq!(error.code, "UNSUPPORTED_PROPERTY");
+        }
+    }
+
+    #[test]
+    fn audio_configuration_updates_and_detachment_are_sent_to_worker() {
+        let (mut tree, window, root) = setup();
+        tree.apply_commands(
+            window,
+            vec![
+                Command::CreateNode {
+                    id: 2,
+                    kind: ElementKind::Audio,
+                },
+                Command::SetProperty {
+                    id: 2,
+                    property: PropertyId::Src,
+                    value: PropertyValue::String("file:///tmp/ding.wav".to_owned()),
+                },
+                Command::SetProperty {
+                    id: 2,
+                    property: PropertyId::Autoplay,
+                    value: PropertyValue::Boolean(true),
+                },
+                Command::SetProperty {
+                    id: 2,
+                    property: PropertyId::Loop,
+                    value: PropertyValue::Boolean(true),
+                },
+                Command::SetProperty {
+                    id: 2,
+                    property: PropertyId::Muted,
+                    value: PropertyValue::Boolean(true),
+                },
+                Command::SetProperty {
+                    id: 2,
+                    property: PropertyId::Volume,
+                    value: PropertyValue::Number(0.4),
+                },
+                Command::InsertChild {
+                    parent_id: root,
+                    child_id: 2,
+                    before_id: 0,
+                },
+            ],
+        )
+        .unwrap();
+        assert_eq!(
+            tree.take_audio_sync(window).unwrap(),
+            vec![(
+                2,
+                Some(AudioConfig {
+                    id: 2,
+                    src: Some("file:///tmp/ding.wav".to_owned()),
+                    autoplay: true,
+                    looping: true,
+                    muted: true,
+                    volume: 0.4,
+                })
+            )]
+        );
+        tree.apply_commands(
+            window,
+            vec![Command::RemoveChild {
+                parent_id: root,
+                child_id: 2,
+            }],
+        )
+        .unwrap();
+        assert_eq!(tree.take_audio_sync(window).unwrap(), vec![(2, None)]);
+    }
+
+    #[test]
+    fn audio_reconciliation_is_tree_driven_and_scoped_to_relevant_mutations() {
+        let (mut tree, window, root) = setup();
+        tree.apply_commands(
+            window,
+            vec![
+                Command::CreateNode {
+                    id: 2,
+                    kind: ElementKind::Audio,
+                },
+                Command::CreateNode {
+                    id: 3,
+                    kind: ElementKind::Container,
+                },
+                Command::InsertChild {
+                    parent_id: root,
+                    child_id: 3,
+                    before_id: 0,
+                },
+                Command::InsertChild {
+                    parent_id: 3,
+                    child_id: 2,
+                    before_id: 0,
+                },
+            ],
+        )
+        .unwrap();
+        assert_eq!(tree.take_audio_sync(window).unwrap().len(), 1);
+        assert!(tree.take_audio_sync(window).is_none());
+
+        tree.apply_commands(
+            window,
+            vec![
+                Command::CreateNode {
+                    id: 4,
+                    kind: ElementKind::Container,
+                },
+                Command::InsertChild {
+                    parent_id: root,
+                    child_id: 4,
+                    before_id: 0,
+                },
+            ],
+        )
+        .unwrap();
+        assert!(
+            tree.take_audio_sync(window).is_none(),
+            "unrelated changes must not sync audio"
+        );
+
+        tree.apply_commands(
+            window,
+            vec![Command::SetProperty {
+                id: 2,
+                property: PropertyId::Volume,
+                value: PropertyValue::Number(0.25),
+            }],
+        )
+        .unwrap();
+        assert_eq!(
+            tree.take_audio_sync(window).unwrap()[0]
+                .1
+                .as_ref()
+                .unwrap()
+                .volume,
+            0.25
+        );
+
+        tree.apply_commands(
+            window,
+            vec![Command::RemoveChild {
+                parent_id: root,
+                child_id: 3,
+            }],
+        )
+        .unwrap();
+        assert_eq!(tree.take_audio_sync(window).unwrap(), vec![(2, None)]);
+        assert_eq!(
+            tree.validate_audio_node(window, 2).unwrap_err().code,
+            "DETACHED_NODE"
+        );
+
+        tree.apply_commands(
+            window,
+            vec![Command::InsertChild {
+                parent_id: root,
+                child_id: 3,
+                before_id: 0,
+            }],
+        )
+        .unwrap();
+        assert_eq!(tree.take_audio_sync(window).unwrap().len(), 1);
+        assert!(tree.validate_audio_node(window, 2).is_ok());
+
+        tree.apply_commands(
+            window,
+            vec![Command::RemoveChild {
+                parent_id: root,
+                child_id: 3,
+            }],
+        )
+        .unwrap();
+        assert_eq!(tree.take_audio_sync(window).unwrap(), vec![(2, None)]);
+        tree.settle(window).unwrap();
+        tree.apply_commands(
+            window,
+            vec![Command::CreateNode {
+                id: 5,
+                kind: ElementKind::Container,
+            }],
+        )
+        .unwrap();
+        assert!(tree.take_audio_sync(window).is_none());
+    }
+
+    #[test]
+    fn audio_volume_out_of_range_is_rejected() {
+        let (mut tree, window, _) = setup();
+        tree.apply_commands(
+            window,
+            vec![Command::CreateNode {
+                id: 2,
+                kind: ElementKind::Audio,
+            }],
+        )
+        .unwrap();
+        let error = tree
+            .apply_commands(
+                window,
+                vec![Command::SetProperty {
+                    id: 2,
+                    property: PropertyId::Volume,
+                    value: PropertyValue::Number(1.5),
+                }],
+            )
+            .unwrap_err();
+        assert_eq!(error.code, "INVALID_PROPERTY_VALUE");
     }
 
     #[test]
@@ -3199,24 +3677,27 @@ mod tests {
 
     #[test]
     fn leaf_nodes_cannot_be_structural_parents() {
-        let text = || Command::CreateText {
-            id: 2,
-            text: "parent".into(),
-        };
-        let node = |kind| move || Command::CreateNode { id: 2, kind };
-        let leaves: [(&str, Box<dyn Fn() -> Command>); 5] = [
-            ("Text", Box::new(text)),
-            ("Image", Box::new(node(ElementKind::Image))),
-            ("Svg", Box::new(node(ElementKind::Svg))),
-            ("Input", Box::new(node(ElementKind::Input))),
-            ("Textarea", Box::new(node(ElementKind::Textarea))),
+        let leaves = [
+            ("Text", None),
+            ("Image", Some(ElementKind::Image)),
+            ("Svg", Some(ElementKind::Svg)),
+            ("Input", Some(ElementKind::Input)),
+            ("Textarea", Some(ElementKind::Textarea)),
+            ("Audio", Some(ElementKind::Audio)),
         ];
-        for (kind, create_leaf) in leaves {
+        for (kind, node_kind) in leaves {
+            let create_leaf = match node_kind {
+                Some(kind) => Command::CreateNode { id: 2, kind },
+                None => Command::CreateText {
+                    id: 2,
+                    text: "parent".into(),
+                },
+            };
             let (mut tree, window, root) = setup();
             tree.apply_commands(
                 window,
                 vec![
-                    create_leaf(),
+                    create_leaf,
                     Command::CreateText {
                         id: 3,
                         text: "child".into(),

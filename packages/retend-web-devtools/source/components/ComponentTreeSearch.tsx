@@ -26,9 +26,9 @@ export function ComponentTreeSearch(props: ComponentTreeSearchProps) {
           <SearchIcon />
         </span>
         <input
-          class={classes.searchInput}
           placeholder="Search…"
           value={search.searchQuery}
+          class={classes.searchInput}
           onInput={search.onSearchInput}
         />
         {If(search.isSearching, () => (
@@ -36,9 +36,9 @@ export function ComponentTreeSearch(props: ComponentTreeSearchProps) {
             <span class={classes.matchCount}>{search.matchCount}</span>
             <button
               type="button"
+              aria-label="Clear search"
               class={classes.clearButton}
               onClick={search.clearSearch}
-              aria-label="Clear search"
             >
               <CloseIcon />
             </button>
@@ -46,14 +46,18 @@ export function ComponentTreeSearch(props: ComponentTreeSearchProps) {
         ))}
       </div>
 
-      {For(props.roots, (root) => (
-        <TreeNode
-          node={root}
-          depth={0}
-          forceExpanded={search.forceExpanded}
-          visibleNodes={search.visibleNodes}
-        />
-      ))}
+      <div class={classes.treeContent}>
+        <div class={classes.treeNodes}>
+          {For(props.roots, (root) => (
+            <TreeNode
+              node={root}
+              depth={0}
+              forceExpanded={search.forceExpanded}
+              visibleNodes={search.visibleNodes}
+            />
+          ))}
+        </div>
+      </div>
     </>
   );
 }

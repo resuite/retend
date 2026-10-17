@@ -22,7 +22,8 @@
   "author": "Adebola Akomolafe",
   "repository": {
     "type": "git",
-    "directory": "github.com/resuite/retend"
+    "url": "git+https://github.com/resuite/retend.git",
+    "directory": "packages/retend"
   },
   "type": "module",
   "exports": {

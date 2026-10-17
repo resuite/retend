@@ -7,93 +7,100 @@ import { matchToComponentNode } from '@/utils/componentMatching';
 
 export function PickerButton() {
   const devRenderer = useDevToolsRenderer();
-
-  let pickerMoveHandler: ((event: PointerEvent) => void) | undefined;
+  let pickerMoveHandler: ((event: PointerEvent) => void) | null = null;
+  let previousCursor = '';
 
   const stopPicker = () => {
     if (pickerMoveHandler) {
       window.removeEventListener('pointermove', pickerMoveHandler, true);
-      pickerMoveHandler = undefined;
+      document.removeEventListener('keydown', onKeyDown, true);
+      pickerMoveHandler = null;
+      document.documentElement.style.cursor = previousCursor;
     }
-    document.documentElement.style.cursor = '';
     devRenderer.hoveredNode.set(null);
     devRenderer.pickerCursorPosition.set(null);
     devRenderer.pickerHoveredElement.set(null);
     devRenderer.isPickerActive.set(false);
   };
 
+  const onKeyDown = (event: KeyboardEvent) => {
+    if (event.key !== 'Escape' || !devRenderer.isPickerActive.get()) return;
+    event.preventDefault();
+    event.stopImmediatePropagation();
+    stopPicker();
+  };
+
   const startPicker = () => {
     if (pickerMoveHandler) return;
+    previousCursor = document.documentElement.style.cursor;
     devRenderer.isPickerActive.set(true);
 
     pickerMoveHandler = (event: PointerEvent) => {
-      event.stopPropagation();
+      if (
+        event
+          .composedPath()
+          .some(
+            (node) =>
+              node instanceof HTMLElement &&
+              node.hasAttribute('data-retend-devtools')
+          )
+      )
+        return;
 
       devRenderer.pickerCursorPosition.set({
         x: event.clientX,
         y: event.clientY,
       });
 
-      const target = event.target as Element | null;
-      if (!target || !(target instanceof Element)) {
+      const target = event.target;
+      if (!(target instanceof Element)) {
         devRenderer.hoveredNode.set(null);
         devRenderer.pickerHoveredElement.set(null);
         return;
       }
 
       devRenderer.pickerHoveredElement.set(target);
-
-      if (devRenderer.rootNodes.get().length === 0) {
-        devRenderer.hoveredNode.set(null);
-        return;
-      }
-
-      const cursorX = event.clientX;
-      const cursorY = event.clientY;
-
-      // Find the matching component node
       const matchedNode = matchToComponentNode({
         target,
-        cursorX,
-        cursorY,
+        cursorX: event.clientX,
+        cursorY: event.clientY,
         devRenderer,
       });
-
-      const currentHovered = devRenderer.hoveredNode.get();
-      if (matchedNode !== currentHovered) {
+      if (matchedNode !== devRenderer.hoveredNode.get()) {
         devRenderer.hoveredNode.set(matchedNode);
       }
     };
 
     window.addEventListener('pointermove', pickerMoveHandler, true);
+    document.addEventListener('keydown', onKeyDown, true);
     document.documentElement.style.cursor = 'crosshair';
   };
 
   const togglePicker = () => {
-    const nextState = !devRenderer.isPickerActive.get();
-    if (nextState) {
-      startPicker();
-      return;
-    }
-    stopPicker();
+    if (devRenderer.isPickerActive.get()) stopPicker();
+    else startPicker();
   };
 
-  devRenderer.isPickerActive.listen((isActive) => {
-    if (!isActive && pickerMoveHandler) stopPicker();
+  devRenderer.isPickerActive.listen((active) => {
+    if (!active && pickerMoveHandler) stopPicker();
   });
 
-  onSetup(() => stopPicker);
+  onSetup(() => () => {
+    document.removeEventListener('keydown', onKeyDown, true);
+    stopPicker();
+  });
 
   return (
     <button
       type="button"
+      aria-label="Pick component from page (Escape to cancel)"
+      aria-pressed={devRenderer.isPickerActive}
+      title="Pick component from page (Esc to cancel)"
       class={[
         classes.headerButton,
         { [classes.headerButtonActive]: devRenderer.isPickerActive },
       ]}
       onClick={togglePicker}
-      aria-label="Pick component from page"
-      title="Pick component from page"
     >
       <PickerIcon />
     </button>

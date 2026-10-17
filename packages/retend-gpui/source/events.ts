@@ -1,13 +1,15 @@
 import type {
   NativeEventPayload,
   NativeFocusEventPayload,
-  NativeImageEventPayload,
+  NativeResourceEventPayload,
   NativeKeyboardEventPayload,
   NativeMouseEventPayload,
   NativeScrollEventPayload,
   NativeTextEventPayload,
   NativeTransitionEventPayload,
+  NativeWheelEventPayload,
 } from './native/addon.js';
+import type { GpuiSystemTheme } from './system.js';
 import type { GpuiNode } from './tree/nodes.js';
 
 import { NativeEventId } from './native/protocol.generated.js';
@@ -26,8 +28,9 @@ type NativeEventKind =
   | 'text'
   | 'focus'
   | 'scroll'
+  | 'wheel'
   | 'transition'
-  | 'image';
+  | 'resource';
 type NativeEventDefinition = readonly [
   type: string,
   kind: NativeEventKind,
@@ -50,6 +53,7 @@ const NATIVE_EVENTS = {
   [NativeEventId.Focus]: ['focus', 'focus', false, true],
   [NativeEventId.Blur]: ['blur', 'focus', false, true],
   [NativeEventId.Scroll]: ['scroll', 'scroll', false, true],
+  [NativeEventId.Wheel]: ['wheel', 'wheel', true, true],
   [NativeEventId.MouseDownOutside]: ['mousedownoutside', 'mouse', false, false],
   [NativeEventId.TransitionRun]: ['transitionrun', 'transition', true, true],
   [NativeEventId.TransitionStart]: [
@@ -65,9 +69,10 @@ const NATIVE_EVENTS = {
     true,
     true,
   ],
-  [NativeEventId.Load]: ['load', 'image', false, true],
-  [NativeEventId.Error]: ['error', 'image', false, true],
+  [NativeEventId.Load]: ['load', 'resource', false, true],
+  [NativeEventId.Error]: ['error', 'resource', false, true],
   [NativeEventId.ContextMenu]: ['contextmenu', 'mouse', true, true],
+  [NativeEventId.Ended]: ['ended', 'resource', false, true],
 } as const satisfies Record<NativeTransportEventId, NativeEventDefinition>;
 
 const EVENT_METADATA = new Map<string, GpuiNativeEventMetadata>(
@@ -145,8 +150,11 @@ export class GpuiScrollEvent extends GpuiEvent {
   }
 }
 
-export class GpuiImageEvent extends GpuiEvent {
-  constructor(type: 'load' | 'error', payload: NativeImageEventPayload) {
+export class GpuiResourceEvent extends GpuiEvent {
+  constructor(
+    type: 'load' | 'error' | 'ended',
+    payload: NativeResourceEventPayload
+  ) {
     super(type, { bubbles: false, cancelable: false }, payload.timeStamp);
   }
 }
@@ -171,6 +179,11 @@ export class GpuiTransitionEvent extends GpuiEvent {
   }
 }
 
+type ModifierPayload = Pick<
+  NativeMouseEventPayload,
+  'timeStamp' | 'altKey' | 'ctrlKey' | 'metaKey' | 'shiftKey'
+>;
+
 class GpuiModifierEvent extends GpuiEvent {
   readonly altKey: boolean;
   readonly ctrlKey: boolean;
@@ -179,10 +192,11 @@ class GpuiModifierEvent extends GpuiEvent {
 
   constructor(
     type: string,
-    payload: NativeMouseEventPayload | NativeKeyboardEventPayload,
-    bubbles: boolean
+    payload: ModifierPayload,
+    bubbles: boolean,
+    cancelable = true
   ) {
-    super(type, { bubbles, cancelable: true }, payload.timeStamp);
+    super(type, { bubbles, cancelable }, payload.timeStamp);
     this.altKey = payload.altKey;
     this.ctrlKey = payload.ctrlKey;
     this.metaKey = payload.metaKey;
@@ -228,6 +242,27 @@ export class GpuiKeyboardEvent extends GpuiModifierEvent {
   }
 }
 
+/** Raw wheel input; native scrolling runs independently of JS delivery. */
+export class GpuiWheelEvent extends GpuiModifierEvent {
+  readonly clientX: number;
+  readonly clientY: number;
+  readonly deltaX: number;
+  readonly deltaY: number;
+  /** 0 for pixels, 1 for lines. Positive deltas scroll right or down. */
+  readonly deltaMode: NativeWheelEventPayload['deltaMode'];
+  readonly touchPhase: NativeWheelEventPayload['touchPhase'];
+
+  constructor(payload: NativeWheelEventPayload) {
+    super('wheel', payload, true, false);
+    this.clientX = payload.clientX;
+    this.clientY = payload.clientY;
+    this.deltaX = payload.deltaX;
+    this.deltaY = payload.deltaY;
+    this.deltaMode = payload.deltaMode;
+    this.touchPhase = payload.touchPhase;
+  }
+}
+
 export function createNativeEvent(payload: NativeEventPayload): Event {
   const definition = NATIVE_EVENTS[payload.eventId] as
     | NativeEventDefinition
@@ -262,10 +297,12 @@ export function createNativeEvent(payload: NativeEventPayload): Event {
       );
     case 'scroll':
       return new GpuiScrollEvent(payload as NativeScrollEventPayload);
-    case 'image':
-      return new GpuiImageEvent(
-        type as 'load' | 'error',
-        payload as NativeImageEventPayload
+    case 'wheel':
+      return new GpuiWheelEvent(payload as NativeWheelEventPayload);
+    case 'resource':
+      return new GpuiResourceEvent(
+        type as 'load' | 'error' | 'ended',
+        payload as NativeResourceEventPayload
       );
     case 'transition':
       return new GpuiTransitionEvent(
@@ -284,6 +321,18 @@ export class GpuiResizeEvent extends Event {
     super('resize');
     this.width = width;
     this.height = height;
+  }
+}
+
+/** Dispatched when tracked operating-system preferences change. */
+export class GpuiSystemPreferencesEvent extends Event {
+  readonly theme: GpuiSystemTheme;
+  readonly accentColor: string | null;
+
+  constructor(theme: GpuiSystemTheme, accentColor: string | null) {
+    super('systempreferences');
+    this.theme = theme;
+    this.accentColor = accentColor;
   }
 }
 

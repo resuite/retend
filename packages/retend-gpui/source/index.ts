@@ -2,16 +2,19 @@ export {
   GpuiApplicationErrorEvent,
   GpuiEvent,
   GpuiFocusEvent,
-  GpuiImageEvent,
+  GpuiResourceEvent,
   GpuiInputEvent,
   GpuiKeyboardEvent,
   GpuiMouseEvent,
   GpuiResizeEvent,
   GpuiScrollEvent,
+  GpuiSystemPreferencesEvent,
   GpuiTransitionEvent,
+  GpuiWheelEvent,
 } from './events.js';
 export * from './gpui-host.js';
 export * from './gpui-renderer.js';
+export { attachRouter } from './router.js';
 export { useAppContext } from './application.js';
 export type {
   GpuiAppContext,
@@ -19,10 +22,19 @@ export type {
   GpuiApplication,
 } from './application.js';
 export * from './types.js';
-export type { GpuiSystemOptions } from './system.js';
+export { useSystem } from './system.js';
+export type {
+  GpuiSystem,
+  GpuiSystemOptions,
+  GpuiSystemTheme,
+} from './system.js';
 export { useWindow } from './window.js';
 export type {
   GpuiWindow,
   GpuiWindowHandle,
   GpuiWindowOptions,
+  GpuiMenuItem,
+  GpuiMenuOptions,
+  GpuiMenuActionId,
+  GpuiWindowOrientation,
 } from './window.js';

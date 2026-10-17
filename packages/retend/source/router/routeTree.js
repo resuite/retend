@@ -48,17 +48,18 @@
  * The name of the route.
  *
  * @property {string} [redirect]
- * The path to redirect to when the route is matched, if there is no component.
+ * The path to redirect to when the route is matched. A route may consist of
+ * only a path and a redirect, with no component or children.
  *
  * @property {string} [title]
- * The title to give the document when the route is matched.
+ * The title to set when the route is matched.
  * if there are nested routes with a title set, the title will be overwritten.
  *
  * @property {Metadata} [metadata]
  * Metadata to be associated with the route.
  *
  * @property {string} [transitionType]
- * The active view transition type for the route. This will be set on the document
+ * The active view transition type for the route. This will be set
  * whenever the route is being transitioned to.
  */
 
@@ -111,7 +112,19 @@
 
 /**
  * @template T
- * @typedef {RouteRecordWithChildren<T> | RouteRecordWithComponent<T> | RouteRecordWithLazySubtree<T>} RouteRecord
+ * @typedef RouteRecordWithRedirectBase
+ * @property {string} redirect
+ * The path to redirect to when the route is matched.
+ */
+
+/**
+ * @template T
+ * @typedef {EagerRouteRecord<T> & RouteRecordWithRedirectBase<T>} RouteRecordWithRedirect
+ */
+
+/**
+ * @template T
+ * @typedef {RouteRecordWithChildren<T> | RouteRecordWithComponent<T> | RouteRecordWithRedirect<T> | RouteRecordWithLazySubtree<T>} RouteRecord
  */
 
 /**
@@ -510,6 +523,11 @@ export class RouteTree {
       }
 
       if (matchedRoute.child === null) {
+        // A redirect-only route (no component, no matching child) matches
+        // once its own path is consumed; the router then follows the redirect.
+        if (i === pathSegments.length && matchedRoute.redirect) {
+          return matchedRoute;
+        }
         if (resolved.children.length || !resolved.path.endsWith('*')) {
           return fail();
         }
@@ -620,7 +638,9 @@ RouteTree.fromRouteRecords = (routeRecords, parent = null) => {
     );
     if (leaf instanceof EagerRoute && !('subtree' in routeRecord)) {
       leaf.name = routeRecord.name ?? null;
-      const component = routeRecord.component;
+      // Redirect-only records have no component.
+      const component =
+        'component' in routeRecord ? routeRecord.component : undefined;
       leaf.component = component;
 
       if (

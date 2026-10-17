@@ -14,10 +14,12 @@ description: 'Building native desktop applications with Retend and GPUI.'
 `retend-start` can scaffold a desktop project with the GPUI target:
 
 ```sh
-npx retend-start@latest my-app --target=gpui
+npx retend-start@latest my-app --target=gpui --default
 cd my-app
 npm run dev
 ```
+
+`--default` accepts the starter's defaults (TypeScript, without the optional `.docs` folder) instead of prompting. Omit it to choose the language and whether to include AI-assistant documentation interactively. Use `--docs --default` to include the GPUI documentation without prompts.
 
 The development process opens the application as a native window and keeps it connected to Vite while the project is running.
 

@@ -1,8 +1,9 @@
-import { describe, expect, it, vi } from 'vitest';
+import { describe, expect, expectTypeOf, it, vi } from 'vitest';
 
 import type { RetendGpuiRenderer } from '../source/gpui-renderer';
 import type { GpuiWindowHandle, GpuiWindowOptions } from '../source/window';
 
+import { GpuiResizeEvent } from '../source/events';
 import { RuntimeGpuiWindow } from '../source/window';
 
 class TestWindowHandle extends EventTarget implements GpuiWindowHandle {
@@ -18,13 +19,40 @@ function createWindow(
   const renderer = {
     host: Object.assign(new EventTarget(), { setWindowTitle }),
   } as unknown as RetendGpuiRenderer;
-  return new RuntimeGpuiWindow(title, 800, 600, renderer, {
-    close() {},
-    open,
+  return new RuntimeGpuiWindow({
+    title,
+    width: 800,
+    height: 600,
+    initialPath: '/books/42',
+    renderer,
+    runtime: { close() {}, open },
   });
 }
 
 describe('GPUI runtime window', () => {
+  it('forwards native popup selections and refuses menus after disposal', async () => {
+    const window = createWindow();
+    const showMenu = vi.fn().mockResolvedValue('rename');
+    Object.assign(window.host, { showMenu });
+    const options = {
+      position: { x: 24, y: 40 },
+      items: [
+        { id: 'open', label: 'Open' },
+        { id: 'rename', label: 'Rename' },
+      ],
+    } as const;
+
+    const selection = window.showMenu(options);
+    expectTypeOf(selection).toEqualTypeOf<Promise<'open' | 'rename' | null>>();
+    await expect(selection).resolves.toBe('rename');
+    expect(showMenu).toHaveBeenCalledExactlyOnceWith(options);
+    window.dispose();
+    await expect(window.showMenu(options)).rejects.toThrow(
+      'closed GPUI window'
+    );
+    expect(showMenu).toHaveBeenCalledTimes(1);
+  });
+
   it('tracks native size and focus while keeping title writable', () => {
     const setTitle = vi.fn();
     const runtimeWindow = createWindow(undefined, setTitle, 'Initial');
@@ -35,11 +63,25 @@ describe('GPUI runtime window', () => {
 
     expect(runtimeWindow.width.get()).toBe(800);
     expect(runtimeWindow.height.get()).toBe(600);
+    expect(runtimeWindow.orientation.get()).toBe('landscape');
 
     runtimeWindow.width.set(1024);
     runtimeWindow.height.set(720);
     expect(runtimeWindow.width.get()).toBe(1024);
     expect(runtimeWindow.height.get()).toBe(720);
+    expect(runtimeWindow.orientation.get()).toBe('landscape');
+
+    const orientations: string[] = [];
+    const detach = runtimeWindow.orientation.listen((value) =>
+      orientations.push(value)
+    );
+    runtimeWindow.host.dispatchEvent(new GpuiResizeEvent(600, 900));
+    expect(runtimeWindow.orientation.get()).toBe('portrait');
+
+    runtimeWindow.host.dispatchEvent(new GpuiResizeEvent(600, 600));
+    expect(runtimeWindow.orientation.get()).toBe('portrait');
+    expect(orientations).toEqual(['portrait']);
+    detach();
 
     runtimeWindow.dispatchEvent(new Event('focus'));
     runtimeWindow.dispatchEvent(new Event('blur'));
@@ -48,6 +90,7 @@ describe('GPUI runtime window', () => {
 
     runtimeWindow.title.set('Updated');
     expect(setTitle).toHaveBeenCalledWith('Updated');
+    expect(runtimeWindow.initialPath).toBe('/books/42');
     runtimeWindow.dispose();
   });
 

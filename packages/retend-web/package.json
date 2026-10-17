@@ -21,7 +21,8 @@
   "author": "Adebola Akomolafe",
   "repository": {
     "type": "git",
-    "directory": "github.com/resuite/retend"
+    "url": "git+https://github.com/resuite/retend.git",
+    "directory": "packages/retend-web"
   },
   "type": "module",
   "types": "./dist/index.d.ts",
@@ -59,7 +60,8 @@
     "build": "node scripts/build.js"
   },
   "dependencies": {
-    "csstype": "^3.2.3"
+    "csstype": "^3.2.3",
+    "oxc-parser": "^0.115.0"
   },
   "devDependencies": {
     "retend": "workspace:*",

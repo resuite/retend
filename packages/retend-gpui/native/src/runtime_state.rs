@@ -7,7 +7,7 @@ use std::{
 
 use gpui::{
     point, px, App, AppContext, Bounds, Context, Entity, EntityInputHandler, FocusHandle,
-    Focusable, Pixels, Point, ScrollHandle, Subscription, TransformationMatrix, Window,
+    Focusable, Pixels, Point, ScrollHandle, Subscription, TransformationMatrix, WeakEntity, Window,
 };
 use gpui_base::input::{
     InputBaseState, InputEditorStyle, InputEvent, InputModeKind, InputState, TextareaState,
@@ -20,6 +20,100 @@ use crate::{
     tree::{NativeTree, NodeData, NodeId, TextControlKind, WindowId},
     BridgeFailure, NativeMeasurement, NativeScrollOffset, NativeSelection,
 };
+
+#[cfg(any(target_os = "macos", target_os = "windows"))]
+fn install_native_text_menu<M: InputModeKind + 'static>(
+    editor: &mut InputBaseState<M>,
+    weak_editor: WeakEntity<InputBaseState<M>>,
+    window_id: WindowId,
+    node_id: NodeId,
+) {
+    use gpui_base::input::{Copy, Cut, Paste, SelectAll};
+
+    editor.on_context_menu(Rc::new(move |menu, capabilities, position, window, cx| {
+        // The JavaScript event is delivered asynchronously, so preventDefault()
+        // cannot cancel an already-open OS popup. A contextmenu listener opts
+        // into managing this control's menu instead of the built-in text menu.
+        if crate::runtime().lock().is_ok_and(|tree| {
+            tree.has_subscription_in_path(window_id, node_id, NativeEventId::ContextMenu)
+        }) {
+            return;
+        }
+        let editable = capabilities.is_editable();
+        let menu = menu
+            .menu_with_disabled(
+                "Cut",
+                !(editable && capabilities.is_copyable()),
+                Box::new(Cut),
+            )
+            .menu_with_disabled("Copy", !capabilities.is_copyable(), Box::new(Copy))
+            .menu_with_disabled(
+                "Paste",
+                !(editable && cx.read_from_clipboard().is_some()),
+                Box::new(Paste),
+            )
+            .separator()
+            .menu("Select All", Box::new(SelectAll));
+
+        #[cfg(target_os = "windows")]
+        {
+            let _ = &weak_editor;
+            let handle = Window::window_handle(window);
+            crate::native_menu::present(menu, position, window, cx, move |result, app| {
+                let _ = handle.update(app, |_, window, app| {
+                    if let Ok(Some(action)) = result {
+                        window.dispatch_action(action, app);
+                    }
+                    window.refresh();
+                });
+            });
+        }
+
+        #[cfg(target_os = "macos")]
+        {
+            // gpui-base invokes this handler inside InputBaseState::update,
+            // even though it defers the context-menu callback itself.
+            // A second defer is needed before the editor can be read.
+            let editor = weak_editor.clone();
+            let window_handle = Window::window_handle(window);
+            let services_enabled = !capabilities.is_masked();
+            cx.defer(move |cx| {
+                let Some(entity) = editor.upgrade() else {
+                    return;
+                };
+                let (original, range) = {
+                    let state = entity.read(cx);
+                    (state.value().to_string(), state.selected_range())
+                };
+                let _ = window_handle.update(cx, |_, window, cx| {
+                    crate::macos_text_services::show(
+                        crate::macos_text_services::MenuRequest {
+                            original,
+                            range,
+                            editable,
+                            services_enabled,
+                            editor,
+                        },
+                        menu,
+                        position,
+                        window,
+                        cx,
+                    );
+                });
+            });
+        }
+    }));
+}
+
+fn text_control_editor_style(placeholder_color: Option<u32>, cx: &App) -> InputEditorStyle {
+    InputEditorStyle {
+        selection: gpui_base::Theme::global(cx).tokens.colors.selection,
+        muted_foreground: placeholder_color
+            .map(|color| gpui::rgba(color).into())
+            .unwrap_or_default(),
+        ..Default::default()
+    }
+}
 
 pub type Measurement = NativeMeasurement;
 
@@ -53,6 +147,8 @@ pub struct RuntimeStateRegistry(Rc<RefCell<RuntimeState>>);
 struct RuntimeState {
     focus: HashMap<NodeId, FocusState>,
     text_control: HashMap<NodeId, TextControlRuntimeState>,
+    text_selection: Option<PlainTextSelection>,
+    text_selection_focus: Option<FocusHandle>,
     scroll: HashMap<NodeId, ScrollState>,
     generation: u64,
     prepared_revision: Option<(WindowId, u64)>,
@@ -85,8 +181,28 @@ pub struct TextControlConfig<'a> {
     pub value: &'a str,
     pub value_revision: u64,
     pub placeholder: &'a str,
+    pub placeholder_color: Option<u32>,
     pub min_rows: Option<u32>,
     pub max_rows: Option<u32>,
+}
+
+#[derive(Clone, Debug)]
+pub struct PlainTextSelection {
+    pub node_id: NodeId,
+    pub text: gpui::SharedString,
+    pub anchor: usize,
+    pub head: usize,
+    pub dragging: bool,
+}
+
+impl PlainTextSelection {
+    pub fn range(&self) -> std::ops::Range<usize> {
+        self.anchor.min(self.head)..self.anchor.max(self.head)
+    }
+
+    pub fn selected_text(&self) -> Option<&str> {
+        self.text.get(self.range()).filter(|text| !text.is_empty())
+    }
 }
 
 #[derive(Clone)]
@@ -133,6 +249,7 @@ struct TextControlRuntimeState {
     editor: TextControlEditor,
     value_revision: u64,
     placeholder: String,
+    placeholder_color: Option<u32>,
     min_rows: Option<u32>,
     max_rows: Option<u32>,
     last_value: String,
@@ -259,6 +376,95 @@ fn emit_scroll_event(window_id: WindowId, id: NodeId, offset: ScrollOffset) {
 }
 
 impl RuntimeStateRegistry {
+    pub fn ensure_selection_focus(&self, cx: &mut App) -> FocusHandle {
+        self.0
+            .borrow_mut()
+            .text_selection_focus
+            .get_or_insert_with(|| cx.focus_handle().tab_stop(false))
+            .clone()
+    }
+
+    pub fn text_selection(&self, id: NodeId) -> Option<PlainTextSelection> {
+        self.0
+            .borrow()
+            .text_selection
+            .as_ref()
+            .filter(|selected| selected.node_id == id)
+            .cloned()
+    }
+
+    pub fn start_text_selection(&self, id: NodeId, text: gpui::SharedString, anchor: usize) {
+        self.0.borrow_mut().text_selection = Some(PlainTextSelection {
+            node_id: id,
+            text,
+            anchor,
+            head: anchor,
+            dragging: true,
+        });
+    }
+
+    pub fn update_text_selection(&self, id: NodeId, head: usize) -> bool {
+        let mut state = self.0.borrow_mut();
+        let Some(selected) = state.text_selection.as_mut() else {
+            return false;
+        };
+        if selected.node_id != id || !selected.dragging || selected.head == head {
+            return false;
+        }
+        selected.head = head;
+        true
+    }
+
+    pub fn finish_text_selection(&self, id: NodeId) -> bool {
+        let mut state = self.0.borrow_mut();
+        let Some(selected) = state.text_selection.as_mut() else {
+            return false;
+        };
+        if selected.node_id != id || !selected.dragging {
+            return false;
+        }
+        selected.dragging = false;
+        if selected.range().is_empty() {
+            state.text_selection = None;
+        }
+        true
+    }
+
+    pub fn clear_text_selection(&self) -> bool {
+        self.0.borrow_mut().text_selection.take().is_some()
+    }
+
+    pub fn sync_plain_text_selection(&self, id: NodeId, text: &str) {
+        let mut state = self.0.borrow_mut();
+        if state
+            .text_selection
+            .as_ref()
+            .is_some_and(|selected| selected.node_id == id && selected.text.as_ref() != text)
+        {
+            state.text_selection = None;
+        }
+    }
+
+    pub fn clear_plain_text_selection(&self, id: NodeId) {
+        let mut state = self.0.borrow_mut();
+        if state
+            .text_selection
+            .as_ref()
+            .is_some_and(|selected| selected.node_id == id)
+        {
+            state.text_selection = None;
+        }
+    }
+
+    pub fn selected_plain_text(&self) -> Option<String> {
+        self.0
+            .borrow()
+            .text_selection
+            .as_ref()
+            .and_then(PlainTextSelection::selected_text)
+            .map(str::to_owned)
+    }
+
     pub fn is_interactive(&self, id: NodeId) -> bool {
         let state = self.0.borrow();
         state.focus.get(&id).is_some_and(|focus| focus.enabled) || state.scroll.contains_key(&id)
@@ -347,6 +553,7 @@ impl RuntimeStateRegistry {
             value,
             value_revision,
             placeholder,
+            placeholder_color,
             min_rows,
             max_rows,
         } = config;
@@ -360,18 +567,41 @@ impl RuntimeStateRegistry {
                 let revision_changed = control.value_revision != value_revision;
                 let rows_changed = control.min_rows != min_rows || control.max_rows != max_rows;
                 let placeholder_changed = control.placeholder != placeholder;
+                let placeholder_color_changed = control.placeholder_color != placeholder_color;
                 control.value_revision = value_revision;
                 control.min_rows = min_rows;
                 control.max_rows = max_rows;
                 control.placeholder.clone_from(&placeholder);
+                control.placeholder_color = placeholder_color;
                 (
                     control.editor.clone(),
                     revision_changed,
                     rows_changed,
                     placeholder_changed,
+                    placeholder_color_changed,
                 )
             });
-        if let Some((editor, revision_changed, rows_changed, placeholder_changed)) = existing {
+        if let Some((
+            editor,
+            revision_changed,
+            rows_changed,
+            placeholder_changed,
+            placeholder_color_changed,
+        )) = existing
+        {
+            if placeholder_color_changed {
+                let style = text_control_editor_style(placeholder_color, cx);
+                match &editor {
+                    TextControlEditor::Input(editor) => editor.update(cx, |editor, cx| {
+                        editor.set_editor_style(style);
+                        cx.notify();
+                    }),
+                    TextControlEditor::Textarea(editor) => editor.update(cx, |editor, cx| {
+                        editor.set_editor_style(style);
+                        cx.notify();
+                    }),
+                }
+            }
             if placeholder_changed {
                 match &editor {
                     TextControlEditor::Input(editor) => editor.update(cx, |editor, cx| {
@@ -411,15 +641,14 @@ impl RuntimeStateRegistry {
 
         let value = text_control_value(kind, value);
         // An unset selection resolves to the near-white accent, not the palette's selection token.
-        let editor_style = InputEditorStyle {
-            selection: gpui_base::Theme::global(cx).tokens.colors.selection,
-            ..Default::default()
-        };
+        let editor_style = text_control_editor_style(placeholder_color, cx);
         let runtime = Rc::downgrade(&self.0);
         let (editor, events) = match kind {
             TextControlKind::Input => {
                 let editor = cx.new(|cx| {
                     let mut editor = InputState::new(window, cx);
+                    #[cfg(any(target_os = "macos", target_os = "windows"))]
+                    install_native_text_menu(&mut editor, cx.weak_entity(), window_id, id);
                     editor.set_value(value.clone(), window, cx);
                     editor.set_placeholder(placeholder.clone(), window, cx);
                     editor.set_editor_style(editor_style.clone());
@@ -433,6 +662,8 @@ impl RuntimeStateRegistry {
             TextControlKind::Textarea => {
                 let editor = cx.new(|cx| {
                     let mut editor = TextareaState::new(window, cx);
+                    #[cfg(any(target_os = "macos", target_os = "windows"))]
+                    install_native_text_menu(&mut editor, cx.weak_entity(), window_id, id);
                     configure_textarea(&mut editor, min_rows, max_rows, cx);
                     editor.set_value(value.clone(), window, cx);
                     editor.set_placeholder(placeholder.clone(), window, cx);
@@ -451,6 +682,7 @@ impl RuntimeStateRegistry {
                 editor: editor.clone(),
                 value_revision,
                 placeholder,
+                placeholder_color,
                 min_rows,
                 max_rows,
                 last_value: value,
@@ -677,6 +909,13 @@ impl RuntimeStateRegistry {
                 state.text_control.remove(id);
                 state.scroll.remove(id);
                 state.frame.nodes.remove(id);
+            }
+            if state
+                .text_selection
+                .as_ref()
+                .is_some_and(|selected| ids.contains(&selected.node_id))
+            {
+                state.text_selection = None;
             }
             state.take_pending(|operation| ids.contains(&operation.id()))
         };
@@ -1387,6 +1626,7 @@ mod frame_tests {
                                 value: &value,
                                 value_revision: 1,
                                 placeholder: "placeholder",
+                                placeholder_color: None,
                                 min_rows: Some(2),
                                 max_rows: Some(4),
                             },
@@ -1423,6 +1663,7 @@ mod frame_tests {
                                 value: "must not replace the same revision",
                                 value_revision: 1,
                                 placeholder: "new placeholder",
+                                placeholder_color: None,
                                 min_rows: Some(3),
                                 max_rows: Some(5),
                             },

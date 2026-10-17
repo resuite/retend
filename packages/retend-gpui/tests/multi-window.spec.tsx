@@ -2,8 +2,6 @@ import { onSetup } from 'retend';
 import { Outlet, Router, RouterProvider } from 'retend/router';
 import { afterEach, expect, it, vi } from 'vitest';
 
-import type { RetendGpuiRenderer } from '../source/gpui-renderer';
-
 import {
   collectText,
   createRenderer,
@@ -40,18 +38,14 @@ it('loads a router in each mounted root', async () => {
   const first = createRenderer();
   const second = createRenderer();
 
-  function createRoot(renderer: RetendGpuiRenderer, label: string) {
+  function createRoot(label: string) {
     return function Root() {
       const router = new Router({
         routes: [{ path: '/', component: () => label }],
         linkTag: 'div',
       });
       onSetup(() => {
-        const detach = router.attachWindowListeners(
-          renderer.host as unknown as Window
-        );
-        renderer.host.dispatchEvent(new Event('load'));
-        return detach;
+        void router.navigate('/');
       });
       return (
         <RouterProvider router={router}>
@@ -61,8 +55,8 @@ it('loads a router in each mounted root', async () => {
     };
   }
 
-  await first.mount(createRoot(first, 'First'));
-  await second.mount(createRoot(second, 'Second'));
+  await first.mount(createRoot('First'));
+  await second.mount(createRoot('Second'));
   await tick();
 
   expect(collectText(debugTree(first))).toContain('First');

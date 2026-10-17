@@ -25,14 +25,14 @@ export function PaletteColorButton(props: PaletteColorButtonProps) {
   return (
     <button
       type="button"
+      aria-label={option.label}
+      title={option.label}
       class={[
         classes.paletteColor,
         option.className,
         { [classes.paletteColorActive]: isActive },
       ]}
       onClick={() => devRenderer.highlightColor.set(option.value)}
-      aria-label={option.label}
-      title={option.label}
     />
   );
 }

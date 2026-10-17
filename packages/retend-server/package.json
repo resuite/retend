@@ -13,6 +13,11 @@
     "ssg",
     "ssr"
   ],
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/resuite/retend.git",
+    "directory": "packages/retend-server"
+  },
   "type": "module",
   "exports": {
     ".": {

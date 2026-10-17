@@ -1,20 +1,15 @@
 import { onSetup } from 'retend';
-import { useWindow } from 'retend-gpui';
-import { Outlet, Router, RouterProvider } from 'retend/router';
+import { attachRouter, useWindow } from 'retend-gpui';
+import { defineRoutes, Outlet, Router, RouterProvider } from 'retend/router';
 
 import App from './app';
-const routes = [{ path: '/', component: App }];
+const routes = defineRoutes([{ path: '/', component: App, title: 'Example' }]);
 
 export default function Root() {
   const window = useWindow();
   const router = new Router({ routes, linkTag: 'div' });
 
-  onSetup(() => {
-    const host = window.host as unknown as Window;
-    const detach = router.attachWindowListeners(host);
-    window.host.dispatchEvent(new Event('load'));
-    return detach;
-  });
+  onSetup(() => attachRouter(router, window));
 
   return (
     <RouterProvider router={router}>

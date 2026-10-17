@@ -321,6 +321,34 @@ export interface GpuiStyleDeclarations {
   fontWeight?: number | 'normal' | 'bold';
   textAlign?: 'left' | 'center' | 'right';
   lineHeight?: number;
+  /** Native cursor shown over this element. */
+  cursor?:
+    | 'auto'
+    | 'default'
+    | 'pointer'
+    | 'text'
+    | 'crosshair'
+    | 'grab'
+    | 'grabbing'
+    | 'w-resize'
+    | 'e-resize'
+    | 'ew-resize'
+    | 'n-resize'
+    | 's-resize'
+    | 'ns-resize'
+    | 'nesw-resize'
+    | 'nwse-resize'
+    | 'col-resize'
+    | 'row-resize'
+    | 'vertical-text'
+    | 'not-allowed'
+    | 'alias'
+    | 'copy'
+    | 'context-menu';
+  /** Subtree pointer targeting. `none` passes through; descendant `auto` does not opt back in. Keyboard focus is unaffected. */
+  pointerEvents?: 'auto' | 'none';
+  /** Whether ordinary rendered text can be selected. Inherited by descendants. */
+  userSelect?: 'text' | 'none';
   whiteSpace?: 'normal' | 'nowrap';
   overflow?: 'visible' | 'clip' | 'hidden' | 'auto' | 'scroll';
 
@@ -334,6 +362,11 @@ export interface GpuiStyle extends GpuiStyleDeclarations {
   hover?: GpuiStyleDeclarations;
   focused?: GpuiStyleDeclarations;
   active?: GpuiStyleDeclarations;
+}
+
+export interface GpuiTextControlStyle extends GpuiStyle {
+  /** Placeholder text color for native input and textarea controls. */
+  placeholder?: Pick<GpuiStyleDeclarations, 'color'>;
 }
 
 /** Logical scroll offset of a native scroll container. */
@@ -366,6 +399,7 @@ export const GPUI_ELEMENT_TYPES = [
   'anchored',
   'button',
   'svg',
+  'audio',
 ] as const;
 
 /** Union of currently supported intrinsic element tag names. */
@@ -398,6 +432,17 @@ export interface GpuiSvgCustomProps {
   src?: string;
   /** Accessible text announced for the icon. */
   alt?: string;
+}
+
+/** Non-visual native audio playback. */
+export interface GpuiAudioCustomProps {
+  /** Local file URL, absolute path, or imported audio asset. */
+  src?: string;
+  autoPlay?: boolean;
+  loop?: boolean;
+  muted?: boolean;
+  /** Playback volume between 0 and 1. */
+  volume?: number;
 }
 
 export interface GpuiInputCustomProps {

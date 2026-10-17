@@ -22,7 +22,9 @@ npm install -D retend-web-devtools
 
 ## Usage
 
-To use the devtools, you need to wrap your application root with the `<RetendDevTools>` component.
+To use the devtools, wrap your application root with `<RetendDevTools>`.
+
+The existing `retend()` Vite plugin automatically records local JSX component definitions during development. The source icon opens a selected component's definition through Vite's editor endpoint; components without a resolvable definition do not display the action. No second plugin is required.
 
 `retend-web-devtools` automatically enables the full devtools build in development and resolves to a no-op component in production.
 

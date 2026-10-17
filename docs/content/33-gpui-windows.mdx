@@ -33,31 +33,31 @@ export default defineConfig({
 });
 ```
 
-| Option        | Required | Description                                                                                  |
-| ------------- | -------- | -------------------------------------------------------------------------------------------- |
-| `app`         | Yes      | The application's identity. See below.                                                       |
-| `application` | Yes      | Path to a module whose default export is the application class.                              |
-| `entry`       | Yes      | Path to a module whose default export is the root component.                                 |
-| `window`      | Yes      | Options for the first window. `width` and `height` are required.                             |
-| `system`      | No       | Process-wide native options. See [System Options](#system-options).                          |
-| `target`      | No       | Build target. See [GPUI Packaging](/docs/gpui-packaging).                                    |
-| `node`        | No       | Embedded Node.js version for packaged apps. See [GPUI Packaging](/docs/gpui-packaging).      |
-| `signing`     | No       | macOS signing and notarization. See [GPUI Packaging](/docs/gpui-packaging).                  |
+| Option        | Required | Description                                                                             |
+| ------------- | -------- | --------------------------------------------------------------------------------------- |
+| `app`         | Yes      | The application's identity. See below.                                                  |
+| `application` | Yes      | Path to a module whose default export is the application class.                         |
+| `entry`       | Yes      | Path to a module whose default export is the root component.                            |
+| `window`      | Yes      | Options for the first window. `width` and `height` are required.                        |
+| `system`      | No       | Process-wide native options. See [System Options](#system-options).                     |
+| `target`      | No       | Build target. See [GPUI Packaging](/docs/gpui-packaging).                               |
+| `node`        | No       | Embedded Node.js version for packaged apps. See [GPUI Packaging](/docs/gpui-packaging). |
+| `signing`     | No       | macOS signing and notarization. See [GPUI Packaging](/docs/gpui-packaging).             |
 
 Paths are relative to the Vite root. The plugin validates its options when Vite starts and throws a descriptive error if one is wrong.
 
 ### App identity
 
-| Field         | Required | Description                                                                                         |
-| ------------- | -------- | --------------------------------------------------------------------------------------------------- |
-| `name`        | Yes      | The display name. Also the default window title.                                                    |
-| `identifier`  | Yes      | A reverse-DNS identifier such as `com.example.notes`.                                               |
-| `version`     | Yes      | A valid SemVer version, such as `1.0.0`.                                                            |
-| `icon`        | No       | The app icon. macOS accepts `.icns`, `.png`, or `.svg`. Windows accepts `.ico`, `.png`, or `.svg`.  |
-| `macos.icon`  | No       | Overrides `icon` on macOS.                                                                          |
-| `windows.icon`| No       | Overrides `icon` on Windows.                                                                        |
-| `description` | No       | A description passed to the Windows packager.                                                       |
-| `publisher`   | No       | A publisher name passed to the Windows packager.                                                    |
+| Field          | Required | Description                                                                                        |
+| -------------- | -------- | -------------------------------------------------------------------------------------------------- |
+| `name`         | Yes      | The display name. Also the default window title.                                                   |
+| `identifier`   | Yes      | A reverse-DNS identifier such as `com.example.notes`.                                              |
+| `version`      | Yes      | A valid SemVer version, such as `1.0.0`.                                                           |
+| `icon`         | No       | The app icon. macOS accepts `.icns`, `.png`, or `.svg`. Windows accepts `.ico`, `.png`, or `.svg`. |
+| `macos.icon`   | No       | Overrides `icon` on macOS.                                                                         |
+| `windows.icon` | No       | Overrides `icon` on Windows.                                                                       |
+| `description`  | No       | A description passed to the Windows packager.                                                      |
+| `publisher`    | No       | A publisher name passed to the Windows packager.                                                   |
 
 ## The Application Class
 
@@ -112,13 +112,16 @@ The context is typed from the application class. `retend-start` creates `retend-
 
 `useWindow()` returns the native window for the current Retend root:
 
-| Member            | Description                                                                                |
-| ----------------- | ------------------------------------------------------------------------------------------ |
-| `width`, `height` | Read-only Cells that track the content size. They update on native resize events.          |
-| `title`           | A Cell. Setting it changes the OS window title.                                            |
-| `open(options)`   | Opens another independent window. Returns a promise of a handle.                           |
-| `close()`         | Requests that this window close.                                                           |
-| `host`            | The native host. It exposes the window's `location` and `history`, which the router uses.  |
+| Member            | Description                                                                                                      |
+| ----------------- | ---------------------------------------------------------------------------------------------------------------- |
+| `width`, `height` | Read-only Cells that track the content size. They update together on native resize events.                       |
+| `orientation`     | Read-only Cell with `portrait` or `landscape`, derived from `width` and `height`. Square windows are `portrait`. |
+| `title`           | A Cell. Setting it changes the OS window title.                                                                  |
+| `initialPath`     | The route path the window opened on, from the `initialPath` option. It never changes.                            |
+| `open(options)`   | Opens another independent window. Returns a promise of a handle.                                                 |
+| `showMenu(options)` | Shows an OS-native popup menu and resolves to its selected item ID or `null` on dismissal.                         |
+| `close()`         | Requests that this window close.                                                                                 |
+| `host`            | The native host. It dispatches window lifecycle events.                                                          |
 
 The window is also an event target and emits `focus` and `blur`.
 
@@ -128,7 +131,10 @@ import { useWindow } from 'retend-gpui';
 
 function Header() {
   const window = useWindow();
-  const size = Cell.derived(() => `${window.width.get()} × ${window.height.get()}`);
+  const size = Cell.derived(
+    () =>
+      `${window.width.get()} × ${window.height.get()} (${window.orientation.get()})`
+  );
 
   return (
     <div>
@@ -139,28 +145,68 @@ function Header() {
 }
 ```
 
+`orientation` is derived from the size, so it updates whenever a resize changes the aspect: `landscape` when the width exceeds the height, `portrait` otherwise.
+
+## Native Popup Menus
+
+Use `showMenu()` for context menus and menus opened from buttons. It uses the operating system's menu appearance and keyboard navigation, not a GPUI-rendered dropdown.
+
+```tsx
+import { useWindow } from 'retend-gpui';
+
+function FileRow() {
+  const window = useWindow();
+
+  async function openMenu(x: number, y: number) {
+    const selected = await window.showMenu({
+      position: { x, y },
+      items: [
+        { id: 'open', label: 'Open' },
+        { id: 'rename', label: 'Rename' },
+        { type: 'separator' },
+        { id: 'delete', label: 'Move to Trash', disabled: true },
+      ],
+    });
+    if (selected === 'open') openFile();
+    if (selected === 'rename') renameFile();
+  }
+
+  return (
+    <div onContextMenu={(event) => void openMenu(event.clientX, event.clientY)}>
+      Right-click a file
+    </div>
+  );
+}
+```
+
+The `position` is in logical pixels relative to the window's content. Menus can also be opened programmatically, for example from a toolbar button. Each action needs a unique nonempty `id` and `label`; separators use `{ type: 'separator' }`. Dismissing a menu without selecting an action resolves to `null`. TypeScript infers the permitted result IDs from an inline `items` array (for example, `'open' | 'rename' | 'delete' | null`). Closing the window before presentation rejects the promise.
+
+On `input` and `textarea`, Retend normally provides the OS editing menu. Registering an `onContextMenu` listener opts into replacing that default: the handler must call `showMenu()` if it wants a menu. Since JavaScript events are delivered asynchronously, `preventDefault()` does not cancel an already-open OS popup.
+
+Native popup menus are supported on macOS and Windows. They do not currently provide custom JSX content or nested submenus. Linux does not support this API yet.
+
 ## Window Options
 
 The `window` option in the plugin config and the `options` argument to `open()` accept the same fields:
 
-| Option            | Type      | Description                                                                   |
-| ----------------- | --------- | ----------------------------------------------------------------------------- |
-| `title`           | `string`  | The window title. For the first window it defaults to `app.name`.             |
-| `width`           | `number`  | The initial content width, in logical pixels.                                 |
-| `height`          | `number`  | The initial content height, in logical pixels.                                |
-| `resizable`       | `boolean` | Whether the user can resize the window. Defaults to `true`.                   |
-| `fullscreen`      | `boolean` | Opens in fullscreen. Cannot be combined with `maximized`.                     |
-| `maximized`       | `boolean` | Opens maximized. Cannot be combined with `fullscreen`.                        |
-| `minWidth`, `minHeight` | `number` | The smallest content size the user can resize to.                       |
-| `maxWidth`, `maxHeight` | `number` | The largest content size the user can resize to.                        |
-| `location`        | `string`  | The initial route. Defaults to `/`.                                           |
-| `closeWithOpener` | `boolean` | Whether the window closes when the window that opened it closes. Defaults to `true`. |
+| Option                  | Type      | Description                                                                          |
+| ----------------------- | --------- | ------------------------------------------------------------------------------------ |
+| `title`                 | `string`  | The window title. For the first window it defaults to `app.name`.                    |
+| `width`                 | `number`  | The initial content width, in logical pixels.                                        |
+| `height`                | `number`  | The initial content height, in logical pixels.                                       |
+| `resizable`             | `boolean` | Whether the user can resize the window. Defaults to `true`.                          |
+| `fullscreen`            | `boolean` | Opens in fullscreen. Cannot be combined with `maximized`.                            |
+| `maximized`             | `boolean` | Opens maximized. Cannot be combined with `fullscreen`.                               |
+| `minWidth`, `minHeight` | `number`  | The smallest content size the user can resize to.                                    |
+| `maxWidth`, `maxHeight` | `number`  | The largest content size the user can resize to.                                     |
+| `initialPath`           | `string`  | The route path the window opens on, such as a deep link. Defaults to `/`.            |
+| `closeWithOpener`       | `boolean` | Whether the window closes when the window that opened it closes. Defaults to `true`. |
 
 Sizes are finite positive numbers, and each minimum cannot exceed its maximum.
 
 ## Opening More Windows
 
-`open()` creates another native window with its own Retend root. A `location` value starts it on a specific route:
+`open()` creates another native window with its own Retend root. An `initialPath` starts it on a specific route:
 
 ```tsx
 import { useWindow } from 'retend-gpui';
@@ -173,7 +219,7 @@ function OpenSettings() {
       title: 'Settings',
       width: 520,
       height: 640,
-      location: '/settings',
+      initialPath: '/settings',
     });
     settings.addEventListener('close', () => console.log('Settings closed'));
   };
@@ -186,11 +232,11 @@ The returned handle has a `close()` method and fires a `close` event. By default
 
 ## Routing
 
-A GPUI window has no browser location bar, so the router is connected to the native window explicitly. The scaffolded `router.tsx` shows the setup:
+A GPUI window has no address bar or back and forward buttons, so the router is the only thing that changes the route while the app runs. `attachRouter` connects the router to the window. The scaffolded `router.tsx` shows the setup:
 
 ```tsx
 import { onSetup } from 'retend';
-import { useWindow } from 'retend-gpui';
+import { attachRouter, useWindow } from 'retend-gpui';
 import { Outlet, Router, RouterProvider } from 'retend/router';
 
 import App from './App';
@@ -201,12 +247,7 @@ export default function Root() {
   const window = useWindow();
   const router = new Router({ routes, linkTag: 'div' });
 
-  onSetup(() => {
-    const host = window.host as unknown as Window;
-    const detach = router.attachWindowListeners(host);
-    window.host.dispatchEvent(new Event('load'));
-    return detach;
-  });
+  onSetup(() => attachRouter(router, window));
 
   return (
     <RouterProvider router={router}>
@@ -219,18 +260,53 @@ export default function Root() {
 Three details matter:
 
 - `linkTag: 'div'` gives `Link` a GPUI-compatible host element.
-- `attachWindowListeners` connects the router to the window's `location` and `history`. It returns a function that detaches them, which `onSetup` uses as its cleanup.
-- The router loads the initial route when the host receives a `load` event, so the setup dispatches one after attaching.
+- `attachRouter` navigates to `window.initialPath`. A window opened with `initialPath: '/books/42'` starts on that page, which is how deep links work. If the root remounts, for example after a hot reload of this file, the new router starts again from the initial path.
+- Route titles set the window title. A route without a title leaves the current title in place, as in a browser. `attachRouter` returns a function that stops the title updates, which `onSetup` uses as its cleanup.
 
 See [Defining Routes](/docs/defining-routes) for the router itself.
 
+## System Preferences
+
+`useSystem()` returns reactive operating-system preferences shared by every window in the process, including components rendered with `renderToGpui()`:
+
+```tsx
+import { Cell } from 'retend';
+import { useSystem } from 'retend-gpui';
+
+function ThemedBadge() {
+  const system = useSystem();
+  const label = Cell.derived(() => system.theme.get() ?? 'detecting…');
+
+  return <div>Theme: {label}</div>;
+}
+```
+
+| Member        | Description                                                                                               |
+| ------------- | --------------------------------------------------------------------------------------------------------- |
+| `theme`       | A Cell with `light`, `dark`, or `null` until the native runtime reports the initial value.                |
+| `accentColor` | A Cell with the system accent as a CSS hex color, or `null` before detection or on unsupported platforms. |
+
+Both Cells start as `null` and update when the OS reports a change. `accentColor` is supported on macOS and Windows, where it follows the Windows UI accent preference rather than the DWM titlebar color. It stays `null` on platforms without a supported system accent API.
+
+For imperative code, the window host also dispatches a `systempreferences` event carrying the same values:
+
+```ts
+import type { GpuiSystemPreferencesEvent } from 'retend-gpui';
+
+window.host.addEventListener('systempreferences', (event) => {
+  const preferences = event as GpuiSystemPreferencesEvent;
+  console.log(preferences.theme, preferences.accentColor);
+});
+```
+
 ## System Options
 
-`system` holds options that apply to every window in the application:
+`system` holds static options that apply to every window in the application (as opposed to the reactive preferences above):
 
-| Option               | Description                                                                                               |
-| -------------------- | --------------------------------------------------------------------------------------------------------- |
+| Option                | Description                                                                                                |
+| --------------------- | ---------------------------------------------------------------------------------------------------------- |
 | `transparentTitlebar` | Makes the native titlebar transparent so content can extend behind the window controls. macOS and Windows. |
+| `trafficLightPosition` | `{ x, y }` placement of macOS close, minimize, and zoom buttons, in logical pixels from the titlebar origin. Ignored on other platforms. |
 
 ## Development Reloads
 

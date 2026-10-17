@@ -593,3 +593,146 @@ test('no-jsx-map allows other member calls in JSX', () => {
     assert.equal(reports.length, 0);
   }
 });
+
+function jsxAttributeWithValue(name, value) {
+  return {
+    type: 'JSXAttribute',
+    name: { type: 'JSXIdentifier', name },
+    value,
+  };
+}
+
+function stringLiteral(value) {
+  return { type: 'Literal', value };
+}
+
+function expressionAttribute(name, expression) {
+  return jsxAttributeWithValue(name, {
+    type: 'JSXExpressionContainer',
+    expression,
+  });
+}
+
+function inlineArrow() {
+  return {
+    type: 'ArrowFunctionExpression',
+    params: [],
+    body: { type: 'BlockStatement', body: [] },
+  };
+}
+
+test('jsx-props-order allows ref/key, props, class, handlers, style', () => {
+  const reports = runVisitor(
+    'jsx-props-order',
+    'JSXElement',
+    jsxElement('div', [
+      jsxAttributeWithValue('ref', stringLiteral('root')),
+      jsxAttributeWithValue('id', stringLiteral('main')),
+      jsxAttributeWithValue('class', stringLiteral('card')),
+      jsxAttribute('onClick'),
+      expressionAttribute('style', {
+        type: 'ObjectExpression',
+        properties: [],
+      }),
+    ])
+  );
+
+  assert.equal(reports.length, 0);
+});
+
+test('jsx-props-order reports class placed before plain props', () => {
+  const reports = runVisitor(
+    'jsx-props-order',
+    'JSXElement',
+    jsxElement('div', [
+      jsxAttributeWithValue('class', stringLiteral('card')),
+      jsxAttributeWithValue('id', stringLiteral('main')),
+    ])
+  );
+
+  assert.equal(reports.length, 1);
+  assert.equal(reports[0].messageId, 'unexpected');
+});
+
+test('jsx-props-order reports handlers placed before class', () => {
+  const reports = runVisitor(
+    'jsx-props-order',
+    'JSXElement',
+    jsxElement('div', [
+      jsxAttribute('onClick'),
+      jsxAttributeWithValue('class', stringLiteral('card')),
+    ])
+  );
+
+  assert.equal(reports.length, 1);
+  assert.equal(reports[0].messageId, 'unexpected');
+});
+
+test('jsx-props-order groups inline function props with handlers', () => {
+  const ordered = runVisitor(
+    'jsx-props-order',
+    'JSXElement',
+    jsxElement('div', [
+      jsxAttributeWithValue('class', stringLiteral('card')),
+      expressionAttribute('renderItem', inlineArrow()),
+    ])
+  );
+  assert.equal(ordered.length, 0);
+
+  const reports = runVisitor(
+    'jsx-props-order',
+    'JSXElement',
+    jsxElement('div', [
+      expressionAttribute('renderItem', inlineArrow()),
+      jsxAttributeWithValue('id', stringLiteral('main')),
+    ])
+  );
+
+  assert.equal(reports.length, 1);
+  assert.equal(reports[0].messageId, 'unexpected');
+});
+
+test('jsx-props-order reports style placed before handlers', () => {
+  const reports = runVisitor(
+    'jsx-props-order',
+    'JSXElement',
+    jsxElement('div', [
+      expressionAttribute('style', {
+        type: 'ObjectExpression',
+        properties: [],
+      }),
+      jsxAttribute('onClick'),
+    ])
+  );
+
+  assert.equal(reports.length, 1);
+  assert.equal(reports[0].messageId, 'unexpected');
+});
+
+test('jsx-props-order requires ref and key before other props', () => {
+  const reports = runVisitor(
+    'jsx-props-order',
+    'JSXElement',
+    jsxElement('div', [
+      jsxAttributeWithValue('id', stringLiteral('main')),
+      jsxAttribute('ref'),
+    ])
+  );
+
+  assert.equal(reports.length, 1);
+  assert.equal(reports[0].messageId, 'unexpected');
+});
+
+test('jsx-props-order restarts ordering after spreads', () => {
+  const reports = runVisitor(
+    'jsx-props-order',
+    'JSXElement',
+    jsxElement('div', [
+      jsxAttribute('onClick'),
+      { type: 'JSXSpreadAttribute', argument: identifier('props') },
+      jsxAttributeWithValue('id', stringLiteral('main')),
+    ])
+  );
+
+  assert.equal(reports.length, 0);
+});

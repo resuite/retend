@@ -23,7 +23,6 @@ describe('Router Redirects', () => {
         { path: '/new-path', name: 'new-path', component: () => 'New Path' },
       ]),
     });
-    router.attachWindowListeners(window);
     window.document.body.append(createRouterRoot(router));
 
     await router.navigate('/old-path');
@@ -31,6 +30,47 @@ describe('Router Redirects', () => {
     expect(route.get().name).toBe('new-path');
     expect(route.get().fullPath).toBe('/new-path');
     expect(getTextContent(window.document.body)).toBe('New Path');
+  });
+
+  it('should redirect from a route with no component', async () => {
+    const renderer = getActiveRenderer() as DOMRenderer;
+    const { host: window } = renderer;
+    const router = new Router({
+      routes: defineRoutes([
+        { path: '/old-path', redirect: '/new-path' },
+        { path: '/new-path', name: 'new-path', component: () => 'New Path' },
+      ]),
+    });
+    window.document.body.append(createRouterRoot(router));
+
+    await router.navigate('/old-path');
+    const route = router.getCurrentRoute();
+    expect(route.get().name).toBe('new-path');
+    expect(route.get().fullPath).toBe('/new-path');
+    expect(getTextContent(window.document.body)).toBe('New Path');
+  });
+
+  it('should redirect from an index child with no component', async () => {
+    const renderer = getActiveRenderer() as DOMRenderer;
+    const { host: window } = renderer;
+    const router = new Router({
+      routes: defineRoutes([
+        {
+          path: '/settings',
+          children: [
+            { path: '', redirect: '/settings/general' },
+            { path: 'general', name: 'general', component: () => 'General' },
+          ],
+        },
+      ]),
+    });
+    window.document.body.append(createRouterRoot(router));
+
+    await router.navigate('/settings');
+    const route = router.getCurrentRoute();
+    expect(route.get().name).toBe('general');
+    expect(route.get().fullPath).toBe('/settings/general');
+    expect(getTextContent(window.document.body)).toBe('General');
   });
 
   it('should handle redirect with path parameters', async () => {
@@ -47,7 +87,6 @@ describe('Router Redirects', () => {
         { path: '/new/:id', name: 'new-path', component: () => 'New Path' },
       ]),
     });
-    router.attachWindowListeners(window);
     window.document.body.append(createRouterRoot(router));
 
     await router.navigate('/old/123');
@@ -76,7 +115,6 @@ describe('Router Redirects', () => {
         },
       ]),
     });
-    router.attachWindowListeners(window);
     window.document.body.append(createRouterRoot(router));
 
     await router.navigate('/app/old');
@@ -99,7 +137,6 @@ describe('Router Redirects', () => {
         { path: '/b', name: 'b', redirect: '/a', component: () => 'B' },
       ]),
     });
-    router.attachWindowListeners(window);
     window.document.body.append(createRouterRoot(router));
 
     await router.navigate('/a');
@@ -124,7 +161,6 @@ describe('Router Redirects', () => {
         },
       ]),
     });
-    router.attachWindowListeners(window);
     window.document.body.append(createRouterRoot(router));
 
     await router.navigate('/same');
@@ -147,7 +183,6 @@ describe('Router Redirects', () => {
         { path: '/new', name: 'new-path', component: () => 'New Path' },
       ]),
     });
-    router.attachWindowListeners(window);
     window.document.body.append(createRouterRoot(router));
 
     await router.navigate('/old?param=value');
@@ -171,7 +206,6 @@ describe('Router Redirects', () => {
         { path: '/new', name: 'new-path', component: () => 'New Path' },
       ]),
     });
-    router.attachWindowListeners(window);
     window.document.body.append(createRouterRoot(router));
 
     await router.navigate('/old#section');

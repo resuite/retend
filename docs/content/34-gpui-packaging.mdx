@@ -19,11 +19,11 @@ The `build` script runs `vite build`. Output goes to `dist/<platform>-<arch>`, f
 
 These plugin options affect builds:
 
-| Option    | Description                                                                                                           |
-| --------- | --------------------------------------------------------------------------------------------------------------------- |
-| `target`  | The build target as `<platform>-<arch>`. Defaults to the machine you build on.                                        |
-| `node`    | The Node.js version embedded in the packaged app. Defaults to a version chosen by `retend-gpui`.                      |
-| `signing` | Developer ID signing and notarization for macOS. See [macOS](#macos).                                                 |
+| Option    | Description                                                                                      |
+| --------- | ------------------------------------------------------------------------------------------------ |
+| `target`  | The build target as `<platform>-<arch>`. Defaults to the machine you build on.                   |
+| `node`    | The Node.js version embedded in the packaged app. Defaults to a version chosen by `retend-gpui`. |
+| `signing` | Developer ID signing and notarization for macOS. See [macOS](#macos).                            |
 
 Supported targets are `darwin-arm64`, `linux-arm64`, `linux-x64`, `win32-arm64`, and `win32-x64`. Any other value throws an error.
 
@@ -33,11 +33,11 @@ A build needs the prebuilt native addon for its target. The addon for the host p
 
 ## What Each Platform Produces
 
-| Target                     | Result                                                                  |
-| -------------------------- | ----------------------------------------------------------------------- |
-| `darwin-arm64`             | `<AppName>.app` and `<AppName>.dmg`                                     |
-| `win32-x64`, `win32-arm64` | `<AppName>.exe` when built on Windows. Otherwise only the bundle.       |
-| `linux-x64`, `linux-arm64` | The bundle directory.                                                    |
+| Target                     | Result                                                            |
+| -------------------------- | ----------------------------------------------------------------- |
+| `darwin-arm64`             | `<AppName>.app` and `<AppName>.dmg`                               |
+| `win32-x64`, `win32-arm64` | `<AppName>.exe` when built on Windows. Otherwise only the bundle. |
+| `linux-x64`, `linux-arm64` | The bundle directory.                                             |
 
 The bundle directory holds `index.js`, an `assets/` folder, and the native addon under `native/`.
 
@@ -61,12 +61,12 @@ retendGpui({
 });
 ```
 
-| Option          | Description                                                                                                         |
-| --------------- | ------------------------------------------------------------------------------------------------------------------- |
-| `identity`      | The `codesign` identity. Falls back to the `RETEND_GPUI_SIGN_IDENTITY` environment variable.                        |
-| `entitlements`  | Path to a custom entitlements plist. A default that allows JIT is generated when you omit it.                       |
+| Option          | Description                                                                                                               |
+| --------------- | ------------------------------------------------------------------------------------------------------------------------- |
+| `identity`      | The `codesign` identity. Falls back to the `RETEND_GPUI_SIGN_IDENTITY` environment variable.                              |
+| `entitlements`  | Path to a custom entitlements plist. A default that allows JIT is generated when you omit it.                             |
 | `notaryProfile` | A `notarytool` keychain profile. Falls back to `RETEND_GPUI_NOTARY_PROFILE`, then to the `APPLE_*` environment variables. |
-| `notarize`      | Set to `false` to skip notarization.                                                                                |
+| `notarize`      | Set to `false` to skip notarization.                                                                                      |
 
 The build warns when the app is signed ad hoc, and when it is signed but missing notarization credentials. Gatekeeper blocks unnotarized downloads in both cases.
 

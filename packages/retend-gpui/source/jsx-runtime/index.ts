@@ -3,15 +3,17 @@ import type { JSX as RetendJSX } from 'retend/jsx-runtime';
 
 import type {
   GpuiFocusEvent,
-  GpuiImageEvent,
+  GpuiResourceEvent,
   GpuiInputEvent,
   GpuiKeyboardEvent,
   GpuiMouseEvent,
   GpuiScrollEvent,
   GpuiTransitionEvent,
+  GpuiWheelEvent,
 } from '../events.js';
 import type {
   GpuiAnchoredElement,
+  GpuiAudioElement,
   GpuiButtonElement,
   GpuiDivElement,
   GpuiImageElement,
@@ -21,6 +23,7 @@ import type {
 } from '../gpui-renderer.js';
 import type {
   GpuiAnchoredCustomProps,
+  GpuiAudioCustomProps,
   GpuiButtonCustomProps,
   GpuiImgCustomProps,
   GpuiInputCustomProps,
@@ -48,6 +51,10 @@ export type ReactiveStyle = ReactiveStyleDeclarations & {
   focused?: ReactiveStyleDeclarations;
   active?: ReactiveStyleDeclarations;
 };
+export type ReactiveTextControlStyle = ReactiveStyle & {
+  /** Placeholder text color for input and textarea. */
+  placeholder?: Pick<ReactiveStyleDeclarations, 'color'>;
+};
 type GpuiEventModifier = 'self' | 'prevent' | 'once' | 'passive' | 'stop';
 type GpuiEventModifierHandlers<Events extends object> = {
   [Key in keyof Events as Key extends string
@@ -63,14 +70,22 @@ interface GpuiInputNativeEvents {
 type GpuiInputNativeEventModifiers =
   GpuiEventModifierHandlers<GpuiInputNativeEvents>;
 
-/** Resource events, delivered only by `<img>`. */
+/** Native media/resource events. */
 interface GpuiImageNativeEvents {
-  onLoad?: ReactiveValue<(event: GpuiImageEvent) => void>;
-  onError?: ReactiveValue<(event: GpuiImageEvent) => void>;
+  onLoad?: ReactiveValue<(event: GpuiResourceEvent) => void>;
+  onError?: ReactiveValue<(event: GpuiResourceEvent) => void>;
 }
 
 type GpuiImageNativeEventModifiers =
   GpuiEventModifierHandlers<GpuiImageNativeEvents>;
+
+interface GpuiAudioNativeEvents {
+  onEnded?: ReactiveValue<(event: GpuiResourceEvent) => void>;
+  onError?: ReactiveValue<(event: GpuiResourceEvent) => void>;
+}
+type GpuiAudioNativeEventModifiers =
+  GpuiEventModifierHandlers<GpuiAudioNativeEvents>;
+export type ReactiveGpuiAudioCustomProps = ReactiveProps<GpuiAudioCustomProps>;
 export type ReactiveGpuiAnchoredCustomProps =
   ReactiveProps<GpuiAnchoredCustomProps>;
 export type ReactiveGpuiButtonCustomProps =
@@ -98,6 +113,7 @@ declare module 'retend/jsx-runtime' {
       onFocus?: ReactiveValue<(event: GpuiFocusEvent) => void>;
       onBlur?: ReactiveValue<(event: GpuiFocusEvent) => void>;
       onScroll?: ReactiveValue<(event: GpuiScrollEvent) => void>;
+      onWheel?: ReactiveValue<(event: GpuiWheelEvent) => void>;
       onTransitionRun?: ReactiveValue<(event: GpuiTransitionEvent) => void>;
       onTransitionStart?: ReactiveValue<(event: GpuiTransitionEvent) => void>;
       onTransitionEnd?: ReactiveValue<(event: GpuiTransitionEvent) => void>;
@@ -145,6 +161,13 @@ declare module 'retend/jsx-runtime' {
         GpuiImageNativeEventModifiers,
         ReactiveGpuiImgCustomProps {}
 
+    interface GpuiAudioProps
+      extends
+        GpuiLeafProps<GpuiAudioElement>,
+        GpuiAudioNativeEvents,
+        GpuiAudioNativeEventModifiers,
+        ReactiveGpuiAudioCustomProps {}
+
     interface GpuiSvgProps
       extends GpuiLeafProps<GpuiSvgElement>, ReactiveGpuiSvgCustomProps {}
 
@@ -152,7 +175,9 @@ declare module 'retend/jsx-runtime' {
       extends
         GpuiLeafProps<Element>,
         GpuiInputNativeEvents,
-        GpuiInputNativeEventModifiers {}
+        GpuiInputNativeEventModifiers {
+      style?: ValueOrCell<ReactiveTextControlStyle>;
+    }
 
     interface GpuiInputProps
       extends
@@ -180,6 +205,7 @@ declare module 'retend/jsx-runtime' {
       anchored: GpuiAnchoredProps;
       img: GpuiImageProps;
       svg: GpuiSvgProps;
+      audio: GpuiAudioProps;
       input: GpuiInputProps;
       textarea: GpuiTextareaProps;
       button: GpuiButtonProps;

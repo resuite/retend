@@ -18,14 +18,12 @@ describe('Router Direct Imports', () => {
 
   it('should work with directly imported Link component', async () => {
     const renderer = getActiveRenderer() as DOMRenderer;
-    const { host: window } = renderer;
     const router = new Router({
       routes: defineRoutes([
         { path: '/', name: 'home', component: () => 'Home' },
         { path: '/about', name: 'about', component: () => 'About' },
       ]),
     });
-    router.attachWindowListeners(window);
     const Component = () => {
       // Test that Link component can be used directly
       const linkElement = renderer.render(
@@ -51,13 +49,11 @@ describe('Router Direct Imports', () => {
 
   it('should work with directly imported Outlet component', async () => {
     const renderer = getActiveRenderer() as DOMRenderer;
-    const { host: window } = renderer;
     const router = new Router({
       routes: defineRoutes([
         { path: '/', name: 'home', component: () => 'Home' },
       ]),
     });
-    router.attachWindowListeners(window);
     const Component = () => {
       const outlet = renderer.render(Outlet());
       expect(outlet).toBeDefined();
@@ -75,14 +71,12 @@ describe('Router Direct Imports', () => {
 
   it('should use a custom link tag name', async () => {
     const renderer = getActiveRenderer() as DOMRenderer;
-    const { host: window } = renderer;
     const router = new Router({
       routes: defineRoutes([
         { path: '/', name: 'home', component: () => 'Home' },
       ]),
       linkTag: 'span',
     });
-    router.attachWindowListeners(window);
     const Component = () => {
       const linkElement = renderer.render(
         Link({ href: '/about', children: 'About Link' })
@@ -104,14 +98,12 @@ describe('Router Direct Imports', () => {
 
   it('should maintain backward compatibility with router instance methods', async () => {
     const renderer = getActiveRenderer() as DOMRenderer;
-    const { host: window } = renderer;
     const router = new Router({
       routes: defineRoutes([
         { path: '/', name: 'home', component: () => 'Home' },
         { path: '/about', name: 'about', component: () => 'About' },
       ]),
     });
-    router.attachWindowListeners(window);
     const Component = () => {
       const linkElement = renderer.render(
         router.Link({
@@ -183,7 +175,6 @@ describe('Router Direct Imports', () => {
         },
       ]),
     });
-    router.attachWindowListeners(window);
     window.document.body.append(createRouterRoot(router));
 
     await router.navigate('/');
@@ -209,7 +200,6 @@ describe('Router Direct Imports', () => {
         },
       ]),
     });
-    router.attachWindowListeners(window);
     window.document.body.append(createRouterRoot(router));
 
     await router.navigate('/article');

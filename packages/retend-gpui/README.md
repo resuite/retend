@@ -26,6 +26,21 @@ npm install retend retend-gpui vite
 
 The prebuilt native addon for your platform is installed automatically as an optional dependency. See [Platform notes](#platform-notes) for supported platforms.
 
+## Cursor and pointer targeting
+
+Use `style={{ cursor: 'pointer' }}` to select a native cursor. Supported values include
+`auto`, `default`, `pointer`, `text`, `crosshair`, `grab`, `grabbing`, directional
+resize cursors, `col-resize`, `row-resize`, `vertical-text`, `not-allowed`, `alias`,
+`copy`, and `context-menu`. `auto` selects the native arrow. `zoom-in` and
+`zoom-out` are unsupported because the installed GPUI has no corresponding
+native cursor variants.
+
+`style={{ pointerEvents: 'none' }}` makes that element's subtree
+pointer-transparent: pointer input passes through to what is behind it, while
+layout, paint, and keyboard focus are unaffected. `auto` (the default)
+restores targeting. A descendant `auto` does not opt back in while an
+ancestor is `none`.
+
 ## Not supported yet
 
 `retend-gpui` covers the renderer: elements, layout, styling, events, windows, and packaging. Several things desktop apps commonly need are not available yet:
@@ -121,22 +136,29 @@ export default defineConfig({
 });
 ```
 
-Run `retend-gpui dev`. It starts Vite without an HTTP listener and forks one Node.js application process with the configured initial window. Applications can open additional independent windows through `useWindow().open(options)`. `system.transparentTitlebar` makes the native titlebar transparent on macOS and Windows and applies to every window in the application. Vite full reloads recreate application/module state and remount every live window without replacing its native window or navigation history; Vite/config restarts replace the whole application process.
+Run `retend-gpui dev`. It starts Vite without an HTTP listener and forks one Node.js application process with the configured initial window. Applications can open additional independent windows through `useWindow().open(options)`. `system.transparentTitlebar` makes the native titlebar transparent on macOS and Windows and applies to every window in the application. Vite full reloads recreate application/module state and remount every live window without replacing its native window, and a remounted router starts again from the window's `initialPath`; Vite/config restarts replace the whole application process.
 
 Components read process-wide resources with `useAppContext()`. Projects created by `retend-start` include `retend-gpui-env.d.ts` immediately, typing the context from the configured `application` module. Each dev/build startup verifies that declaration and rewrites it only when it is missing or stale, so changing the configured application path repairs the types automatically without touching the file on every run. Add it to your tsconfig `include` if you maintain the project manually; like `next-env.d.ts`, it can be committed.
 
 ```tsx
-import { useAppContext, useWindow } from 'retend-gpui';
+import { useAppContext, useSystem, useWindow } from 'retend-gpui';
 
 export default function App() {
   const { database } = useAppContext();
+  const system = useSystem();
   const window = useWindow();
 
-  return <div>{database ? window.title : 'Database unavailable'}</div>;
+  return (
+    <div>
+      {database ? window.title : 'Database unavailable'} — {system.theme}
+    </div>
+  );
 }
 ```
 
-`useWindow()` returns the window associated with the current Retend root. Its readonly `width` and `height` Cells track native resize events, its `title` Cell writes through to the OS window, `open(options)` creates another independent native window, and `close()` requests closure of the current window.
+`useWindow()` returns the window associated with the current Retend root. Its readonly `width`, `height`, and `orientation` Cells track native resize events, its `title` Cell writes through to the OS window, `open(options)` creates another independent native window, and `close()` requests closure of the current window.
+
+`useSystem()` returns reactive operating-system preferences shared by every GPUI renderer in the process, including components rendered with `renderToGpui()`. `theme` tracks `light`/`dark` appearance changes, and `accentColor` tracks the native accent as a CSS hex color on macOS and Windows (using the Windows UI accent preference, not the DWM titlebar color). Both Cells are `null` until a native window reports the initial values; `accentColor` remains `null` on platforms without a supported system accent API.
 
 ## TypeScript and JSX
 
@@ -231,7 +253,7 @@ await renderToGpui(App, {
 });
 ```
 
-Initial width, height, title, resizable state, fullscreen/maximized state, and minimum/maximum size constraints are applied by the native window bridge. Vite-managed applications can open additional independent windows through `useWindow().open(options)`. `useWindow().width` and `height` are readonly Cells kept current by native resize events, while the bound window object emits per-window `focus` and `blur` lifecycle events.
+Initial width, height, title, resizable state, fullscreen/maximized state, and minimum/maximum size constraints are applied by the native window bridge. Vite-managed applications can open additional independent windows through `useWindow().open(options)`. `useWindow().width` and `height` are readonly Cells kept current by native resize events, and `useWindow().orientation` is a readonly reactive Cell containing `portrait` or `landscape` (`portrait` includes square windows). `useSystem()` exposes process-wide `theme` and `accentColor` Cells updated from native system preferences. The bound window object emits per-window `focus` and `blur` lifecycle events.
 
 ## Platform notes
 

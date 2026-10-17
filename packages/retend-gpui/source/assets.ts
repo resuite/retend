@@ -5,7 +5,8 @@ let assetBase: string | undefined;
 
 /**
  * Sets the directory root-relative asset URLs resolve against: the resource
- * directory in a packaged app, the Vite root in development.
+ * directory in a packaged app, Vite's `publicDir` in development (the Vite
+ * root when the public directory is disabled).
  *
  * @internal
  */

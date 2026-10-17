@@ -17,7 +17,7 @@ The `defineRoutes` helper creates the array:
 
 ```tsx
 import { Router, defineRoutes, createRouterRoot } from 'retend/router';
-import { renderToDOM } from 'retend-web';
+import { attachRouter, renderToDOM } from 'retend-web';
 
 // 1. Create your page components
 function Home() {
@@ -36,9 +36,13 @@ const routes = defineRoutes([
 
 // 3. Initialize the Router
 const router = new Router({ routes });
+
+// 4. Connect the router to the browser window.
+attachRouter(router, window);
+
 const root = document.getElementById('app')!;
 
-// 4. Render the router to the screen
+// 5. Render the router to the screen
 renderToDOM(root, () => createRouterRoot(router));
 ```
 

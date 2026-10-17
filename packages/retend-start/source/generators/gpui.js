@@ -49,7 +49,7 @@ export async function createGpuiProject(projectDir, answers, cliOptions) {
     createPackageJson(projectDir, answers, cliOptions),
     createTsConfig(projectDir, answers, {
       jsxImportSource: 'retend',
-      types: ['retend-gpui/jsx-runtime'],
+      types: ['retend-gpui/jsx-runtime', 'vite/client'],
       // Generated initially by retend-start and kept in sync by retend-gpui.
       include: ['retend-gpui-env.d.ts'],
     }),
@@ -58,7 +58,7 @@ export async function createGpuiProject(projectDir, answers, cliOptions) {
       styleSupport: null,
     }),
     createZedFolder(projectDir),
-    createDocsFiles(projectDir, Boolean(answers.includeDocs)),
+    createDocsFiles(projectDir, Boolean(answers.includeDocs), 'gpui'),
   ]);
 }
 
@@ -133,10 +133,9 @@ export default Root;
 async function createRouterFile(projectDir, answers) {
   const isTypeScript = answers.language === 'TypeScript';
   const extension = isTypeScript ? 'tsx' : 'jsx';
-  const content = isTypeScript
-    ? `
+  const content = `
 import { onSetup } from 'retend';
-import { useWindow } from 'retend-gpui';
+import { attachRouter, useWindow } from 'retend-gpui';
 import { Outlet, Router, RouterProvider } from 'retend/router';
 
 import App from './App';
@@ -147,38 +146,7 @@ export default function Root() {
   const window = useWindow();
   const router = new Router({ routes, linkTag: 'div' });
 
-  onSetup(() => {
-    const host = window.host as unknown as Window;
-    const detach = router.attachWindowListeners(host);
-    window.host.dispatchEvent(new Event('load'));
-    return detach;
-  });
-
-  return (
-    <RouterProvider router={router}>
-      <Outlet />
-    </RouterProvider>
-  );
-}
-`.trim()
-    : `
-import { onSetup } from 'retend';
-import { useWindow } from 'retend-gpui';
-import { Outlet, Router, RouterProvider } from 'retend/router';
-
-import App from './App';
-
-const routes = [{ path: '/', component: App }];
-
-export default function Root() {
-  const window = useWindow();
-  const router = new Router({ routes, linkTag: 'div' });
-
-  onSetup(() => {
-    const detach = router.attachWindowListeners(window.host);
-    window.host.dispatchEvent(new Event('load'));
-    return detach;
-  });
+  onSetup(() => attachRouter(router, window));
 
   return (
     <RouterProvider router={router}>
@@ -292,8 +260,9 @@ async function createViteEnvDeclaration(projectDir) {
 async function createAppContextDeclaration(projectDir, answers) {
   const extension = answers.language === 'TypeScript' ? 'ts' : 'js';
   const application = `./source/application.${extension}`;
+  const quotedApplication = `'${application.replaceAll("'", "\\'")}'`;
   const content = `// Generated for retend-gpui from the \`application\` option. Do not edit.
-import type Application from ${JSON.stringify(application)};
+import type Application from ${quotedApplication};
 
 type ConfiguredAppContext = InstanceType<typeof Application>['context'];
 

@@ -2,8 +2,8 @@ use std::{cell::Cell, rc::Rc, sync::Arc};
 
 use gpui::{
     actions, anchored, deferred, div, img, prelude::*, px, relative, Anchor, AnyElement, App,
-    Bounds, ClickEvent, Element, ElementId, GlobalElementId, ImageCacheError, ImageSource,
-    InspectorElementId, KeyBinding, KeyDownEvent, KeyUpEvent, LayoutId, MouseButton,
+    Bounds, ClickEvent, DispatchPhase, Element, ElementId, GlobalElementId, ImageCacheError,
+    ImageSource, InspectorElementId, KeyBinding, KeyDownEvent, KeyUpEvent, LayoutId, MouseButton,
     MouseDownEvent, MouseMoveEvent, MouseUpEvent, NavigationDirection, Pixels, Point, Resource,
     Role, StyledImage, Text, Window,
 };
@@ -12,14 +12,15 @@ use crate::{
     events,
     protocol_generated::NativeEventId,
     runtime_state::RuntimeStateRegistry,
-    style::OverflowValue,
+    style::{OverflowValue, UserSelectValue},
     tree::{
         event_bit, AnchoredAlign, AnchoredConfig, AnchoredFit, AnchoredSide, ImageLocation,
         ImageObjectFit, NativeTree, NodeData, NodeId, WindowId,
     },
+    wheel,
 };
 
-actions!(retend, [FocusNext, FocusPrevious]);
+actions!(retend, [FocusNext, FocusPrevious, Copy]);
 
 pub(crate) fn init(cx: &mut App) {
     gpui_base::init(cx);
@@ -28,6 +29,7 @@ pub(crate) fn init(cx: &mut App) {
         KeyBinding::new("shift-tab", FocusPrevious, None),
         KeyBinding::new("tab", FocusNext, Some("Input")),
         KeyBinding::new("shift-tab", FocusPrevious, Some("Input")),
+        KeyBinding::new("secondary-c", Copy, Some("RetendTextSelection")),
     ]);
     cx.on_action::<FocusNext>(|_, cx| {
         if let Some(window) = cx.active_window() {
@@ -798,6 +800,20 @@ impl Element for PaintObserver {
         cx: &mut App,
     ) {
         self.inner.paint(window, cx);
+        if let Some(PaintCallback::Finish { runtime, .. }) = &self.callback {
+            // Register after the content: GPUI dispatches bubble-phase mouse
+            // listeners in reverse order, so selectable children may claim
+            // the same press after any previous selection has been cleared.
+            let runtime = runtime.clone();
+            window.on_mouse_event(move |event: &MouseDownEvent, phase, window, _| {
+                if phase == DispatchPhase::Bubble
+                    && event.button == MouseButton::Left
+                    && runtime.clear_text_selection()
+                {
+                    window.refresh();
+                }
+            });
+        }
         if matches!(self.phase, ObserverPhase::Paint) {
             self.observe(bounds, window);
         }
@@ -930,6 +946,7 @@ pub fn build_with_runtime(
     window: &mut Window,
     cx: &mut App,
 ) -> AnyElement {
+    let selection_focus = runtime_state.ensure_selection_focus(cx);
     let mut resolve_style =
         |id, motion, style| crate::motion::resolve_style(id, motion, style, window, cx);
     let inner = build_inner(
@@ -939,6 +956,10 @@ pub fn build_with_runtime(
         generation,
         &mut resolve_style,
         EventInterest::for_node(tree, tree.nodes[&id].window_id, id),
+        SelectionRenderContext {
+            mode: UserSelectValue::Text,
+            focus: &selection_focus,
+        },
     );
     PaintObserver::new(
         inner,
@@ -951,6 +972,28 @@ pub fn build_with_runtime(
     .into_any_element()
 }
 
+fn render_text_run(
+    id: NodeId,
+    text: gpui::SharedString,
+    user_select: UserSelectValue,
+    runtime: &RuntimeStateRegistry,
+    focus: &gpui::FocusHandle,
+) -> AnyElement {
+    if user_select == UserSelectValue::None {
+        runtime.clear_plain_text_selection(id);
+        return Text::new(ElementId::Integer(u64::from(id)), text).into_any_element();
+    }
+    runtime.sync_plain_text_selection(id, &text);
+    crate::selectable_text::SelectableText::new(id, text, runtime.clone(), focus.clone())
+        .into_any_element()
+}
+
+#[derive(Clone, Copy)]
+struct SelectionRenderContext<'a> {
+    mode: UserSelectValue,
+    focus: &'a gpui::FocusHandle,
+}
+
 fn build_inner<'a, F>(
     tree: &'a NativeTree,
     id: NodeId,
@@ -958,6 +1001,7 @@ fn build_inner<'a, F>(
     generation: u64,
     resolve_style: &mut F,
     interest: EventInterest,
+    selection: SelectionRenderContext<'_>,
 ) -> AnyElement
 where
     F: FnMut(
@@ -971,8 +1015,13 @@ where
 {
     let node = &tree.nodes[&id];
     if let NodeData::Text(text) = &node.data {
-        return Text::new(ElementId::Integer(u64::from(id)), text.clone().into())
-            .into_any_element();
+        return render_text_run(
+            id,
+            text.clone().into(),
+            selection.mode,
+            runtime_state,
+            selection.focus,
+        );
     }
     let window_id = node.window_id;
     let (motion_style, transition_events) = resolve_style(id, &node.motion, node.style.as_deref());
@@ -991,6 +1040,16 @@ where
         }
     }
     let resolved_style = motion_style.as_ref().or(node.style.as_deref());
+    let selection = SelectionRenderContext {
+        mode: resolved_style
+            .and_then(|style| style.user_select)
+            .unwrap_or(if matches!(node.data, NodeData::Button) {
+                UserSelectValue::None
+            } else {
+                selection.mode
+            }),
+        ..selection
+    };
     let pseudo = PseudoInterest {
         hover: node.tracks_hover(),
         active: node.tracks_active(),
@@ -1017,6 +1076,7 @@ where
     let painted_content = staged_content.clone();
     let content_scroll_handle = scroll_handle.clone().filter(|_| tracks_content);
     let element = match &node.data {
+        NodeData::Audio(_) => div().hidden().into_any_element(),
         NodeData::Button
         | NodeData::Root
         | NodeData::Container
@@ -1059,8 +1119,23 @@ where
                     generation,
                     resolve_style,
                     interest,
+                    selection,
                 )),
             };
+            if matches!(node.data, NodeData::Root) {
+                let clipboard = runtime_state.clone();
+                let focus = selection.focus.clone();
+                element = element
+                    .key_context("RetendTextSelection")
+                    .track_focus(selection.focus)
+                    .on_action(move |_: &Copy, window, cx| {
+                        if focus.is_focused(window) {
+                            if let Some(text) = clipboard.selected_plain_text() {
+                                cx.write_to_clipboard(gpui::ClipboardItem::new_string(text));
+                            }
+                        }
+                    });
+            }
             if let Some(content) = staged_content.clone().filter(|_| !button) {
                 element = element.on_children_prepainted(move |children, _, _| {
                     content.set(
@@ -1100,7 +1175,7 @@ where
                 || runtime_state.is_interactive(id)
                 || pseudo.hover
                 || pseudo.active
-                || matches!(node.data, NodeData::TextControl { .. })
+                || matches!(node.data, NodeData::TextControl { .. } | NodeData::Root)
             {
                 let element = with_native_events(
                     element.id(ElementId::Integer(u64::from(id))),
@@ -1168,10 +1243,7 @@ where
             }
         }
         NodeData::Svg {
-            path,
-            alt,
-            content,
-            ..
+            path, alt, content, ..
         } => {
             // 16px matches body text; author width/height override it. The
             // icon paints in the inherited text color (CSS `currentColor`).
@@ -1191,15 +1263,8 @@ where
             if let Some(label) = accessible_label(alt.as_deref()) {
                 icon = icon.role(Role::Image).aria_label(label.to_string());
             }
-            with_native_events(
-                icon,
-                interest,
-                node.window_id,
-                id,
-                runtime_state,
-                pseudo,
-            )
-            .into_any_element()
+            with_native_events(icon, interest, node.window_id, id, runtime_state, pseudo)
+                .into_any_element()
         }
     };
     let bounds = PaintCallback::Bounds {
@@ -1238,6 +1303,11 @@ where
         _ => element,
     };
 
+    let element = if interest.has(NativeEventId::Wheel) {
+        wheel::observe(element, window_id, id)
+    } else {
+        element
+    };
     let element = crate::transform::wrap(element, resolved_style);
     let NodeData::Anchored(config) = &node.data else {
         return element;
@@ -1275,6 +1345,7 @@ fn build_children<'a, F>(
     generation: u64,
     resolve_style: &mut F,
     interest: EventInterest,
+    selection: SelectionRenderContext<'_>,
 ) -> Vec<AnyElement>
 where
     F: FnMut(
@@ -1302,10 +1373,13 @@ where
                 content.push_str(text);
                 index += 1;
             }
-            rendered.push(
-                Text::new(ElementId::Integer(u64::from(first_id)), content.into())
-                    .into_any_element(),
-            );
+            rendered.push(render_text_run(
+                first_id,
+                content.into(),
+                selection.mode,
+                runtime_state,
+                selection.focus,
+            ));
         } else {
             rendered.push(build_inner(
                 tree,
@@ -1314,6 +1388,7 @@ where
                 generation,
                 resolve_style,
                 interest,
+                selection,
             ));
             index += 1;
         }
@@ -1366,8 +1441,8 @@ mod tests {
         }
     }
 
-    #[test]
-    fn adjacent_text_children_coalesce_into_single_runs() {
+    #[gpui::test]
+    fn adjacent_text_children_coalesce_into_single_runs(cx: &mut TestAppContext) {
         let mut tree = NativeTree::default();
         let window = tree.create_window(1).unwrap();
         tree.apply_commands(
@@ -1412,10 +1487,172 @@ mod tests {
                 subscriptions: 0,
                 outside_mouse_down: false,
             },
+            SelectionRenderContext {
+                mode: UserSelectValue::None,
+                focus: &cx.update(|cx| cx.focus_handle()),
+            },
         );
         // "Hello" + " world" + "!" collapse into one run, the nested container
         // stays its own element, and "tail" starts a new run.
         assert_eq!(rendered.len(), 3, "five children must render as three runs");
+    }
+
+    #[gpui::test]
+    fn ordinary_text_selection_inherits_user_select_and_copies_to_clipboard(
+        cx: &mut TestAppContext,
+    ) {
+        use gpui::MouseButton;
+
+        cx.update(init);
+        let tree = Rc::new(RefCell::new(NativeTree::default()));
+        let window_id = tree.borrow_mut().create_window(1).unwrap();
+        tree.borrow_mut()
+            .apply_commands(
+                window_id,
+                vec![
+                    container(2),
+                    Command::CreateText {
+                        id: 3,
+                        text: "Select this plain text".into(),
+                    },
+                    insert(1, 2),
+                    insert(2, 3),
+                    container(4),
+                    Command::CreateText {
+                        id: 5,
+                        text: "Not selectable".into(),
+                    },
+                    Command::SetStyle {
+                        id: 4,
+                        properties: vec![(
+                            PropertyId::UserSelect,
+                            PropertyValue::String("none".into()),
+                        )],
+                    },
+                    insert(1, 4),
+                    insert(4, 5),
+                    Command::CreateNode {
+                        id: 6,
+                        kind: ElementKind::Input,
+                    },
+                    insert(1, 6),
+                ],
+            )
+            .unwrap();
+
+        let runtime_state = RuntimeStateRegistry::default();
+        let (view, cx) = cx.add_window_view({
+            let tree = tree.clone();
+            let runtime_state = runtime_state.clone();
+            move |_, _| QueryLayoutTestView {
+                tree,
+                runtime_state,
+                window_id,
+            }
+        });
+        cx.update(|window, cx| {
+            window.activate_window();
+            window.draw(cx).clear(cx);
+        });
+        let start = point(px(5.0), px(8.0));
+        let end = point(px(90.0), px(8.0));
+        cx.simulate_mouse_down(start, MouseButton::Left, Modifiers::default());
+        cx.simulate_mouse_move(end, MouseButton::Left, Modifiers::default());
+        cx.simulate_mouse_up(end, MouseButton::Left, Modifiers::default());
+
+        let chosen = runtime_state
+            .selected_plain_text()
+            .expect("drag selects text");
+        assert!(!chosen.is_empty());
+        cx.simulate_keystrokes("cmd-c");
+        assert_eq!(
+            cx.read_from_clipboard().and_then(|item| item.text()),
+            Some(chosen)
+        );
+
+        #[cfg(target_os = "macos")]
+        {
+            cx.update(|_, app| {
+                app.write_to_clipboard(gpui::ClipboardItem::new_string("keep".into()));
+            });
+            cx.simulate_keystrokes("ctrl-c");
+            assert_eq!(
+                cx.read_from_clipboard().and_then(|item| item.text()),
+                Some("keep".into()),
+                "Ctrl+C must not invoke the Mac's Cmd+C binding"
+            );
+        }
+
+        cx.simulate_click(point(px(450.0), px(300.0)), Modifiers::default());
+        assert!(
+            runtime_state.selected_plain_text().is_none(),
+            "clicking empty space clears selection"
+        );
+
+        cx.simulate_mouse_down(start, MouseButton::Left, Modifiers::default());
+        cx.simulate_mouse_move(end, MouseButton::Left, Modifiers::default());
+        cx.simulate_mouse_up(end, MouseButton::Left, Modifiers::default());
+        assert!(runtime_state.selected_plain_text().is_some());
+        let nonselectable = runtime_state
+            .client_bounds(4)
+            .expect("nonselectable box is painted");
+        cx.simulate_click(nonselectable.center(), Modifiers::default());
+        assert!(
+            runtime_state.selected_plain_text().is_none(),
+            "clicking userSelect none text clears the prior selection"
+        );
+
+        cx.simulate_mouse_down(start, MouseButton::Left, Modifiers::default());
+        cx.simulate_mouse_move(end, MouseButton::Left, Modifiers::default());
+        cx.simulate_mouse_up(end, MouseButton::Left, Modifiers::default());
+        assert!(runtime_state.selected_plain_text().is_some());
+        let input = runtime_state.client_bounds(6).expect("input is painted");
+        cx.simulate_click(input.center(), Modifiers::default());
+        assert!(
+            runtime_state.selected_plain_text().is_none(),
+            "clicking an input clears the prior plain-text selection"
+        );
+        cx.simulate_input("editor copy");
+        cx.simulate_keystrokes("cmd-a cmd-c");
+        assert_eq!(
+            cx.read_from_clipboard().and_then(|item| item.text()),
+            Some("editor copy".into()),
+            "the input's own Copy action must take precedence over plain-text Copy"
+        );
+
+        cx.simulate_mouse_down(start, MouseButton::Left, Modifiers::default());
+        cx.simulate_mouse_move(end, MouseButton::Left, Modifiers::default());
+        cx.simulate_mouse_up(end, MouseButton::Left, Modifiers::default());
+        assert!(runtime_state.selected_plain_text().is_some());
+
+        tree.borrow_mut()
+            .apply_commands(
+                window_id,
+                vec![Command::SetStyle {
+                    id: 2,
+                    properties: vec![(
+                        PropertyId::UserSelect,
+                        PropertyValue::String("none".into()),
+                    )],
+                }],
+            )
+            .unwrap();
+        view.update(cx, |_, cx| cx.notify());
+        cx.update(|window, cx| {
+            window.draw(cx).clear(cx);
+        });
+        assert!(
+            runtime_state.selected_plain_text().is_none(),
+            "disabling selection clears it"
+        );
+
+        cx.simulate_mouse_down(start, MouseButton::Left, Modifiers::default());
+        cx.simulate_mouse_move(end, MouseButton::Left, Modifiers::default());
+        cx.simulate_mouse_up(end, MouseButton::Left, Modifiers::default());
+        assert!(
+            runtime_state.selected_plain_text().is_none(),
+            "inherited none prevents dragging"
+        );
     }
 
     struct QueryLayoutTestView {
@@ -2774,6 +3011,101 @@ mod tests {
     }
 
     #[gpui::test]
+    fn pointer_events_none_is_subtree_transparent(cx: &mut TestAppContext) {
+        let root = NEXT_GLOBAL_TEST_ROOT.fetch_add(16, Ordering::Relaxed);
+        let back = root + 1;
+        let parent = root + 2;
+        let child = root + 3;
+        let pointer = |id: NodeId, left: f64, top: f64, size: f64, value: PropertyValue| {
+            let Command::SetStyle { mut properties, .. } = absolute_box(id, left, top, size)
+            else {
+                unreachable!()
+            };
+            properties.push((PropertyId::PointerEvents, value));
+            Command::SetStyle { id, properties }
+        };
+        let (window_id, _, cx) = open_global_window(
+            cx,
+            root,
+            vec![
+                container(back),
+                absolute_box(back, 20.0, 20.0, 100.0),
+                subscribe(back, NativeEventId::Click),
+                insert(root, back),
+                container(parent),
+                pointer(
+                    parent,
+                    20.0,
+                    20.0,
+                    100.0,
+                    PropertyValue::String("none".into()),
+                ),
+                subscribe(parent, NativeEventId::Click),
+                container(child),
+                pointer(
+                    child,
+                    0.0,
+                    0.0,
+                    40.0,
+                    PropertyValue::String("auto".into()),
+                ),
+                subscribe(child, NativeEventId::Click),
+                insert(parent, child),
+                insert(root, parent),
+            ],
+        );
+        let click = |cx: &mut gpui::VisualTestContext, x: f32, y: f32| {
+            crate::events::take_test_emitted_events();
+            cx.simulate_click(point(px(x), px(y)), Modifiers::default());
+            finish_test_frames(cx);
+            emitted(&[NativeEventId::Click])
+        };
+        let update = |cx: &mut gpui::VisualTestContext, command: Command| {
+            crate::runtime()
+                .lock()
+                .unwrap()
+                .apply_commands(window_id, vec![command])
+                .unwrap();
+            cx.update(|window, _| window.refresh());
+            finish_test_frames(cx);
+        };
+        // `none` on the parent passes through, even where the child says `auto`.
+        assert_eq!(
+            click(cx, 30.0, 30.0),
+            vec![(NativeEventId::Click, back)]
+        );
+        assert_eq!(
+            click(cx, 90.0, 90.0),
+            vec![(NativeEventId::Click, back)]
+        );
+        // `auto` restores targeting for the subtree.
+        update(
+            cx,
+            pointer(
+                parent,
+                20.0,
+                20.0,
+                100.0,
+                PropertyValue::String("auto".into()),
+            ),
+        );
+        assert_eq!(
+            click(cx, 30.0, 30.0),
+            vec![(NativeEventId::Click, child)]
+        );
+        // Removing the declaration restores the default (`auto`) behavior.
+        update(
+            cx,
+            pointer(parent, 20.0, 20.0, 100.0, PropertyValue::Null),
+        );
+        assert_eq!(
+            click(cx, 30.0, 30.0),
+            vec![(NativeEventId::Click, child)]
+        );
+        close_global_window(window_id);
+    }
+
+    #[gpui::test]
     fn secondary_mouse_click_emits_context_menu(cx: &mut TestAppContext) {
         cx.update(init);
         let root_id = NEXT_GLOBAL_TEST_ROOT.fetch_add(8, Ordering::Relaxed);
@@ -2930,6 +3262,240 @@ mod tests {
         finish_test_frames(cx);
         crate::events::take_test_emitted_events();
         (window_id, runtime_state, cx)
+    }
+
+    #[gpui::test]
+    fn wheel_targets_transformed_non_scrollable_descendants_once(cx: &mut TestAppContext) {
+        let root_id = NEXT_GLOBAL_TEST_ROOT.fetch_add(16, Ordering::Relaxed);
+        let parent = root_id + 1;
+        let child = root_id + 2;
+        let (window_id, _, cx) = open_global_window(
+            cx,
+            root_id,
+            vec![
+                container(parent),
+                container(child),
+                Command::SetStyle {
+                    id: parent,
+                    properties: vec![
+                        (
+                            PropertyId::Position,
+                            PropertyValue::String("absolute".into()),
+                        ),
+                        (PropertyId::Left, PropertyValue::Number(100.0)),
+                        (PropertyId::Top, PropertyValue::Number(100.0)),
+                        (PropertyId::Width, PropertyValue::Number(100.0)),
+                        (PropertyId::Height, PropertyValue::Number(100.0)),
+                        (PropertyId::Scale, PropertyValue::String("2".into())),
+                    ],
+                },
+                absolute_box(child, 20.0, 20.0, 20.0),
+                subscribe(parent, NativeEventId::Wheel),
+                subscribe(child, NativeEventId::Wheel),
+                insert(root_id, parent),
+                insert(parent, child),
+            ],
+        );
+        for phase in [
+            gpui::TouchPhase::Started,
+            gpui::TouchPhase::Moved,
+            gpui::TouchPhase::Ended,
+        ] {
+            cx.simulate_event(gpui::ScrollWheelEvent {
+                position: point(px(110.0), px(110.0)),
+                delta: gpui::ScrollDelta::Pixels(point(px(1.5), px(-2.5))),
+                touch_phase: phase,
+                ..Default::default()
+            });
+            let emitted = crate::events::take_test_emitted_events();
+            let wheels: Vec<_> = emitted
+                .iter()
+                .filter(|(_, payload)| payload.event_id == NativeEventId::Wheel as u16)
+                .collect();
+            assert_eq!(wheels.len(), 1);
+            let (window, payload) = wheels[0];
+            assert_eq!(*window, window_id);
+            assert_eq!(payload.target_id, child);
+            assert!((payload.client_x - 110.0).abs() < 0.01);
+            assert!((payload.client_y - 110.0).abs() < 0.01);
+            assert_eq!((payload.delta_x, payload.delta_y), (-1.5, 2.5));
+        }
+        close_global_window(window_id);
+    }
+
+    #[gpui::test]
+    fn wheel_observation_preserves_native_scrolling(cx: &mut TestAppContext) {
+        let root_id = NEXT_GLOBAL_TEST_ROOT.fetch_add(16, Ordering::Relaxed);
+        let parent = root_id + 1;
+        let child = root_id + 2;
+        let (window_id, runtime, cx) = open_global_window(
+            cx,
+            root_id,
+            vec![
+                container(parent),
+                container(child),
+                Command::SetStyle {
+                    id: parent,
+                    properties: vec![
+                        (PropertyId::Width, PropertyValue::Number(100.0)),
+                        (PropertyId::Height, PropertyValue::Number(100.0)),
+                        (PropertyId::Overflow, PropertyValue::String("auto".into())),
+                    ],
+                },
+                Command::SetStyle {
+                    id: child,
+                    properties: vec![
+                        (PropertyId::Width, PropertyValue::Number(80.0)),
+                        (PropertyId::Height, PropertyValue::Number(300.0)),
+                        (PropertyId::FlexShrink, PropertyValue::Number(0.0)),
+                    ],
+                },
+                subscribe(parent, NativeEventId::Wheel),
+                subscribe(parent, NativeEventId::Scroll),
+                insert(root_id, parent),
+                insert(parent, child),
+            ],
+        );
+        cx.simulate_event(gpui::ScrollWheelEvent {
+            position: point(px(20.0), px(20.0)),
+            delta: gpui::ScrollDelta::Pixels(point(px(0.0), px(-25.0))),
+            ..Default::default()
+        });
+        finish_test_frames(cx);
+        let emitted = crate::events::take_test_emitted_events();
+        let wheels: Vec<_> = emitted
+            .iter()
+            .filter(|(_, payload)| payload.event_id == NativeEventId::Wheel as u16)
+            .collect();
+        assert_eq!(wheels.len(), 1);
+        assert_eq!(wheels[0].1.target_id, child);
+        assert_eq!(wheels[0].1.delta_y, 25.0);
+        assert_eq!(runtime.scroll_handle(parent).unwrap().offset().y, px(-25.0));
+        assert!(emitted
+            .iter()
+            .any(|(_, payload)| payload.event_id == NativeEventId::Scroll as u16));
+        close_global_window(window_id);
+    }
+
+    #[gpui::test]
+    fn wheel_targets_front_siblings_and_deferred_overlays(cx: &mut TestAppContext) {
+        let root_id = NEXT_GLOBAL_TEST_ROOT.fetch_add(16, Ordering::Relaxed);
+        let back = root_id + 1;
+        let front = root_id + 2;
+        let overlay = root_id + 3;
+        let (window_id, _, cx) = open_global_window(
+            cx,
+            root_id,
+            vec![
+                container(back),
+                container(front),
+                absolute_box(back, 120.0, 120.0, 80.0),
+                absolute_box(front, 120.0, 120.0, 80.0),
+                subscribe(root_id, NativeEventId::Wheel),
+                insert(root_id, back),
+                insert(root_id, front),
+            ],
+        );
+        let input = gpui::ScrollWheelEvent {
+            position: point(px(140.0), px(140.0)),
+            delta: gpui::ScrollDelta::Lines(point(0.0, -1.0)),
+            ..Default::default()
+        };
+        cx.simulate_event(input.clone());
+        let emitted = crate::events::take_test_emitted_events();
+        assert_eq!(emitted.len(), 1);
+        assert_eq!(emitted[0].1.target_id, front);
+
+        crate::runtime()
+            .lock()
+            .unwrap()
+            .apply_commands(
+                window_id,
+                vec![
+                    Command::CreateNode {
+                        id: overlay,
+                        kind: ElementKind::Anchored,
+                    },
+                    Command::SetProperty {
+                        id: overlay,
+                        property: PropertyId::AnchoredPosition,
+                        value: PropertyValue::Point(120.0, 120.0),
+                    },
+                    Command::SetProperty {
+                        id: overlay,
+                        property: PropertyId::AnchoredDeferred,
+                        value: PropertyValue::Boolean(true),
+                    },
+                    Command::SetStyle {
+                        id: overlay,
+                        properties: vec![
+                            (PropertyId::Width, PropertyValue::Number(80.0)),
+                            (PropertyId::Height, PropertyValue::Number(80.0)),
+                        ],
+                    },
+                    insert(root_id, overlay),
+                ],
+            )
+            .unwrap();
+        cx.update(|window, _| window.refresh());
+        finish_test_frames(cx);
+        crate::events::take_test_emitted_events();
+        cx.simulate_event(input);
+        let emitted = crate::events::take_test_emitted_events();
+        assert_eq!(emitted.len(), 1);
+        assert_eq!(emitted[0].1.target_id, overlay);
+        close_global_window(window_id);
+    }
+
+    #[gpui::test]
+    fn wheel_events_remain_separate_across_windows(cx: &mut TestAppContext) {
+        let mut windows = Vec::new();
+        for _ in 0..2 {
+            let root_id = NEXT_GLOBAL_TEST_ROOT.fetch_add(16, Ordering::Relaxed);
+            let target_id = root_id + 1;
+            let (window_id, _, visual) = open_global_window(
+                cx,
+                root_id,
+                vec![
+                    container(target_id),
+                    absolute_box(target_id, 20.0, 20.0, 80.0),
+                    subscribe(target_id, NativeEventId::Wheel),
+                    insert(root_id, target_id),
+                ],
+            );
+            let handle = visual.update(|window, _| window.window_handle());
+            windows.push((window_id, target_id, handle));
+        }
+        let mut expected = Vec::new();
+        for (index, phase) in [
+            (0, gpui::TouchPhase::Started),
+            (1, gpui::TouchPhase::Moved),
+            (0, gpui::TouchPhase::Ended),
+        ] {
+            let (window_id, target_id, handle) = windows[index];
+            let mut visual = gpui::VisualTestContext::from_window(handle, cx);
+            visual.simulate_event(gpui::ScrollWheelEvent {
+                position: point(px(40.0), px(40.0)),
+                delta: gpui::ScrollDelta::Lines(point(0.0, -(index as f32 + 1.0))),
+                touch_phase: phase,
+                ..Default::default()
+            });
+            expected.push((window_id, target_id, index as f64 + 1.0));
+        }
+        let emitted = crate::events::take_test_emitted_events();
+        let actual: Vec<_> = emitted
+            .iter()
+            .map(|(window, payload)| (*window, payload.target_id, payload.delta_y))
+            .collect();
+        assert_eq!(actual, expected);
+        let phases: Vec<_> = emitted
+            .iter()
+            .map(|(_, payload)| payload.touch_phase.as_deref())
+            .collect();
+        assert_eq!(phases, vec![Some("started"), Some("moved"), Some("ended")]);
+        for (window_id, _, _) in windows {
+            close_global_window(window_id);
+        }
     }
 
     fn close_global_window(window_id: WindowId) {

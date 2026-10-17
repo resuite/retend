@@ -53,7 +53,6 @@ describe('beforenavigate event', () => {
     ]);
 
     const router = new Router({ routes });
-    router.attachWindowListeners(window);
     window.document.body.append(createRouterRoot(router));
 
     router.addEventListener('beforenavigate', listener);

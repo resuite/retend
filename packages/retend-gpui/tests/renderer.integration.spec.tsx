@@ -1,8 +1,7 @@
 import { Cell, If, setActiveRenderer } from 'retend';
-import { Router } from 'retend/router';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
-import type { GpuiElement } from '../source/gpui-renderer';
+import type { GpuiAudioElement, GpuiElement } from '../source/gpui-renderer';
 import type { GpuiButtonElement } from '../source/gpui-renderer';
 import type { GpuiColor, GpuiStyle } from '../source/types';
 
@@ -30,27 +29,6 @@ import {
 afterEach(disposeRenderers);
 
 describe('Retend GPUI renderer on the Retend-owned native bridge', () => {
-  it('maintains window-local location and history state', () => {
-    const renderer = createRenderer();
-    renderer.host.resetLocation('/settings?tab=general#account');
-
-    expect(renderer.host.location.pathname).toBe('/settings');
-    expect(renderer.host.location.search).toBe('?tab=general');
-    expect(renderer.host.location.hash).toBe('#account');
-
-    renderer.host.history.pushState({ page: 2 }, '', '/projects/retend');
-    expect(renderer.host.location.href).toBe('/projects/retend');
-    expect(renderer.host.history.length).toBe(2);
-    expect(renderer.host.history.state).toEqual({ page: 2 });
-
-    let popstateCount = 0;
-    renderer.host.addEventListener('popstate', () => popstateCount++);
-    renderer.host.history.back();
-
-    expect(renderer.host.location.href).toBe('/settings?tab=general#account');
-    expect(popstateCount).toBe(1);
-  });
-
   it('keeps independent renderer roots isolated across remounts', () => {
     const first = new RetendGpuiRenderer({ headless: true });
     const second = new RetendGpuiRenderer({ headless: true });
@@ -62,8 +40,6 @@ describe('Retend GPUI renderer on the Retend-owned native bridge', () => {
     const secondRootId = second.host.rootId;
 
     try {
-      first.host.resetLocation('/first/detail');
-      second.host.resetLocation('/second/detail');
       setActiveRenderer(first);
       first.render(() => <div>{firstText}</div>);
       setActiveRenderer(second);
@@ -83,36 +59,12 @@ describe('Retend GPUI renderer on the Retend-owned native bridge', () => {
 
       expect(first.host.rootId).toBe(firstRootId);
       expect(second.host.rootId).toBe(secondRootId);
-      expect(first.host.location.href).toBe('/first/detail');
-      expect(second.host.location.href).toBe('/second/detail');
       expect(collectText(debugTree(first))).toEqual(['first-remounted']);
       expect(collectText(debugTree(second))).toEqual(['second']);
     } finally {
       first.dispose();
       second.dispose();
     }
-  });
-
-  it('supports Retend Router navigation through the window host', async () => {
-    const renderer = createRenderer();
-    const router = new Router({
-      routes: [
-        { name: 'home', path: '/', component: () => 'Home' },
-        { name: 'settings', path: '/settings', component: () => 'Settings' },
-      ],
-    });
-    const detach = router.attachWindowListeners(
-      renderer.host as unknown as Window
-    );
-
-    await router.navigate('/settings?tab=general#account');
-    expect(renderer.host.location.href).toBe('/settings?tab=general#account');
-
-    await router.replace('/');
-    expect(renderer.host.location.href).toBe('/');
-    expect(renderer.host.history.length).toBe(2);
-
-    detach();
   });
 
   it('rejects tags outside the Retend GPUI intrinsic surface', () => {
@@ -739,6 +691,83 @@ describe('Retend GPUI renderer on the Retend-owned native bridge', () => {
     );
   });
 
+  it('updates placeholder color on native text controls without rebinding the editor', () => {
+    const renderer = createRenderer();
+    const color = Cell.source<GpuiColor>('#777777');
+    const input = renderer.createContainer('input');
+    const pseudo = vi.spyOn(renderer.host, 'setPseudoStyle');
+    renderer.setProperty(input, 'style', { placeholder: { color } });
+    renderer.flush();
+    expect(pseudo).toHaveBeenCalledWith(input.id, StyleState.Placeholder, [
+      [PropertyId.Color, '#777777'],
+    ]);
+
+    color.set('#111111');
+    renderer.flush();
+    expect(pseudo).toHaveBeenLastCalledWith(input.id, StyleState.Placeholder, [
+      [PropertyId.Color, '#111111'],
+    ]);
+    renderer.setProperty(input, 'style', {});
+    renderer.flush();
+    expect(pseudo).toHaveBeenLastCalledWith(
+      input.id,
+      StyleState.Placeholder,
+      []
+    );
+  });
+
+  it('updates nonvisual audio properties and sends playback operations through the native host', () => {
+    const renderer = createRenderer();
+    const source = Cell.source('file:///tmp/chime.wav');
+    const volume = Cell.source(0.4);
+    const soundRef = Cell.source<GpuiAudioElement | null>(null);
+    const setProperty = vi.spyOn(renderer.host, 'setProperty');
+    const play = vi
+      .spyOn(renderer.host, 'playAudioNode')
+      .mockImplementation(() => {});
+    const pause = vi
+      .spyOn(renderer.host, 'pauseAudioNode')
+      .mockImplementation(() => {});
+
+    renderer.render(() => (
+      <audio
+        ref={soundRef}
+        src={source}
+        autoPlay
+        loop={false}
+        volume={volume}
+      />
+    ));
+    const sound = soundRef.get();
+    if (!sound) throw new Error('Expected audio ref to resolve.');
+    expect(nodeMap(debugTree(renderer)).get(sound.id)).toMatchObject({
+      kind: 'Audio',
+      src: 'file:///tmp/chime.wav',
+    });
+    expect(setProperty).toHaveBeenCalledWith(
+      sound.id,
+      PropertyId.Autoplay,
+      true
+    );
+    expect(setProperty).toHaveBeenCalledWith(sound.id, PropertyId.Volume, 0.4);
+    sound.play();
+    sound.pause();
+    expect(play).toHaveBeenCalledWith(sound.id);
+    expect(pause).toHaveBeenCalledWith(sound.id);
+
+    Cell.batch(() => {
+      source.set('file:///tmp/next.wav');
+      volume.set(0.2);
+    });
+    renderer.flush();
+    expect(nodeMap(debugTree(renderer)).get(sound.id)?.src).toBe(
+      'file:///tmp/next.wav'
+    );
+    expect(setProperty).toHaveBeenCalledWith(sound.id, PropertyId.Volume, 0.2);
+    renderer.unmount();
+    expect(() => sound.play()).toThrow('destroyed Retend GPUI node');
+  });
+
   it('publishes complete resolved author-style snapshots', () => {
     const renderer = createRenderer();
     const targetRef = Cell.source<GpuiElement | null>(null);
@@ -766,6 +795,56 @@ describe('Retend GPUI renderer on the Retend-owned native bridge', () => {
     expect(setStyle).toHaveBeenCalledWith(target.id, [
       [PropertyId.Color, '#22c55e'],
     ]);
+  });
+
+  it('publishes inherited userSelect style through the native protocol', () => {
+    const renderer = createRenderer();
+    const parent = renderer.createContainer('div');
+    const style = Cell.source<GpuiStyle>({ userSelect: 'none' });
+    const setStyle = vi.spyOn(renderer.host, 'setStyle');
+    renderer.setProperty(parent, 'style', style);
+    expect(setStyle).toHaveBeenLastCalledWith(parent.id, [
+      [PropertyId.UserSelect, 'none'],
+    ]);
+    style.set({ userSelect: 'text' });
+    renderer.flush();
+    expect(setStyle).toHaveBeenLastCalledWith(parent.id, [
+      [PropertyId.UserSelect, 'text'],
+    ]);
+    style.set({});
+    renderer.flush();
+    expect(setStyle).toHaveBeenLastCalledWith(parent.id, []);
+    expect(debugTree(renderer).poisoned).toBe(false);
+  });
+
+  it('serializes cursor and pointer targeting in reactive and pseudo styles', () => {
+    const renderer = createRenderer();
+    const element = renderer.createContainer('div');
+    const style = Cell.source<GpuiStyle>({
+      cursor: 'pointer',
+      pointerEvents: 'none',
+      hover: { cursor: 'grab' },
+    });
+    const setStyle = vi.spyOn(renderer.host, 'setStyle');
+    const setPseudoStyle = vi.spyOn(renderer.host, 'setPseudoStyle');
+    renderer.setProperty(element, 'style', style);
+    expect(setStyle).toHaveBeenCalledWith(element.id, [
+      [PropertyId.Cursor, 'pointer'],
+      [PropertyId.PointerEvents, 'none'],
+    ]);
+    expect(setPseudoStyle).toHaveBeenCalledWith(element.id, StyleState.Hover, [
+      [PropertyId.Cursor, 'grab'],
+    ]);
+    style.set({ cursor: 'default', pointerEvents: 'auto' });
+    renderer.flush();
+    expect(setStyle).toHaveBeenLastCalledWith(element.id, [
+      [PropertyId.Cursor, 'default'],
+      [PropertyId.PointerEvents, 'auto'],
+    ]);
+    style.set({});
+    renderer.flush();
+    expect(setStyle).toHaveBeenLastCalledWith(element.id, []);
+    expect(debugTree(renderer).poisoned).toBe(false);
   });
 
   it('publishes transition longhands and serializes property arrays compactly', () => {

@@ -23,7 +23,7 @@ const colorOptions: Array<{
 
 export function HighlightColorPicker() {
   return (
-    <div class={classes.palette} role="group" aria-label="Accent color">
+    <div role="group" aria-label="Accent color" class={classes.palette}>
       {For(colorOptions, (option) => (
         <PaletteColorButton option={option} />
       ))}

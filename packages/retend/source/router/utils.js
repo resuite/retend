@@ -1,16 +1,3 @@
-//@ts-ignore
-/** @import { WindowLike } from '../context/index.js'; */
-
-/**
- * Constructs a path with its hash and search parameters.
- * @param {WindowLike} window
- * @returns {string}
- */
-export function getFullPath(window) {
-  const { location } = window;
-  return location.pathname + location.search + location.hash;
-}
-
 const PARAM_REGEX = /:(\w+)/g;
 
 /**

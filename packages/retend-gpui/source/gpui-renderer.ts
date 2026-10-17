@@ -30,7 +30,11 @@ import type {
   ProtocolPropertyValue,
 } from './native/protocol.js';
 import type { GpuiSystemOptions } from './system.js';
-import type { GpuiElementType, GpuiStyle } from './types.js';
+import type {
+  GpuiElementType,
+  GpuiStyle,
+  GpuiTextControlStyle,
+} from './types.js';
 import type { GpuiWindowOptions } from './window.js';
 
 import { resolveAssetSource } from './assets.js';
@@ -48,9 +52,11 @@ import {
   StyleState,
 } from './native/protocol.generated.js';
 import { withHMRBoundaries } from './plugins/hmr.js';
+import { runtimeGpuiSystem, SystemScope } from './system.js';
 import {
   flattenGroups,
   GpuiAnchor,
+  GpuiAudioElement,
   GpuiAnchoredElement,
   GpuiButtonElement,
   GpuiDivElement,
@@ -86,7 +92,18 @@ const TRANSFORM_PROPERTY_RANGE = [
   PropertyId.Scale,
   PropertyId.TransformOrigin,
 ] as const;
+const POINTER_PROPERTY_RANGE = [
+  PropertyId.Cursor,
+  PropertyId.PointerEvents,
+] as const;
 const IMAGE_PROPERTY_RANGE = [PropertyId.Alt, PropertyId.ObjectFit] as const;
+const AUDIO_PROPERTY_BY_KEY = {
+  src: PropertyId.Src,
+  autoPlay: PropertyId.Autoplay,
+  loop: PropertyId.Loop,
+  muted: PropertyId.Muted,
+  volume: PropertyId.Volume,
+} as const;
 const SVG_PROPERTY_BY_KEY = {
   content: PropertyId.Content,
   src: PropertyId.Src,
@@ -96,6 +113,7 @@ const PSEUDO_STATES = {
   hover: StyleState.Hover,
   focused: StyleState.Focused,
   active: StyleState.Active,
+  placeholder: StyleState.Placeholder,
 } as const;
 type PseudoState = keyof typeof PSEUDO_STATES;
 const ANCHORED_PROPERTY_BY_KEY = {
@@ -145,6 +163,7 @@ const ELEMENTS = {
   anchored: [ElementKind.Anchored, GpuiAnchoredElement],
   button: [ElementKind.Button, GpuiButtonElement],
   svg: [ElementKind.Svg, GpuiSvgElement],
+  audio: [ElementKind.Audio, GpuiAudioElement],
 } as const satisfies Record<
   GpuiElementType,
   readonly [ElementKindValue, ElementFactory]
@@ -1033,6 +1052,9 @@ export class RetendGpuiRenderer implements Renderer<GpuiRenderingTypes> {
       property = propertyIdInRange(key, IMAGE_PROPERTY_RANGE);
     else if (node.tagName === 'svg')
       property = SVG_PROPERTY_BY_KEY[key as keyof typeof SVG_PROPERTY_BY_KEY];
+    else if (node.tagName === 'audio')
+      property =
+        AUDIO_PROPERTY_BY_KEY[key as keyof typeof AUDIO_PROPERTY_BY_KEY];
     else if (
       (node.tagName === 'input' || node.tagName === 'textarea') &&
       key === 'value'
@@ -1147,7 +1169,7 @@ export class RetendGpuiRenderer implements Renderer<GpuiRenderingTypes> {
 
     const priorStates = new Set(
       (Object.keys(PSEUDO_STATES) as PseudoState[]).filter(
-        (state) => node.style[state] !== undefined
+        (state) => (node.style as GpuiTextControlStyle)[state] !== undefined
       )
     );
     const resolved: Record<string, unknown> = {};
@@ -1195,7 +1217,9 @@ export class RetendGpuiRenderer implements Renderer<GpuiRenderingTypes> {
   }
 
   #publishStyle(node: GpuiElement, state?: PseudoState): void {
-    const source = state ? (node.style[state] ?? {}) : node.style;
+    const source = state
+      ? ((node.style as GpuiTextControlStyle)[state] ?? {})
+      : node.style;
     const properties: [PropertyIdValue, ProtocolPropertyValue][] = [];
     for (const [property, value] of Object.entries(source)) {
       if (value === undefined || (!state && property in PSEUDO_STATES))
@@ -1204,7 +1228,9 @@ export class RetendGpuiRenderer implements Renderer<GpuiRenderingTypes> {
         propertyIdInRange(property, STYLE_PROPERTY_RANGE) ??
         propertyIdInRange(property, LOGICAL_SPACING_RANGE) ??
         propertyIdInRange(property, TRANSFORM_PROPERTY_RANGE) ??
-        propertyIdInRange(property, TRANSITION_PROPERTY_RANGE);
+        propertyIdInRange(property, TRANSITION_PROPERTY_RANGE) ??
+        propertyIdInRange(property, POINTER_PROPERTY_RANGE) ??
+        (property === 'userSelect' ? PropertyId.UserSelect : undefined);
       if (id === undefined) {
         throw new Error(`Unsupported Retend GPUI style property: ${property}.`);
       }
@@ -1270,7 +1296,9 @@ export async function renderToGpui(
   const renderer = new RetendGpuiRenderer();
   renderer.init(options);
   try {
-    await renderer.mount(App);
+    await renderer.mount(() =>
+      SystemScope.Provider({ value: runtimeGpuiSystem, children: App })
+    );
   } catch (error) {
     renderer.dispose();
     throw error;
@@ -1280,6 +1308,7 @@ export async function renderToGpui(
 
 export {
   GpuiAnchor,
+  GpuiAudioElement,
   GpuiAnchoredElement,
   GpuiButtonElement,
   GpuiDivElement,

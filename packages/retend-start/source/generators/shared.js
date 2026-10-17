@@ -1,4 +1,3 @@
-import chalk from 'chalk';
 import fs from 'node:fs/promises';
 import path from 'node:path';
 
@@ -189,22 +188,16 @@ export async function createZedFolder(projectDir) {
  * @param {boolean} includeDocs
  * @returns {Promise<void>}
  */
-export async function createDocsFiles(projectDir, includeDocs) {
-  if (!includeDocs) {
-    return;
+export async function createDocsFiles(projectDir, includeDocs, target) {
+  if (target !== 'web' && target !== 'gpui') {
+    throw new Error(`Unknown documentation target: ${target}`);
   }
+  if (!includeDocs) return;
 
-  const docsDir = path.join(packageRoot, 'docs', '.docs');
-  const agentFile = path.join(packageRoot, 'docs', 'AGENT.md');
+  const docsSource = target === 'gpui' ? 'docs-gpui' : 'docs';
+  const docsDir = path.join(packageRoot, docsSource, '.docs');
+  const agentFile = path.join(packageRoot, docsSource, 'AGENT.md');
 
-  try {
-    await fs.cp(docsDir, path.join(projectDir, '.docs'), { recursive: true });
-    await fs.cp(agentFile, path.join(projectDir, 'AGENT.md'));
-  } catch {
-    console.warn(
-      chalk.yellow(
-        'Failed to copy documentation files. You can add them manually later.'
-      )
-    );
-  }
+  await fs.cp(docsDir, path.join(projectDir, '.docs'), { recursive: true });
+  await fs.cp(agentFile, path.join(projectDir, 'AGENT.md'));
 }

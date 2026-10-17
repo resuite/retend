@@ -96,9 +96,9 @@ export function ProviderChain(props: TreeNodeProps) {
       return (
         <div class={classes.node} style={{ '--depth': depth }}>
           <div
+            data-selected={selectedState}
             class={[classes.nodeHeader, classes.providerChainHeader]}
             onClick={onBadgeClick}
-            data-selected={selectedState}
           >
             <span class={classes.chevron}>
               {If(isChainExpanded, {

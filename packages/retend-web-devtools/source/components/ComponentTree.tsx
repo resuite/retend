@@ -13,8 +13,8 @@ export function ComponentTree() {
 
   return (
     <div
-      class={classes.tree}
       data-inspector-panel-open={inspectorPanelIsOpen}
+      class={classes.tree}
       onPointerLeave={() => devRenderer.hoveredNode.set(null)}
     >
       {If(hasRoots, () => (

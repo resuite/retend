@@ -16,6 +16,12 @@ export interface MacAppRequest {
   addonPath: string;
   /** Directory the `.app` is written into. */
   outputDir: string;
+  /**
+   * Resolved Vite `publicDir`. Its contents are copied to the Resources root
+   * so root-relative URLs (`/icon.png`) resolve the same as in development.
+   * Omitted when Vite's public directory is disabled.
+   */
+  publicDir?: string;
   /** Official Node.js executable used as the SEA base. */
   nodeBinary: string;
   /** Optional icon source (`.icns`, `.png`, or `.svg`). */
@@ -151,6 +157,23 @@ function buildIcns(source: string, destination: string): void {
   fs.rmSync(iconset, { recursive: true, force: true });
 }
 
+/**
+ * Copies Vite `publicDir` entries to the Resources root, merged with whatever
+ * is already there. Vite serves `publicDir` at `/` in development, so this
+ * keeps root-relative URLs resolving identically in the packaged app.
+ */
+export function copyPublicDir(
+  publicDir: string | undefined,
+  resourcesDir: string
+): void {
+  if (!publicDir || !fs.existsSync(publicDir)) return;
+  for (const entry of fs.readdirSync(publicDir)) {
+    fs.cpSync(path.join(publicDir, entry), path.join(resourcesDir, entry), {
+      recursive: true,
+    });
+  }
+}
+
 /** Builds the `.app`: executable, addon, icon, and Info.plist. */
 export function buildMacApp(request: MacAppRequest): string {
   if (!request.addonPath || !fs.existsSync(request.addonPath)) {
@@ -177,6 +200,7 @@ export function buildMacApp(request: MacAppRequest): string {
       recursive: true,
     });
   }
+  copyPublicDir(request.publicDir, resourcesDir);
 
   const executablePath = path.join(macosDir, executable);
   const seaConfig = {

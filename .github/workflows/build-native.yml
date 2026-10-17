@@ -1,9 +1,7 @@
 name: Build Native Addon
 
 on:
-  # Publishing is manual for now, so artifact builds are opt-in rather than
-  # tied to a release event. Re-add `release: types: [published]` when
-  # publishing moves into CI.
+  workflow_call:
   workflow_dispatch:
 
 jobs:
@@ -52,8 +50,8 @@ jobs:
   build:
     name: ${{ matrix.target }}
     runs-on: ${{ matrix.runner }}
-    # Linux remains experimental; Windows native builds must be green.
-    continue-on-error: ${{ startsWith(matrix.target, 'linux') }}
+    # Every configured target must build before npm publishing can begin.
+    # Linux remains experimental to users, not optional in our releases.
     strategy:
       fail-fast: false
       matrix:
@@ -88,7 +86,7 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y \
             build-essential pkg-config cmake clang libclang-dev \
-            libssl-dev zlib1g-dev \
+            libssl-dev zlib1g-dev libasound2-dev \
             libxcb1-dev libxcb-render0-dev libxcb-shape0-dev libxcb-xfixes0-dev \
             libxkbcommon-dev libxkbcommon-x11-dev \
             libwayland-dev \
@@ -102,6 +100,8 @@ jobs:
       - run: pnpm install --frozen-lockfile --ignore-scripts
       - name: Build release addon
         run: pnpm --dir packages/retend-gpui run native:build:release -- --target=${{ matrix.target }} --locked
+      - name: Smoke-load native addon on target runner
+        run: node -e "const addon = require('./packages/retend-gpui/native/npm/${{ matrix.target }}/retend-gpui-native.${{ matrix.target }}.node'); if (Object.keys(addon).length === 0) throw new Error('Native addon has no exports')"
       - name: Upload addon
         uses: actions/upload-artifact@v4
         with:

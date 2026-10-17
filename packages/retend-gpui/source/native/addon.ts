@@ -4,6 +4,7 @@ import { fileURLToPath } from 'node:url';
 
 import type {
   GpuiMeasurement,
+  GpuiPoint,
   GpuiScrollOffset,
   GpuiSelection,
 } from '../types.js';
@@ -19,9 +20,10 @@ export interface NativeBridgeFailure {
 
 export type NativeWindowOptions = Omit<
   GpuiWindowOptions,
-  'location' | 'closeWithOpener'
+  'initialPath' | 'closeWithOpener'
 > & {
   transparentTitlebar?: boolean;
+  trafficLightPosition?: GpuiPoint;
 };
 
 interface NativeEventBase {
@@ -53,7 +55,7 @@ type NativeScrollEventId = NativeEventIds<'Scroll'>;
 type NativeTransitionEventId = NativeEventIds<
   'TransitionRun' | 'TransitionStart' | 'TransitionEnd' | 'TransitionCancel'
 >;
-type NativeImageEventId = NativeEventIds<'Load' | 'Error'>;
+type NativeResourceEventId = NativeEventIds<'Load' | 'Error' | 'Ended'>;
 type NativePayloadById<
   Id extends number,
   Fields = Record<never, never>,
@@ -88,11 +90,23 @@ export type NativeScrollEventPayload = NativePayloadById<
   NativeScrollEventId,
   { scrollX: number; scrollY: number }
 >;
+export type NativeWheelEventPayload = NativePayloadById<
+  NativeEventIds<'Wheel'>,
+  {
+    clientX: number;
+    clientY: number;
+    deltaX: number;
+    deltaY: number;
+    deltaMode: 0 | 1;
+    touchPhase: 'started' | 'moved' | 'ended' | 'cancelled';
+  }
+>;
 export type NativeTransitionEventPayload = NativePayloadById<
   NativeTransitionEventId,
   { propertyName: string; elapsedTime: number }
 >;
-export type NativeImageEventPayload = NativePayloadById<NativeImageEventId>;
+export type NativeResourceEventPayload =
+  NativePayloadById<NativeResourceEventId>;
 
 export type NativeEventPayload =
   | NativeMouseEventPayload
@@ -100,11 +114,18 @@ export type NativeEventPayload =
   | NativeTextEventPayload
   | NativeFocusEventPayload
   | NativeScrollEventPayload
+  | NativeWheelEventPayload
   | NativeTransitionEventPayload
-  | NativeImageEventPayload;
+  | NativeResourceEventPayload;
 
 export type NativeWindowEventPayload =
   | { kind: 'resize'; width: number; height: number }
+  | {
+      kind: 'system';
+      theme: 'light' | 'dark';
+      accentColor?: string;
+    }
+  | { kind: 'accent'; accentColor?: string }
   | { kind: 'focus' | 'blur' | 'close' | 'reload' };
 
 export type NativeTransportPayload =
@@ -122,6 +143,16 @@ export class NativeRendererFatalError extends Error {
   }
 }
 
+interface NativeMenuActionItem {
+  id: string;
+  label: string;
+  disabled?: boolean;
+}
+
+interface NativeMenuSeparatorItem {
+  separator: true;
+}
+
 export interface NativeRendererBinding {
   readonly windowId: number;
   applyCommandBatch(buffer: Uint8Array): void;
@@ -130,6 +161,8 @@ export interface NativeRendererBinding {
   blurNode(id: number): void;
   setSelectionRangeNode(id: number, start: number, end: number): void;
   selectNode(id: number): void;
+  playAudioNode(id: number): void;
+  pauseAudioNode(id: number): void;
   getSelectionNode(id: number): Promise<GpuiSelection>;
   scrollToNode(id: number, x: number, y: number): void;
   scrollByNode(id: number, x: number, y: number): void;
@@ -138,6 +171,11 @@ export interface NativeRendererBinding {
   measureNode(id: number): Promise<GpuiMeasurement>;
   reportFatal(javascriptStack: string): void;
   setWindowTitle(title: string): void;
+  showMenu(
+    x: number,
+    y: number,
+    items: readonly (NativeMenuActionItem | NativeMenuSeparatorItem)[]
+  ): Promise<string | null>;
   close(): void;
   isNodePresented(id: number): boolean;
   debugTreeJson(): string;

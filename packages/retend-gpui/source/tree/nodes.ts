@@ -448,6 +448,22 @@ export class GpuiImageElement extends GpuiElement {
   }
 }
 
+/** Non-visual native `<audio>` element. */
+export class GpuiAudioElement extends GpuiElement {
+  constructor(id: number, host: GpuiHost, renderer: RetendGpuiRenderer) {
+    super(id, 'audio', false, host, renderer);
+  }
+
+  /** Start or resume playback. Loading failures dispatch `error`. */
+  play(): void {
+    this.liveHost('play audio on').playAudioNode(this.id);
+  }
+
+  pause(): void {
+    this.liveHost('pause audio on').pauseAudioNode(this.id);
+  }
+}
+
 /** Native `<svg>` icon element. */
 export class GpuiSvgElement extends GpuiElement {
   constructor(id: number, host: GpuiHost, renderer: RetendGpuiRenderer) {

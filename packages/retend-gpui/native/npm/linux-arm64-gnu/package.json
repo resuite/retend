@@ -1,13 +1,6 @@
 {
   "name": "retend-gpui-native-linux-arm64-gnu",
   "version": "0.0.36",
-  "cpu": [
-    "arm64"
-  ],
-  "main": "retend-gpui-native.linux-arm64-gnu.node",
-  "files": [
-    "retend-gpui-native.linux-arm64-gnu.node"
-  ],
   "description": "Native desktop rendering for the Retend UI framework through GPUI.",
   "keywords": [
     "desktop",
@@ -17,23 +10,31 @@
     "native",
     "renderer"
   ],
-  "author": "Adebola Akomolafe",
   "homepage": "https://github.com/resuite/retend#readme",
-  "license": "MIT",
-  "repository": {
-    "type": "git",
-    "directory": "github.com/resuite/retend"
-  },
   "bugs": {
     "url": "https://github.com/resuite/retend/issues"
   },
-  "publishConfig": {
-    "access": "public"
+  "license": "MIT",
+  "author": "Adebola Akomolafe",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/resuite/retend.git",
+    "directory": "packages/retend-gpui/native/npm/linux-arm64-gnu"
   },
+  "files": [
+    "retend-gpui-native.linux-arm64-gnu.node"
+  ],
   "os": [
     "linux"
   ],
+  "cpu": [
+    "arm64"
+  ],
   "libc": [
     "glibc"
-  ]
+  ],
+  "main": "retend-gpui-native.linux-arm64-gnu.node",
+  "publishConfig": {
+    "access": "public"
+  }
 }

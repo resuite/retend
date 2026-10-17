@@ -74,7 +74,7 @@ export function PositionDropdown({ panel }: { panel: PanelState }) {
   ];
 
   return (
-    <div class={dropdownClasses.dropdownContainer} data-position-dropdown>
+    <div data-position-dropdown class={dropdownClasses.dropdownContainer}>
       <button
         type="button"
         title="Position panel"

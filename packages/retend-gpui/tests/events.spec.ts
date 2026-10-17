@@ -2,12 +2,13 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import {
   GpuiFocusEvent,
-  GpuiImageEvent,
+  GpuiResourceEvent,
   GpuiInputEvent,
   GpuiKeyboardEvent,
   GpuiMouseEvent,
   GpuiScrollEvent,
   GpuiTransitionEvent,
+  GpuiWheelEvent,
   createNativeEvent,
 } from '../source/events';
 import { RetendGpuiRenderer } from '../source/gpui-renderer';
@@ -311,6 +312,8 @@ describe('Retend GPUI event dispatch', () => {
     target.removeEventListener('click', second);
     target.addEventListener('scroll', first);
     target.removeEventListener('scroll', first);
+    target.addEventListener('wheel', first);
+    target.removeEventListener('wheel', first);
     target.addEventListener('custom', first);
 
     expect(nativeSubscriptionChanged.mock.calls).toEqual([
@@ -318,7 +321,46 @@ describe('Retend GPUI event dispatch', () => {
       [target, NativeEventId.Click, false],
       [target, NativeEventId.Scroll, true],
       [target, NativeEventId.Scroll, false],
+      [target, NativeEventId.Wheel, true],
+      [target, NativeEventId.Wheel, false],
     ]);
+  });
+
+  it('creates wheel events with raw deltas, units, phase and modifiers', () => {
+    const event = createNativeEvent({
+      eventId: NativeEventId.Wheel,
+      targetId: 1,
+      timeStamp: 42,
+      clientX: 20,
+      clientY: 30,
+      deltaX: -1.5,
+      deltaY: 2.5,
+      deltaMode: 1,
+      touchPhase: 'ended',
+      altKey: true,
+      ctrlKey: true,
+      metaKey: false,
+      shiftKey: false,
+    });
+    expect(event).toBeInstanceOf(GpuiWheelEvent);
+    expect(event).toMatchObject({
+      type: 'wheel',
+      timeStamp: 42,
+      bubbles: true,
+      cancelable: false,
+      clientX: 20,
+      clientY: 30,
+      deltaX: -1.5,
+      deltaY: 2.5,
+      deltaMode: 1,
+      touchPhase: 'ended',
+      altKey: true,
+      ctrlKey: true,
+      metaKey: false,
+      shiftKey: false,
+    });
+    event.preventDefault();
+    expect(event.defaultPrevented).toBe(false);
   });
 
   it('creates typed transition events with property and elapsed payloads', () => {
@@ -396,7 +438,7 @@ describe('Retend GPUI event dispatch', () => {
       metaKey: false,
       shiftKey: false,
     });
-    expect(load).toBeInstanceOf(GpuiImageEvent);
+    expect(load).toBeInstanceOf(GpuiResourceEvent);
     expect(load.type).toBe('load');
     expect(load.bubbles).toBe(false);
     expect(load.cancelable).toBe(false);
@@ -411,9 +453,26 @@ describe('Retend GPUI event dispatch', () => {
       metaKey: false,
       shiftKey: false,
     });
-    expect(error).toBeInstanceOf(GpuiImageEvent);
+    expect(error).toBeInstanceOf(GpuiResourceEvent);
     expect(error.type).toBe('error');
     expect(error.bubbles).toBe(false);
+  });
+
+  it('uses the shared resource event for audio completion', () => {
+    const ended = createNativeEvent({
+      eventId: NativeEventId.Ended,
+      targetId: 3,
+      timeStamp: 24,
+      altKey: false,
+      ctrlKey: false,
+      metaKey: false,
+      shiftKey: false,
+    });
+    expect(ended).toBeInstanceOf(GpuiResourceEvent);
+    expect(ended.type).toBe('ended');
+    expect(ended.bubbles).toBe(false);
+    expect(ended.cancelable).toBe(false);
+    expect(ended.timeStamp).toBe(24);
   });
 
   it('captures but does not bubble image load/error events', () => {

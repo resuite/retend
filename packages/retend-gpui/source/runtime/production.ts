@@ -5,8 +5,6 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { setGlobalContext } from 'retend/context';
 
-import type { GpuiSystemOptions } from '../system.js';
-
 import {
   setAppContext,
   clearAppContext,
@@ -15,6 +13,11 @@ import {
 import { setAssetBase } from '../assets.js';
 import { RetendGpuiRenderer } from '../gpui-renderer.js';
 import { setApplicationIdentity, setNativeAddonPath } from '../native/addon.js';
+import {
+  runtimeGpuiSystem,
+  SystemScope,
+  type GpuiSystemOptions,
+} from '../system.js';
 import {
   RuntimeGpuiWindow,
   WindowScope,
@@ -26,7 +29,7 @@ const DEFAULT_WIDTH = 800;
 const DEFAULT_HEIGHT = 600;
 
 type ProductionWindowOptions = GpuiWindowOptions &
-  Required<Pick<GpuiWindowOptions, 'title' | 'location'>>;
+  Required<Pick<GpuiWindowOptions, 'title' | 'initialPath'>>;
 
 /**
  * Inputs baked into a packaged `retend-gpui` application entry.
@@ -84,11 +87,11 @@ function resolveNativeAddonPath(besideEntry: string): string {
 function resolveAssetBase(): string {
   const bundleDir = fileURLToPath(new URL('.', import.meta.url));
   const executableDir = path.dirname(process.execPath);
-  const candidates = [
-    bundleDir,
-    path.join(executableDir, '..', 'Resources'),
-    executableDir,
-  ];
+  const resourcesDir = path.join(executableDir, '..', 'Resources');
+  // Public files land at the Resources root, so prefer it whenever it
+  // exists, even when no imported `assets/` directory was emitted.
+  if (fs.existsSync(resourcesDir)) return resourcesDir;
+  const candidates = [bundleDir, executableDir];
   return (
     candidates.find((directory) =>
       fs.existsSync(path.join(directory, 'assets'))
@@ -109,6 +112,7 @@ export async function startProductionApp<Context extends object>(
   setAssetBase(resolveAssetBase());
 
   const globalData = new Map<PropertyKey, unknown>();
+  const system = runtimeGpuiSystem;
   const windows = new Set<RuntimeGpuiWindow>();
   setGlobalContext({ globalData });
 
@@ -155,7 +159,7 @@ export async function startProductionApp<Context extends object>(
     const window = createWindow({
       ...options,
       title: options.title ?? definition.appName,
-      location: options.location ?? '/',
+      initialPath: options.initialPath ?? '/',
     });
     return mountWindow(window).then(() => window.handle);
   }
@@ -171,13 +175,14 @@ export async function startProductionApp<Context extends object>(
       throw error;
     }
 
-    const window = new RuntimeGpuiWindow(
-      options.title,
-      options.width ?? DEFAULT_WIDTH,
-      options.height ?? DEFAULT_HEIGHT,
+    const window = new RuntimeGpuiWindow({
+      title: options.title,
+      width: options.width ?? DEFAULT_WIDTH,
+      height: options.height ?? DEFAULT_HEIGHT,
+      initialPath: options.initialPath,
       renderer,
-      { close: closeWindow, open: openWindow }
-    );
+      runtime: { close: closeWindow, open: openWindow },
+    });
     windows.add(window);
     renderer.host.addEventListener(
       'close',
@@ -192,9 +197,14 @@ export async function startProductionApp<Context extends object>(
 
   const mountWindow = async (window: RuntimeGpuiWindow): Promise<void> => {
     await window.renderer.mount(() =>
-      WindowScope.Provider({
-        value: window,
-        children: () => window.renderer.handleComponent(definition.Root, []),
+      SystemScope.Provider({
+        value: system,
+        children: () =>
+          WindowScope.Provider({
+            value: window,
+            children: () =>
+              window.renderer.handleComponent(definition.Root, []),
+          }),
       })
     );
   };

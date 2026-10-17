@@ -17,7 +17,11 @@ import type {
   GpuiSelection,
 } from './types.js';
 
-import { GpuiApplicationErrorEvent, GpuiResizeEvent } from './events.js';
+import {
+  GpuiApplicationErrorEvent,
+  GpuiResizeEvent,
+  GpuiSystemPreferencesEvent,
+} from './events.js';
 import {
   loadNativeAddon,
   NativeRendererFatalError,
@@ -26,98 +30,13 @@ import {
 import { allocateNativeNodeId } from './native/node-id.js';
 import { CommandBatchWriter } from './native/protocol.js';
 import { nativeRuntime } from './native/runtime.js';
-import { validateGpuiWindowOptions, type GpuiWindowOptions } from './window.js';
-
-const LOCATION_BASE = 'retend://app/';
-
-interface GpuiNavigationEntry {
-  url: URL;
-  state: unknown;
-}
-
-class GpuiNavigation {
-  readonly #target: EventTarget;
-  #entries: GpuiNavigationEntry[] = [
-    { url: new URL('/', LOCATION_BASE), state: null },
-  ];
-  #index = 0;
-
-  constructor(target: EventTarget) {
-    this.#target = target;
-  }
-
-  get #current(): GpuiNavigationEntry {
-    return this.#entries[this.#index];
-  }
-
-  get pathname(): string {
-    return this.#current.url.pathname;
-  }
-
-  get search(): string {
-    return this.#current.url.search;
-  }
-
-  get hash(): string {
-    return this.#current.url.hash;
-  }
-
-  get href(): string {
-    return `${this.pathname}${this.search}${this.hash}`;
-  }
-
-  get length(): number {
-    return this.#entries.length;
-  }
-
-  get state(): unknown {
-    return this.#current.state;
-  }
-
-  reset(path: string): void {
-    this.#entries = [{ url: this.#resolve(path), state: null }];
-    this.#index = 0;
-  }
-
-  pushState(state: unknown, _unused: string, path?: string | URL | null): void {
-    this.#entries.splice(this.#index + 1);
-    this.#entries.push({ url: this.#resolve(path), state });
-    this.#index = this.#entries.length - 1;
-  }
-
-  replaceState(
-    state: unknown,
-    _unused: string,
-    path?: string | URL | null
-  ): void {
-    this.#entries[this.#index] = { url: this.#resolve(path), state };
-  }
-
-  go(delta = 0): void {
-    const offset = Number.isFinite(delta) ? Math.trunc(delta) : 0;
-    if (offset === 0) return;
-
-    const nextIndex = this.#index + offset;
-    if (nextIndex < 0 || nextIndex >= this.#entries.length) return;
-
-    this.#index = nextIndex;
-    this.#target.dispatchEvent(new Event('popstate'));
-  }
-
-  back(): void {
-    this.go(-1);
-  }
-
-  forward(): void {
-    this.go(1);
-  }
-
-  #resolve(path?: string | URL | null): URL {
-    return path === undefined || path === null
-      ? new URL(this.#current.url)
-      : new URL(String(path), this.#current.url);
-  }
-}
+import { runtimeGpuiSystem } from './system.js';
+import {
+  validateGpuiWindowOptions,
+  validateGpuiMenuOptions,
+  type GpuiMenuOptions,
+  type GpuiWindowOptions,
+} from './window.js';
 
 export interface GpuiHostOptions {
   /** Creates the retained native tree without opening an OS window. */
@@ -129,32 +48,28 @@ export interface GpuiHostOptions {
 /** Events dispatched by a window host for the lifetime of its native window. */
 export interface GpuiHostEventMap {
   resize: GpuiResizeEvent;
+  systempreferences: GpuiSystemPreferencesEvent;
   focus: Event;
   blur: Event;
   reload: Event;
   close: Event;
   fatal: Event;
   applicationerror: GpuiApplicationErrorEvent;
-  popstate: Event;
 }
 
 /**
  * Window-local Retend host backed directly by the Retend-owned native command
- * protocol. Navigation remains JavaScript-owned.
+ * protocol. Routing belongs to the router; the host holds no route state.
  */
 export class GpuiHost extends EventTarget {
   readonly #headless: boolean;
   readonly #onNativeEvent?: (event: NativeEventPayload) => void;
   #writer = new CommandBatchWriter();
-  readonly #navigation = new GpuiNavigation(this);
   #binding: NativeRendererBinding | null = null;
   #rootId = 0;
   #flushScheduled = false;
   #flushing = false;
   #nativeAcquired = false;
-
-  readonly location = this.#navigation;
-  readonly history = this.#navigation;
 
   override addEventListener<K extends keyof GpuiHostEventMap>(
     type: K,
@@ -193,6 +108,15 @@ export class GpuiHost extends EventTarget {
     if (this.#binding)
       throw new Error('Retend GPUI host is already initialized.');
     validateGpuiWindowOptions(options);
+    const position = system.trafficLightPosition;
+    if (
+      position &&
+      (!Number.isFinite(position.x) || !Number.isFinite(position.y))
+    ) {
+      throw new TypeError(
+        'system.trafficLightPosition must contain finite x and y coordinates.'
+      );
+    }
 
     this.#rootId = allocateNativeNodeId();
     this.#writer = new CommandBatchWriter();
@@ -201,24 +125,39 @@ export class GpuiHost extends EventTarget {
     this.#binding = new (loadNativeAddon().NativeRendererBinding)(
       this.#rootId,
       this.#headless,
-      { ...options, transparentTitlebar: system.transparentTitlebar },
+      {
+        ...options,
+        transparentTitlebar: system.transparentTitlebar,
+        trafficLightPosition: position,
+      },
       (payload) => this.#handleNativeEvent(payload)
     );
-    if (options.location !== undefined)
-      this.#navigation.reset(options.location);
   }
 
   setWindowTitle(title: string): void {
     this.#requireBinding().setWindowTitle(title);
   }
 
+  /** Presents an operating-system popup menu in this window. */
+  async showMenu(options: GpuiMenuOptions): Promise<string | null> {
+    validateGpuiMenuOptions(options);
+    const { x, y } = options.position;
+    return this.#query((binding) =>
+      binding.showMenu(
+        x,
+        y,
+        options.items.map((item) =>
+          item.type === 'separator'
+            ? { separator: true }
+            : { id: item.id, label: item.label, disabled: item.disabled }
+        )
+      )
+    );
+  }
+
   /** @internal Reports a recoverable application error to this window runtime. */
   reportApplicationError(error: unknown): void {
     this.dispatchEvent(new GpuiApplicationErrorEvent(error));
-  }
-
-  resetLocation(path: string): void {
-    this.history.reset(path);
   }
 
   createNode(kind: ElementKindValue): number {
@@ -324,6 +263,14 @@ export class GpuiHost extends EventTarget {
 
   setSelectionRangeNode(id: number, start: number, end: number): void {
     this.#flushBinding().setSelectionRangeNode(id, start, end);
+  }
+
+  playAudioNode(id: number): void {
+    this.#flushBinding().playAudioNode(id);
+  }
+
+  pauseAudioNode(id: number): void {
+    this.#flushBinding().pauseAudioNode(id);
   }
 
   selectNode(id: number): void {
@@ -449,6 +396,24 @@ export class GpuiHost extends EventTarget {
         this.dispatchEvent(new GpuiResizeEvent(event.width, event.height));
         this.flush();
         return;
+      case 'system': {
+        const accentColor = event.accentColor ?? null;
+        runtimeGpuiSystem.update(event.theme, accentColor);
+        this.dispatchEvent(
+          new GpuiSystemPreferencesEvent(event.theme, accentColor)
+        );
+        return;
+      }
+      case 'accent': {
+        const accentColor = event.accentColor ?? null;
+        runtimeGpuiSystem.updateAccent(accentColor);
+        const theme = runtimeGpuiSystem.theme.peek();
+        if (theme !== null)
+          this.dispatchEvent(
+            new GpuiSystemPreferencesEvent(theme, accentColor)
+          );
+        return;
+      }
       case 'focus':
       case 'blur':
       case 'reload':

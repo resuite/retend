@@ -57,7 +57,6 @@ describe('Scopes in Routing', () => {
       ],
     });
 
-    router.attachWindowListeners(window);
     window.document.body.append(createRouterRoot(router));
 
     await router.navigate('/content');
@@ -129,7 +128,6 @@ describe('Scopes in Routing', () => {
       ],
     });
 
-    router.attachWindowListeners(window);
     window.document.body.append(createRouterRoot(router));
 
     await router.navigate('/user');
@@ -199,7 +197,6 @@ describe('Scopes in Routing', () => {
       ],
     });
 
-    router.attachWindowListeners(window);
     window.document.body.append(createRouterRoot(router));
 
     await router.navigate('/child/grandchild');
@@ -264,7 +261,6 @@ describe('Scopes in Routing', () => {
       ],
     });
 
-    router.attachWindowListeners(window);
     window.document.body.append(createRouterRoot(router));
 
     await router.navigate('/protected');
@@ -325,7 +321,6 @@ describe('Scopes in Routing', () => {
       ],
     });
 
-    router.attachWindowListeners(window);
     window.document.body.append(createRouterRoot(router));
 
     await router.navigate('/content');

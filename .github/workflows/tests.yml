@@ -1,8 +1,7 @@
 name: Run Tests (pnpm)
 
 on:
-  push:
-    branches: [main]
+  workflow_call:
   pull_request:
     branches: [main]
 
@@ -23,6 +22,7 @@ jobs:
       - run: pnpm install --frozen-lockfile
       - run: pnpm run build
       - run: pnpm run test
+      - run: pnpm run release:check
 
   gpui:
     runs-on: macos-latest

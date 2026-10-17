@@ -18,6 +18,7 @@ import {
   NativeRendererFatalError,
   setApplicationIdentity,
 } from '../native/addon.js';
+import { runtimeGpuiSystem, SystemScope } from '../system.js';
 import {
   RuntimeGpuiWindow,
   WindowScope,
@@ -54,6 +55,7 @@ function sendControl(message: GpuiControlMessage): void {
 
 async function runApplication(message: DevRuntimeInitMessage): Promise<void> {
   const globalData = new Map<PropertyKey, unknown>();
+  const system = runtimeGpuiSystem;
   const windows = new Set<RuntimeGpuiWindow>();
   let runner: ModuleRunner | null = null;
   let application: GpuiApplication<object> | null = null;
@@ -61,7 +63,7 @@ async function runApplication(message: DevRuntimeInitMessage): Promise<void> {
 
   process.title = message.appName;
   setGlobalContext({ globalData });
-  setAssetBase(message.root);
+  setAssetBase(message.publicDir ?? message.root);
 
   const closeWindow = (window: RuntimeGpuiWindow): void => {
     if (!windows.delete(window)) return;
@@ -192,9 +194,13 @@ async function runApplication(message: DevRuntimeInitMessage): Promise<void> {
       const Component = Root;
       window.renderer.clearDevelopmentError();
       await window.renderer.mount(() =>
-        WindowScope.Provider({
-          value: window,
-          children: () => window.renderer.handleComponent(Component, []),
+        SystemScope.Provider({
+          value: system,
+          children: () =>
+            WindowScope.Provider({
+              value: window,
+              children: () => window.renderer.handleComponent(Component, []),
+            }),
         })
       );
     } catch (error) {
@@ -231,13 +237,14 @@ async function runApplication(message: DevRuntimeInitMessage): Promise<void> {
       throw error;
     }
 
-    const window = new RuntimeGpuiWindow(
-      options.title,
-      options.width ?? 800,
-      options.height ?? 600,
+    const window = new RuntimeGpuiWindow({
+      title: options.title,
+      width: options.width ?? 800,
+      height: options.height ?? 600,
+      initialPath: options.initialPath,
       renderer,
-      { close: closeWindow, open: openWindow }
-    );
+      runtime: { close: closeWindow, open: openWindow },
+    });
     windows.add(window);
     renderer.host.addEventListener(
       'close',
@@ -263,7 +270,7 @@ async function runApplication(message: DevRuntimeInitMessage): Promise<void> {
     const window = createWindow({
       ...options,
       title: options.title ?? message.appName,
-      location: options.location ?? '/',
+      initialPath: options.initialPath ?? '/',
     });
     await recoverWindow(window, Root, true);
     return window.handle;
