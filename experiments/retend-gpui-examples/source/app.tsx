@@ -1,6 +1,27 @@
 import { Cell } from 'retend';
 import { useWindow } from 'retend-gpui';
 
+function TextSelectionExample() {
+  return (
+    <>
+      <div style={{ fontSize: 12, color: '#777', userSelect: 'none' }}>
+        This label cannot be selected.
+      </div>
+      <div
+        style={{
+          fontSize: 13,
+          lineHeight: 20,
+          color: '#242424',
+          userSelect: 'text',
+        }}
+      >
+        Drag over this paragraph to select its text, then press Cmd+C to copy
+        it.
+      </div>
+    </>
+  );
+}
+
 export default function App() {
   const window = useWindow();
   const lastSelection = Cell.source('Nothing selected');
@@ -69,6 +90,7 @@ export default function App() {
           Open a native menu
         </button>
         <div>{lastSelection}</div>
+        <TextSelectionExample />
         <input
           placeholder="Right-click for the system text menu"
           style={{

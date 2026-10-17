@@ -147,6 +147,8 @@ pub struct RuntimeStateRegistry(Rc<RefCell<RuntimeState>>);
 struct RuntimeState {
     focus: HashMap<NodeId, FocusState>,
     text_control: HashMap<NodeId, TextControlRuntimeState>,
+    text_selection: Option<PlainTextSelection>,
+    text_selection_focus: Option<FocusHandle>,
     scroll: HashMap<NodeId, ScrollState>,
     generation: u64,
     prepared_revision: Option<(WindowId, u64)>,
@@ -182,6 +184,25 @@ pub struct TextControlConfig<'a> {
     pub placeholder_color: Option<u32>,
     pub min_rows: Option<u32>,
     pub max_rows: Option<u32>,
+}
+
+#[derive(Clone, Debug)]
+pub struct PlainTextSelection {
+    pub node_id: NodeId,
+    pub text: gpui::SharedString,
+    pub anchor: usize,
+    pub head: usize,
+    pub dragging: bool,
+}
+
+impl PlainTextSelection {
+    pub fn range(&self) -> std::ops::Range<usize> {
+        self.anchor.min(self.head)..self.anchor.max(self.head)
+    }
+
+    pub fn selected_text(&self) -> Option<&str> {
+        self.text.get(self.range()).filter(|text| !text.is_empty())
+    }
 }
 
 #[derive(Clone)]
@@ -355,6 +376,95 @@ fn emit_scroll_event(window_id: WindowId, id: NodeId, offset: ScrollOffset) {
 }
 
 impl RuntimeStateRegistry {
+    pub fn ensure_selection_focus(&self, cx: &mut App) -> FocusHandle {
+        self.0
+            .borrow_mut()
+            .text_selection_focus
+            .get_or_insert_with(|| cx.focus_handle().tab_stop(false))
+            .clone()
+    }
+
+    pub fn text_selection(&self, id: NodeId) -> Option<PlainTextSelection> {
+        self.0
+            .borrow()
+            .text_selection
+            .as_ref()
+            .filter(|selected| selected.node_id == id)
+            .cloned()
+    }
+
+    pub fn start_text_selection(&self, id: NodeId, text: gpui::SharedString, anchor: usize) {
+        self.0.borrow_mut().text_selection = Some(PlainTextSelection {
+            node_id: id,
+            text,
+            anchor,
+            head: anchor,
+            dragging: true,
+        });
+    }
+
+    pub fn update_text_selection(&self, id: NodeId, head: usize) -> bool {
+        let mut state = self.0.borrow_mut();
+        let Some(selected) = state.text_selection.as_mut() else {
+            return false;
+        };
+        if selected.node_id != id || !selected.dragging || selected.head == head {
+            return false;
+        }
+        selected.head = head;
+        true
+    }
+
+    pub fn finish_text_selection(&self, id: NodeId) -> bool {
+        let mut state = self.0.borrow_mut();
+        let Some(selected) = state.text_selection.as_mut() else {
+            return false;
+        };
+        if selected.node_id != id || !selected.dragging {
+            return false;
+        }
+        selected.dragging = false;
+        if selected.range().is_empty() {
+            state.text_selection = None;
+        }
+        true
+    }
+
+    pub fn clear_text_selection(&self) -> bool {
+        self.0.borrow_mut().text_selection.take().is_some()
+    }
+
+    pub fn sync_plain_text_selection(&self, id: NodeId, text: &str) {
+        let mut state = self.0.borrow_mut();
+        if state
+            .text_selection
+            .as_ref()
+            .is_some_and(|selected| selected.node_id == id && selected.text.as_ref() != text)
+        {
+            state.text_selection = None;
+        }
+    }
+
+    pub fn clear_plain_text_selection(&self, id: NodeId) {
+        let mut state = self.0.borrow_mut();
+        if state
+            .text_selection
+            .as_ref()
+            .is_some_and(|selected| selected.node_id == id)
+        {
+            state.text_selection = None;
+        }
+    }
+
+    pub fn selected_plain_text(&self) -> Option<String> {
+        self.0
+            .borrow()
+            .text_selection
+            .as_ref()
+            .and_then(PlainTextSelection::selected_text)
+            .map(str::to_owned)
+    }
+
     pub fn is_interactive(&self, id: NodeId) -> bool {
         let state = self.0.borrow();
         state.focus.get(&id).is_some_and(|focus| focus.enabled) || state.scroll.contains_key(&id)
@@ -799,6 +909,13 @@ impl RuntimeStateRegistry {
                 state.text_control.remove(id);
                 state.scroll.remove(id);
                 state.frame.nodes.remove(id);
+            }
+            if state
+                .text_selection
+                .as_ref()
+                .is_some_and(|selected| ids.contains(&selected.node_id))
+            {
+                state.text_selection = None;
             }
             state.take_pending(|operation| ids.contains(&operation.id()))
         };

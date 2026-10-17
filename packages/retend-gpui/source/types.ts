@@ -347,6 +347,8 @@ export interface GpuiStyleDeclarations {
     | 'context-menu';
   /** Subtree pointer targeting. `none` passes through; descendant `auto` does not opt back in. Keyboard focus is unaffected. */
   pointerEvents?: 'auto' | 'none';
+  /** Whether ordinary rendered text can be selected. Inherited by descendants. */
+  userSelect?: 'text' | 'none';
   whiteSpace?: 'normal' | 'nowrap';
   overflow?: 'visible' | 'clip' | 'hidden' | 'auto' | 'scroll';
 

@@ -26,6 +26,13 @@ pub enum WhiteSpaceValue {
     NoWrap,
 }
 
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub enum UserSelectValue {
+    #[default]
+    Text,
+    None,
+}
+
 #[derive(Clone, Copy, Debug, Default, PartialEq)]
 pub enum OverflowValue {
     #[default]
@@ -174,6 +181,7 @@ native_style! {
         column_gap: f32 => ColumnGap(parse_nonnegative_number);
         white_space: WhiteSpaceValue => WhiteSpace(parse_white_space);
         pointer_events: bool => PointerEvents(parse_pointer_events);
+        user_select: UserSelectValue => UserSelect(parse_user_select);
     }
 }
 
@@ -364,6 +372,12 @@ string_enum_parser!(
     WhiteSpaceValue,
     "normal" => WhiteSpaceValue::Normal,
     "nowrap" => WhiteSpaceValue::NoWrap,
+);
+string_enum_parser!(
+    parse_user_select,
+    UserSelectValue,
+    "text" => UserSelectValue::Text,
+    "none" => UserSelectValue::None,
 );
 string_enum_parser!(
     parse_overflow,
@@ -678,6 +692,18 @@ mod tests {
         assert_eq!(style.pointer_events, Some(true));
         style.set_property(PropertyId::PointerEvents, &PropertyValue::Null);
         assert_eq!(style.pointer_events, None);
+        assert!(style.set_property(
+            PropertyId::UserSelect,
+            &PropertyValue::String("none".into())
+        ));
+        assert_eq!(style.user_select, Some(UserSelectValue::None));
+        style.set_property(
+            PropertyId::UserSelect,
+            &PropertyValue::String("text".into()),
+        );
+        assert_eq!(style.user_select, Some(UserSelectValue::Text));
+        style.set_property(PropertyId::UserSelect, &PropertyValue::Null);
+        assert_eq!(style.user_select, None);
         style.set_property(
             PropertyId::Cursor,
             &PropertyValue::String("unsupported".into()),

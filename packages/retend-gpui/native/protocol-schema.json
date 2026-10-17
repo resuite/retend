@@ -123,7 +123,8 @@
     "Autoplay": 86,
     "Loop": 87,
     "Muted": 88,
-    "Volume": 89
+    "Volume": 89,
+    "UserSelect": 90
   },
   "nativeEvents": {
     "Click": 1,

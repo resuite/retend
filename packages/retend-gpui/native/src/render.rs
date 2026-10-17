@@ -2,8 +2,8 @@ use std::{cell::Cell, rc::Rc, sync::Arc};
 
 use gpui::{
     actions, anchored, deferred, div, img, prelude::*, px, relative, Anchor, AnyElement, App,
-    Bounds, ClickEvent, Element, ElementId, GlobalElementId, ImageCacheError, ImageSource,
-    InspectorElementId, KeyBinding, KeyDownEvent, KeyUpEvent, LayoutId, MouseButton,
+    Bounds, ClickEvent, DispatchPhase, Element, ElementId, GlobalElementId, ImageCacheError,
+    ImageSource, InspectorElementId, KeyBinding, KeyDownEvent, KeyUpEvent, LayoutId, MouseButton,
     MouseDownEvent, MouseMoveEvent, MouseUpEvent, NavigationDirection, Pixels, Point, Resource,
     Role, StyledImage, Text, Window,
 };
@@ -12,7 +12,7 @@ use crate::{
     events,
     protocol_generated::NativeEventId,
     runtime_state::RuntimeStateRegistry,
-    style::OverflowValue,
+    style::{OverflowValue, UserSelectValue},
     tree::{
         event_bit, AnchoredAlign, AnchoredConfig, AnchoredFit, AnchoredSide, ImageLocation,
         ImageObjectFit, NativeTree, NodeData, NodeId, WindowId,
@@ -20,7 +20,7 @@ use crate::{
     wheel,
 };
 
-actions!(retend, [FocusNext, FocusPrevious]);
+actions!(retend, [FocusNext, FocusPrevious, Copy]);
 
 pub(crate) fn init(cx: &mut App) {
     gpui_base::init(cx);
@@ -29,6 +29,7 @@ pub(crate) fn init(cx: &mut App) {
         KeyBinding::new("shift-tab", FocusPrevious, None),
         KeyBinding::new("tab", FocusNext, Some("Input")),
         KeyBinding::new("shift-tab", FocusPrevious, Some("Input")),
+        KeyBinding::new("secondary-c", Copy, Some("RetendTextSelection")),
     ]);
     cx.on_action::<FocusNext>(|_, cx| {
         if let Some(window) = cx.active_window() {
@@ -799,6 +800,20 @@ impl Element for PaintObserver {
         cx: &mut App,
     ) {
         self.inner.paint(window, cx);
+        if let Some(PaintCallback::Finish { runtime, .. }) = &self.callback {
+            // Register after the content: GPUI dispatches bubble-phase mouse
+            // listeners in reverse order, so selectable children may claim
+            // the same press after any previous selection has been cleared.
+            let runtime = runtime.clone();
+            window.on_mouse_event(move |event: &MouseDownEvent, phase, window, _| {
+                if phase == DispatchPhase::Bubble
+                    && event.button == MouseButton::Left
+                    && runtime.clear_text_selection()
+                {
+                    window.refresh();
+                }
+            });
+        }
         if matches!(self.phase, ObserverPhase::Paint) {
             self.observe(bounds, window);
         }
@@ -931,6 +946,7 @@ pub fn build_with_runtime(
     window: &mut Window,
     cx: &mut App,
 ) -> AnyElement {
+    let selection_focus = runtime_state.ensure_selection_focus(cx);
     let mut resolve_style =
         |id, motion, style| crate::motion::resolve_style(id, motion, style, window, cx);
     let inner = build_inner(
@@ -940,6 +956,10 @@ pub fn build_with_runtime(
         generation,
         &mut resolve_style,
         EventInterest::for_node(tree, tree.nodes[&id].window_id, id),
+        SelectionRenderContext {
+            mode: UserSelectValue::Text,
+            focus: &selection_focus,
+        },
     );
     PaintObserver::new(
         inner,
@@ -952,6 +972,28 @@ pub fn build_with_runtime(
     .into_any_element()
 }
 
+fn render_text_run(
+    id: NodeId,
+    text: gpui::SharedString,
+    user_select: UserSelectValue,
+    runtime: &RuntimeStateRegistry,
+    focus: &gpui::FocusHandle,
+) -> AnyElement {
+    if user_select == UserSelectValue::None {
+        runtime.clear_plain_text_selection(id);
+        return Text::new(ElementId::Integer(u64::from(id)), text).into_any_element();
+    }
+    runtime.sync_plain_text_selection(id, &text);
+    crate::selectable_text::SelectableText::new(id, text, runtime.clone(), focus.clone())
+        .into_any_element()
+}
+
+#[derive(Clone, Copy)]
+struct SelectionRenderContext<'a> {
+    mode: UserSelectValue,
+    focus: &'a gpui::FocusHandle,
+}
+
 fn build_inner<'a, F>(
     tree: &'a NativeTree,
     id: NodeId,
@@ -959,6 +1001,7 @@ fn build_inner<'a, F>(
     generation: u64,
     resolve_style: &mut F,
     interest: EventInterest,
+    selection: SelectionRenderContext<'_>,
 ) -> AnyElement
 where
     F: FnMut(
@@ -972,8 +1015,13 @@ where
 {
     let node = &tree.nodes[&id];
     if let NodeData::Text(text) = &node.data {
-        return Text::new(ElementId::Integer(u64::from(id)), text.clone().into())
-            .into_any_element();
+        return render_text_run(
+            id,
+            text.clone().into(),
+            selection.mode,
+            runtime_state,
+            selection.focus,
+        );
     }
     let window_id = node.window_id;
     let (motion_style, transition_events) = resolve_style(id, &node.motion, node.style.as_deref());
@@ -992,6 +1040,16 @@ where
         }
     }
     let resolved_style = motion_style.as_ref().or(node.style.as_deref());
+    let selection = SelectionRenderContext {
+        mode: resolved_style
+            .and_then(|style| style.user_select)
+            .unwrap_or(if matches!(node.data, NodeData::Button) {
+                UserSelectValue::None
+            } else {
+                selection.mode
+            }),
+        ..selection
+    };
     let pseudo = PseudoInterest {
         hover: node.tracks_hover(),
         active: node.tracks_active(),
@@ -1061,8 +1119,23 @@ where
                     generation,
                     resolve_style,
                     interest,
+                    selection,
                 )),
             };
+            if matches!(node.data, NodeData::Root) {
+                let clipboard = runtime_state.clone();
+                let focus = selection.focus.clone();
+                element = element
+                    .key_context("RetendTextSelection")
+                    .track_focus(selection.focus)
+                    .on_action(move |_: &Copy, window, cx| {
+                        if focus.is_focused(window) {
+                            if let Some(text) = clipboard.selected_plain_text() {
+                                cx.write_to_clipboard(gpui::ClipboardItem::new_string(text));
+                            }
+                        }
+                    });
+            }
             if let Some(content) = staged_content.clone().filter(|_| !button) {
                 element = element.on_children_prepainted(move |children, _, _| {
                     content.set(
@@ -1102,7 +1175,7 @@ where
                 || runtime_state.is_interactive(id)
                 || pseudo.hover
                 || pseudo.active
-                || matches!(node.data, NodeData::TextControl { .. })
+                || matches!(node.data, NodeData::TextControl { .. } | NodeData::Root)
             {
                 let element = with_native_events(
                     element.id(ElementId::Integer(u64::from(id))),
@@ -1170,10 +1243,7 @@ where
             }
         }
         NodeData::Svg {
-            path,
-            alt,
-            content,
-            ..
+            path, alt, content, ..
         } => {
             // 16px matches body text; author width/height override it. The
             // icon paints in the inherited text color (CSS `currentColor`).
@@ -1193,15 +1263,8 @@ where
             if let Some(label) = accessible_label(alt.as_deref()) {
                 icon = icon.role(Role::Image).aria_label(label.to_string());
             }
-            with_native_events(
-                icon,
-                interest,
-                node.window_id,
-                id,
-                runtime_state,
-                pseudo,
-            )
-            .into_any_element()
+            with_native_events(icon, interest, node.window_id, id, runtime_state, pseudo)
+                .into_any_element()
         }
     };
     let bounds = PaintCallback::Bounds {
@@ -1282,6 +1345,7 @@ fn build_children<'a, F>(
     generation: u64,
     resolve_style: &mut F,
     interest: EventInterest,
+    selection: SelectionRenderContext<'_>,
 ) -> Vec<AnyElement>
 where
     F: FnMut(
@@ -1309,10 +1373,13 @@ where
                 content.push_str(text);
                 index += 1;
             }
-            rendered.push(
-                Text::new(ElementId::Integer(u64::from(first_id)), content.into())
-                    .into_any_element(),
-            );
+            rendered.push(render_text_run(
+                first_id,
+                content.into(),
+                selection.mode,
+                runtime_state,
+                selection.focus,
+            ));
         } else {
             rendered.push(build_inner(
                 tree,
@@ -1321,6 +1388,7 @@ where
                 generation,
                 resolve_style,
                 interest,
+                selection,
             ));
             index += 1;
         }
@@ -1373,8 +1441,8 @@ mod tests {
         }
     }
 
-    #[test]
-    fn adjacent_text_children_coalesce_into_single_runs() {
+    #[gpui::test]
+    fn adjacent_text_children_coalesce_into_single_runs(cx: &mut TestAppContext) {
         let mut tree = NativeTree::default();
         let window = tree.create_window(1).unwrap();
         tree.apply_commands(
@@ -1419,10 +1487,172 @@ mod tests {
                 subscriptions: 0,
                 outside_mouse_down: false,
             },
+            SelectionRenderContext {
+                mode: UserSelectValue::None,
+                focus: &cx.update(|cx| cx.focus_handle()),
+            },
         );
         // "Hello" + " world" + "!" collapse into one run, the nested container
         // stays its own element, and "tail" starts a new run.
         assert_eq!(rendered.len(), 3, "five children must render as three runs");
+    }
+
+    #[gpui::test]
+    fn ordinary_text_selection_inherits_user_select_and_copies_to_clipboard(
+        cx: &mut TestAppContext,
+    ) {
+        use gpui::MouseButton;
+
+        cx.update(init);
+        let tree = Rc::new(RefCell::new(NativeTree::default()));
+        let window_id = tree.borrow_mut().create_window(1).unwrap();
+        tree.borrow_mut()
+            .apply_commands(
+                window_id,
+                vec![
+                    container(2),
+                    Command::CreateText {
+                        id: 3,
+                        text: "Select this plain text".into(),
+                    },
+                    insert(1, 2),
+                    insert(2, 3),
+                    container(4),
+                    Command::CreateText {
+                        id: 5,
+                        text: "Not selectable".into(),
+                    },
+                    Command::SetStyle {
+                        id: 4,
+                        properties: vec![(
+                            PropertyId::UserSelect,
+                            PropertyValue::String("none".into()),
+                        )],
+                    },
+                    insert(1, 4),
+                    insert(4, 5),
+                    Command::CreateNode {
+                        id: 6,
+                        kind: ElementKind::Input,
+                    },
+                    insert(1, 6),
+                ],
+            )
+            .unwrap();
+
+        let runtime_state = RuntimeStateRegistry::default();
+        let (view, cx) = cx.add_window_view({
+            let tree = tree.clone();
+            let runtime_state = runtime_state.clone();
+            move |_, _| QueryLayoutTestView {
+                tree,
+                runtime_state,
+                window_id,
+            }
+        });
+        cx.update(|window, cx| {
+            window.activate_window();
+            window.draw(cx).clear(cx);
+        });
+        let start = point(px(5.0), px(8.0));
+        let end = point(px(90.0), px(8.0));
+        cx.simulate_mouse_down(start, MouseButton::Left, Modifiers::default());
+        cx.simulate_mouse_move(end, MouseButton::Left, Modifiers::default());
+        cx.simulate_mouse_up(end, MouseButton::Left, Modifiers::default());
+
+        let chosen = runtime_state
+            .selected_plain_text()
+            .expect("drag selects text");
+        assert!(!chosen.is_empty());
+        cx.simulate_keystrokes("cmd-c");
+        assert_eq!(
+            cx.read_from_clipboard().and_then(|item| item.text()),
+            Some(chosen)
+        );
+
+        #[cfg(target_os = "macos")]
+        {
+            cx.update(|_, app| {
+                app.write_to_clipboard(gpui::ClipboardItem::new_string("keep".into()));
+            });
+            cx.simulate_keystrokes("ctrl-c");
+            assert_eq!(
+                cx.read_from_clipboard().and_then(|item| item.text()),
+                Some("keep".into()),
+                "Ctrl+C must not invoke the Mac's Cmd+C binding"
+            );
+        }
+
+        cx.simulate_click(point(px(450.0), px(300.0)), Modifiers::default());
+        assert!(
+            runtime_state.selected_plain_text().is_none(),
+            "clicking empty space clears selection"
+        );
+
+        cx.simulate_mouse_down(start, MouseButton::Left, Modifiers::default());
+        cx.simulate_mouse_move(end, MouseButton::Left, Modifiers::default());
+        cx.simulate_mouse_up(end, MouseButton::Left, Modifiers::default());
+        assert!(runtime_state.selected_plain_text().is_some());
+        let nonselectable = runtime_state
+            .client_bounds(4)
+            .expect("nonselectable box is painted");
+        cx.simulate_click(nonselectable.center(), Modifiers::default());
+        assert!(
+            runtime_state.selected_plain_text().is_none(),
+            "clicking userSelect none text clears the prior selection"
+        );
+
+        cx.simulate_mouse_down(start, MouseButton::Left, Modifiers::default());
+        cx.simulate_mouse_move(end, MouseButton::Left, Modifiers::default());
+        cx.simulate_mouse_up(end, MouseButton::Left, Modifiers::default());
+        assert!(runtime_state.selected_plain_text().is_some());
+        let input = runtime_state.client_bounds(6).expect("input is painted");
+        cx.simulate_click(input.center(), Modifiers::default());
+        assert!(
+            runtime_state.selected_plain_text().is_none(),
+            "clicking an input clears the prior plain-text selection"
+        );
+        cx.simulate_input("editor copy");
+        cx.simulate_keystrokes("cmd-a cmd-c");
+        assert_eq!(
+            cx.read_from_clipboard().and_then(|item| item.text()),
+            Some("editor copy".into()),
+            "the input's own Copy action must take precedence over plain-text Copy"
+        );
+
+        cx.simulate_mouse_down(start, MouseButton::Left, Modifiers::default());
+        cx.simulate_mouse_move(end, MouseButton::Left, Modifiers::default());
+        cx.simulate_mouse_up(end, MouseButton::Left, Modifiers::default());
+        assert!(runtime_state.selected_plain_text().is_some());
+
+        tree.borrow_mut()
+            .apply_commands(
+                window_id,
+                vec![Command::SetStyle {
+                    id: 2,
+                    properties: vec![(
+                        PropertyId::UserSelect,
+                        PropertyValue::String("none".into()),
+                    )],
+                }],
+            )
+            .unwrap();
+        view.update(cx, |_, cx| cx.notify());
+        cx.update(|window, cx| {
+            window.draw(cx).clear(cx);
+        });
+        assert!(
+            runtime_state.selected_plain_text().is_none(),
+            "disabling selection clears it"
+        );
+
+        cx.simulate_mouse_down(start, MouseButton::Left, Modifiers::default());
+        cx.simulate_mouse_move(end, MouseButton::Left, Modifiers::default());
+        cx.simulate_mouse_up(end, MouseButton::Left, Modifiers::default());
+        assert!(
+            runtime_state.selected_plain_text().is_none(),
+            "inherited none prevents dragging"
+        );
     }
 
     struct QueryLayoutTestView {

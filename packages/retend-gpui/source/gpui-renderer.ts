@@ -1229,7 +1229,8 @@ export class RetendGpuiRenderer implements Renderer<GpuiRenderingTypes> {
         propertyIdInRange(property, LOGICAL_SPACING_RANGE) ??
         propertyIdInRange(property, TRANSFORM_PROPERTY_RANGE) ??
         propertyIdInRange(property, TRANSITION_PROPERTY_RANGE) ??
-        propertyIdInRange(property, POINTER_PROPERTY_RANGE);
+        propertyIdInRange(property, POINTER_PROPERTY_RANGE) ??
+        (property === 'userSelect' ? PropertyId.UserSelect : undefined);
       if (id === undefined) {
         throw new Error(`Unsupported Retend GPUI style property: ${property}.`);
       }

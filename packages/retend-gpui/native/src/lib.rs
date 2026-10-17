@@ -16,6 +16,7 @@ mod protocol_generated;
 mod pump;
 mod render;
 mod runtime_state;
+mod selectable_text;
 mod style;
 mod transform;
 mod tree;

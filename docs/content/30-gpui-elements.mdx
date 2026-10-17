@@ -44,6 +44,19 @@ A `div` has no default styling. Layout is expressed through `style`:
 </div>
 ```
 
+### Selecting text
+
+Ordinary JSX text is selectable by default. Drag across a text run to highlight it, then use Cmd+C (macOS) or Ctrl+C (Windows/Linux) to copy the selected text. `userSelect` can enable or disable selection in a subtree:
+
+```tsx
+<div style={{ userSelect: 'none' }}>
+  <div>Not selectable</div>
+  <div style={{ userSelect: 'text' }}>Selectable again</div>
+</div>
+```
+
+Selection is handled by GPUI's existing text layout and highlighting primitives. Currently a selection is limited to a contiguous rendered text run; dragging across separate block elements does not produce a combined selection. Inputs and textareas use their own native editor selection behavior.
+
 ## button
 
 A `button` is a native control. By default it centers its children in a padded, rounded, neutral surface with a hairline border. It activates on click, or on Enter and Space when focused, and takes part in Tab traversal.

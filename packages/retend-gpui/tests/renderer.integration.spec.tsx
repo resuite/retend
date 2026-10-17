@@ -797,6 +797,26 @@ describe('Retend GPUI renderer on the Retend-owned native bridge', () => {
     ]);
   });
 
+  it('publishes inherited userSelect style through the native protocol', () => {
+    const renderer = createRenderer();
+    const parent = renderer.createContainer('div');
+    const style = Cell.source<GpuiStyle>({ userSelect: 'none' });
+    const setStyle = vi.spyOn(renderer.host, 'setStyle');
+    renderer.setProperty(parent, 'style', style);
+    expect(setStyle).toHaveBeenLastCalledWith(parent.id, [
+      [PropertyId.UserSelect, 'none'],
+    ]);
+    style.set({ userSelect: 'text' });
+    renderer.flush();
+    expect(setStyle).toHaveBeenLastCalledWith(parent.id, [
+      [PropertyId.UserSelect, 'text'],
+    ]);
+    style.set({});
+    renderer.flush();
+    expect(setStyle).toHaveBeenLastCalledWith(parent.id, []);
+    expect(debugTree(renderer).poisoned).toBe(false);
+  });
+
   it('serializes cursor and pointer targeting in reactive and pseudo styles', () => {
     const renderer = createRenderer();
     const element = renderer.createContainer('div');
