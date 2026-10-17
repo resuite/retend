@@ -1,9 +1,10 @@
 name: Build Native Addon
 
 on:
-  # Publishing is manual for now, so artifact builds are opt-in rather than
-  # tied to a release event. Re-add `release: types: [published]` when
-  # publishing moves into CI.
+  # Build release artifacts from the exact commit merged into main.
+  # npm publishing remains a separate, manual operation.
+  push:
+    branches: [main]
   workflow_dispatch:
 
 jobs:
