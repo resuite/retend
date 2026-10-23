@@ -13,10 +13,8 @@ import { routeToComponent } from 'retend/router';
 import {
   addCellListener,
   consolidateNodes,
-  copyCellListeners,
   createCommentPair,
   isMatchingCommentPair,
-  removeCellListeners,
 } from '../utils.js';
 
 /** @import { ReactiveCellFunction } from '../utils.js' */
@@ -287,13 +285,6 @@ export function runInvalidatorWithHMRBoundaries(
         range.insertNode(finalFragment);
 
         nodes = rendered;
-        queueMicrotask(() => {
-          // We cannot start listening in this run of the event loop,
-          // because then we are asking the system to overwrite what
-          // we just replaced.
-          copyCellListeners(this, nodes[0]);
-          removeCellListeners(this); // prevents phantom updates.
-        });
         return true;
       });
     } catch (error) {

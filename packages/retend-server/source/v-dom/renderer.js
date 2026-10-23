@@ -13,7 +13,6 @@ import * as Ops from 'retend-web/dom-ops';
 import { VDocumentFragment, VNode } from './index.js';
 
 /**
- * @typedef {VDom.VElement & { __attributeCells: any,__eventListenerList?: Map<any, any> }} JsxElement
  * @typedef {[VDom.VComment, VDom.VComment]} DOMHandle
  * @typedef {Renderer<VDOMRenderingTypes>} VDOMRendererInterface
  */
@@ -24,7 +23,7 @@ import { VDocumentFragment, VNode } from './index.js';
  * @property {VDom.VNode} Text
  * @property {DOMHandle} Handle
  * @property {VDom.VDocumentFragment} Group
- * @property {JsxElement} Container
+ * @property {VDom.VElement} Container
  * @property {VDom.VWindow} Host
  */
 
@@ -172,7 +171,6 @@ export class VDOMRenderer {
    * @param {any} [_props]
    */
   createContainer(tagname, _props) {
-    /** @type {JsxElement} */ // @ts-expect-error
     const element = this.host.document.createElement(tagname);
     return element;
   }
