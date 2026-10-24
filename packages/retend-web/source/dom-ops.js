@@ -164,11 +164,9 @@ export function setProperty(node, key, value, setEventListener) {
   }
   const element = node;
   if (Cell.isCell(value)) {
-    if (!element.__attributeCells) element.__attributeCells = new Set();
     if (key === 'ref' && value instanceof SourceCell) {
       value.set(element);
       element.__ref = value;
-      element.__attributeCells.add(value);
       return node;
     }
     addCellListener(element, value, function (value) {

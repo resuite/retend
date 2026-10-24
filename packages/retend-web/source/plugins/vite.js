@@ -58,12 +58,34 @@ if (import.meta.hot) {
           map: null,
         };
       },
-      config() {
+      /**
+       * Vite names dev CSS modules from a hash of the stylesheet contents plus each rule's line
+       * number, so editing a module renames every class in it. The stylesheet is swapped on HMR
+       * while the rendered DOM keeps the old names, which leaves components unstyled until a
+       * reload. Hashing only the path and local name keeps names stable across edits.
+       *
+       * The default only applies when the app has not named its own CSS modules: config returned
+       * from a plugin wins over the app config, so an unconditional value would take that choice
+       * away. Builds keep Vite's content-hashed defaults.
+       * @param {{ css?: { modules?: { generateScopedName?: unknown } } }} config
+       * @param {{ command: string }} env
+       */
+      config(config, env) {
+        const appScopedName = config.css?.modules?.generateScopedName;
+        const devScopedName =
+          env.command === 'serve' && appScopedName === undefined
+            ? {
+                modules: {
+                  generateScopedName: '[name]_[local]_[hash:base64:5]',
+                },
+              }
+            : undefined;
         return {
           esbuild: {
             jsx: /** @type {'automatic' | 'preserve'} */ ('automatic'),
             jsxImportSource: 'retend',
           },
+          css: devScopedName,
         };
       },
     },

@@ -254,11 +254,6 @@ export class VNode extends EventTarget {
     });
   }
 
-  getRelatedCellData() {
-    const set = Reflect.get(this, '__attributeCells');
-    return set;
-  }
-
   get isConnected() {
     if (!this.ownerDocument) return false;
 
