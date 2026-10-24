@@ -11,45 +11,15 @@ import { getGlobalContext } from 'retend/context';
 import { routeToComponent } from 'retend/router';
 
 import {
-  addCellListener,
   consolidateNodes,
   createCommentPair,
   isMatchingCommentPair,
 } from '../utils.js';
 
-/** @import { ReactiveCellFunction } from '../utils.js' */
 /** @import { __HMR_UpdatableFn, HmrContext } from 'retend'; */
 /** @import { JSX } from 'retend/jsx-runtime'; */
 /** @import { Scope } from 'retend' */
 /** @import { DOMRenderer } from '../dom-renderer.js'; */
-
-/** @typedef {Node & { __commentRangeSymbol?: symbol }} RangedNode */
-
-/**
- * @typedef Instance
- *
- * @property {Record<string, unknown>} [props]
- * Props passed to the component instance.
- *
- * @property {RangedNode[]} nodes
- * Nodes returned from the component instance.
- */
-
-/**
- * @typedef {Node & {
- *  __linked?: boolean,
- * }} LinkableNodeLike
- */
-
-/**
- * @typedef {Node & {
- *  __linked?: boolean,
- * }} LinkableNode
- */
-
-/**
- * @typedef {Object} HMRFunctionOptions
- */
 
 /**
  * Hot reload handler for JSX components, updating only changed functions within a module.
@@ -81,41 +51,43 @@ export async function hotReloadModule(newModule, oldModule) {
     new: Object.values(newModule),
   };
   globalData.set(__HMR_SYMBOLS.HMRContextKey, context);
-  for (const [key, newInstance] of newModuleData) {
-    const oldInstance = oldModule[key];
-    if (!oldInstance) continue;
-    if (typeof oldInstance !== 'function') continue;
-    if (typeof newInstance !== 'function') continue;
+  try {
+    for (const [key, newInstance] of newModuleData) {
+      const oldInstance = oldModule[key];
+      if (!oldInstance) continue;
+      if (typeof oldInstance !== 'function') continue;
+      if (typeof newInstance !== 'function') continue;
 
-    // If the function is a routing component, then it needs to swapped out
-    // in the route tree.
-    if (routeToComponent.has(oldInstance)) {
-      const matches = routeToComponent.get(oldInstance);
-      if (matches) {
-        for (const match of matches) {
-          match.component = newInstance;
+      // If the function is a routing component, then it needs to swapped out
+      // in the route tree.
+      if (routeToComponent.has(oldInstance)) {
+        const matches = routeToComponent.get(oldInstance);
+        if (matches) {
+          for (const match of matches) {
+            match.component = newInstance;
+          }
+          routeToComponent.set(newInstance, matches);
         }
-        routeToComponent.set(newInstance, matches);
+        routeToComponent.delete(oldInstance);
       }
-      routeToComponent.delete(oldInstance);
-    }
 
-    try {
-      const current = /** @type {any} */ (oldInstance);
-      const next = /** @type {any} */ (newInstance);
-      const cell = current[__HMR_SYMBOLS.ComponentInvalidator];
-      if (cell) {
-        next[__HMR_SYMBOLS.ComponentInvalidator] = cell;
-        context.current.set(newInstance);
-        cell.set(newInstance);
+      try {
+        const current = /** @type {any} */ (oldInstance);
+        const next = /** @type {any} */ (newInstance);
+        const cell = current[__HMR_SYMBOLS.ComponentInvalidator];
+        if (cell) {
+          next[__HMR_SYMBOLS.ComponentInvalidator] = cell;
+          context.current.set(newInstance);
+          cell.set(newInstance);
+        }
+      } catch (e) {
+        if (e instanceof CellUpdateError) {
+          for (const error of e.errors) errors.push(error);
+        } else throw e;
       }
-    } catch (e) {
-      if (e instanceof CellUpdateError) {
-        for (const error of e.errors) errors.push(error);
-      } else throw e;
-    } finally {
-      globalData.set(__HMR_SYMBOLS.HMRContextKey, null);
     }
+  } finally {
+    globalData.set(__HMR_SYMBOLS.HMRContextKey, null);
   }
 
   if (errors.length > 0) {
@@ -199,7 +171,75 @@ function stabilizeNodes(nodes, renderer) {
     return [pair[0], ...nodes, pair[1]];
   }
 
+  // A group is a container, not a place in the document. It is emptied into
+  // its parent on insertion, so a single group can never anchor an update.
+  // Control flow structures return one, and its children carry the range
+  // comments that make them stable.
+  if (renderer.isGroup(nodes[0])) {
+    return stabilizeNodes(renderer.unwrapGroup(nodes[0]), renderer);
+  }
+
   return nodes;
+}
+
+/** @typedef {'start' | 'end'} SpanSide */
+
+class ComponentSpan {
+  /** @type {Node | ComponentSpan | null} */
+  start = null;
+  /** @type {Node | ComponentSpan | null} */
+  end = null;
+  disposed = false;
+}
+
+/** @type {WeakMap<Node, ComponentSpan>} */
+const spanOwningNode = new WeakMap();
+
+/**
+ * @param {Node | ComponentSpan | null} edge
+ * @param {SpanSide} side
+ * @param {ComponentSpan} target
+ */
+function reachesSpan(edge, side, target) {
+  for (let current = edge; current instanceof ComponentSpan; ) {
+    if (current === target) return true;
+    current = current[side];
+  }
+  return false;
+}
+
+/**
+ * Reads a boundary through the chain of spans that borrowed it, until it
+ * reaches the node that is in the document right now. A component that renders
+ * exactly another component points at that component's span rather than
+ * copying its nodes, so the boundary stays current when the child re-renders.
+ *
+ * @param {Node | ComponentSpan | null} edge
+ * @param {SpanSide} side
+ * @returns {Node | null}
+ */
+function resolveEdge(edge, side) {
+  let current = edge;
+  while (current instanceof ComponentSpan) {
+    if (current.disposed) return null;
+    current = current[side];
+  }
+
+  return current ?? null;
+}
+
+/**
+ * @param {HmrContext} hmr
+ * @param {Function} fn
+ */
+function isCoveredByParentUpdate(hmr, fn) {
+  if (hmr.current.peek() !== fn) return false;
+  // If a component render instance is in an update path, there is no use
+  // updating it, since it will be (or has been) overwritten by its parent.
+  const parents = __HMR_SYMBOLS.useComponentAncestry();
+  return parents.some((c) => {
+    return (c !== fn && hmr.old.includes(c)) || hmr.new.includes(c);
+  });
 }
 
 /**
@@ -233,78 +273,80 @@ export function runInvalidatorWithHMRBoundaries(
     );
   };
 
+  const span = new ComponentSpan();
+
+  /**
+   * @param {Node} node
+   * @param {SpanSide} side
+   */
+  const borrowEdge = (node, side) => {
+    const owner = spanOwningNode.get(node);
+    if (!owner || owner.disposed) return node;
+    // A node reused across renders could otherwise point the chain back at
+    // this span and make resolveEdge loop forever.
+    if (reachesSpan(owner, side, span)) return node;
+    return owner;
+  };
+
+  /** @param {Node[]} rendered */
+  const commitSpan = (rendered) => {
+    const first = rendered[0];
+    const last = rendered[rendered.length - 1];
+    span.start = borrowEdge(first, 'start');
+    span.end = borrowEdge(last, 'end');
+    // The outermost boundary to commit owns the nodes. An ancestor that
+    // renders exactly this component then links to this span rather than to
+    // a descendant that this component may later replace.
+    spanOwningNode.set(first, span);
+    spanOwningNode.set(last, span);
+  };
+
   let generation = createGeneration();
-  let nodes = withState(generation, nextComponentRender);
+  const nodes = withState(generation, nextComponentRender);
+  commitSpan(nodes);
 
-  /** @type {ReactiveCellFunction<Function, Node, void>} */
-  const refresh = function (fn) {
+  /** @param {Function} fn */
+  const refresh = (fn) => {
+    if (span.disposed) return;
+    const hmr = __HMR_SYMBOLS.getHMRContext();
+    if (!hmr) return;
+    // Skipping leaves the committed generation alive. When the update is
+    // covered by a parent render, disposing the parent's old generation
+    // cascades here; when it is not, the boundary is untouched.
+    if (withState(generation, () => isCoveredByParentUpdate(hmr, fn))) return;
+
+    const startNode = resolveEdge(span.start, 'start');
+    const endNode = resolveEdge(span.end, 'end');
+    if (!startNode?.isConnected || !endNode?.isConnected) return;
+
     const attempt = createGeneration();
-    let updated;
+    let rendered;
     try {
-      updated = withState(attempt, () => {
-        const hmr = __HMR_SYMBOLS.getHMRContext();
-        if (!hmr) return false;
-        if (hmr.current.peek() === fn) {
-          if (!this.isConnected) return false;
-          // If a component render instance is in an update path, there is
-          // no use updating it, since it will be (or has been) overwritten
-          // by its parent.
-          const parents = __HMR_SYMBOLS.useComponentAncestry();
-          const instanceIsInUpdatePath = parents.some((c) => {
-            return (c !== fn && hmr.old.includes(c)) || hmr.new.includes(c);
-          });
-          if (instanceIsInUpdatePath) return false;
-        }
-
-        if (this !== nodes[0]) {
-          // Hard to explain, but it means at the leaf of the render tree
-          // there was a single node, but a child component updated,
-          // changing the value of that node.
-          const staleNodes = nodes;
-          nodes = [this];
-
-          /** @type {Node | null} */
-          let current = this;
-          while (staleNodes.length !== nodes.length) {
-            current = this.nextSibling;
-            if (!current) break;
-            nodes.push(current);
-          }
-        }
-
-        const oldStart = nodes[0];
-        const oldEnd = nodes[nodes.length - 1];
-
-        const rendered = nextComponentRender();
-        const finalFragment = consolidateNodes(rendered, renderer);
-
-        const range = window.document.createRange();
-        range.setStartBefore(oldStart);
-        range.setEndAfter(oldEnd);
-        range.deleteContents();
-        range.insertNode(finalFragment);
-
-        nodes = rendered;
-        return true;
-      });
+      rendered = withState(attempt, nextComponentRender);
     } catch (error) {
       attempt.node.dispose();
       throw error;
     }
 
-    if (!updated) {
-      // The committed generation is intentionally left alive. When the
-      // update is covered by a parent render, disposing the parent's old
-      // generation cascades here; when it is not, the boundary is untouched.
-      attempt.node.dispose();
-      return;
-    }
+    const range = renderer.host.document.createRange();
+    range.setStartBefore(startNode);
+    range.setEndAfter(endNode);
+    range.deleteContents();
+    range.insertNode(consolidateNodes(rendered, renderer));
+    commitSpan(rendered);
+
     const previous = generation;
     generation = attempt;
     previous.node.dispose();
     void attempt.node.activate();
   };
 
-  addCellListener(nodes[0], value, refresh, false);
+  // Registered in the base node's context, so disposing the base removes the
+  // listener along with it.
+  base.node.addDispose(() => {
+    span.disposed = true;
+  });
+  withState(base, () => value.listen(refresh));
+
   return nodes;
 }
