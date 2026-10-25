@@ -29,6 +29,7 @@ const HTML_NAMESPACE = 'http://www.w3.org/1999/xhtml';
 const SVG_NAMESPACE = 'http://www.w3.org/2000/svg';
 const MATH_NAMESPACE = 'http://www.w3.org/1998/Math/MathML';
 const TELEPORT_ANCHOR_PREFIX = 'retend:teleport:';
+const TEXT_ONLY_ELEMENTS = new Set(['script', 'style', 'textarea', 'title']);
 const HYDRATION = Symbol();
 /** @type {(value: any) => any} */
 const getHydrationData = (value) => value?.[HYDRATION];
@@ -41,7 +42,7 @@ class HydrationMismatchError extends Error {}
  * @typedef {Element & HiddenElementProperties} JsxElement
  * @typedef {[ConnectedComment, ConnectedComment]} DOMHandle
  * @typedef {Renderer<DOMRenderingTypes>} DOMRendererInterface
- * @typedef {{ parent: ParentNode, nextChild: ChildNode | null, parentFrame?: HydrationFrame, end?: Comment, start?: Comment, claimed?: boolean }} HydrationFrame
+ * @typedef {{ parent: ParentNode, nextChild: ChildNode | null, parentFrame?: HydrationFrame, end?: Comment, start?: Comment, claimed?: boolean, textOnly?: boolean, lastTextNode?: Text }} HydrationFrame
  * @typedef {HydrationFrame & { start: Comment, end: Comment, parentFrame: HydrationFrame }} HydrationRange
  * @typedef {{ parent?: ParentNode, before?: ChildNode | null, opaque?: boolean }} HydrationClaim
  * @typedef {{ roots: ParentNode[], frame: HydrationFrame | null, teleports: Array<() => Promise<unknown> | unknown> }} HydrationContext
@@ -306,8 +307,8 @@ export class DOMRenderer {
    * @param {Node | Node[]} childNode
    */
   append(_parentNode, childNode) {
-    const parentNode = /** @type {Element | DocumentFragment | ShadowRoot} */ (
-      _parentNode
+    const parentNode = this.#childrenContainer(
+      /** @type {Element | DocumentFragment | ShadowRoot} */ (_parentNode)
     );
     const hydration = this.#hydration;
 
@@ -425,7 +426,8 @@ export class DOMRenderer {
       if (props?.dangerouslySetInnerHTML?.__html !== undefined) {
         hydrationData(element).claim.opaque = true;
       }
-      if (hasChildren) hydrationFrame = this.#pushContainerFrame(element);
+      if (hasChildren)
+        hydrationFrame = this.#pushContainerFrame(element, tagname);
       return element;
     }
 
@@ -440,6 +442,9 @@ export class DOMRenderer {
    */
   createText(text, _isReactive = false, isPending = false) {
     if (this.#hydration?.frame) {
+      const frame = /** @type {HydrationFrame} */ (this.#hydration.frame);
+      if (frame.textOnly)
+        return this.#claimTextOnlyText(text, frame, isPending);
       const claimed = this.#claimHydrationChild(
         (node) =>
           node.nodeType === TEXT_NODE ||
@@ -639,16 +644,69 @@ export class DOMRenderer {
     );
   }
 
-  /** @param {ParentNode} parent */
-  #pushContainerFrame(parent) {
+  /**
+   * @param {ParentNode} parent
+   * @param {string} [tagname]
+   */
+  #pushContainerFrame(parent, tagname) {
     const hydration = /** @type {HydrationContext} */ (this.#hydration);
+    const children = this.#childrenContainer(parent);
     const frame = {
-      parent,
-      nextChild: parent.firstChild,
+      parent: children,
+      nextChild: children.firstChild,
+      textOnly: TEXT_ONLY_ELEMENTS.has(tagname ?? ''),
       parentFrame: /** @type {HydrationFrame} */ (hydration.frame),
     };
     hydration.frame = frame;
     return frame;
+  }
+
+  /**
+   * Template elements hold their children in a separate document fragment.
+   * @param {ParentNode} node
+   * @returns {ParentNode}
+   */
+  #childrenContainer(node) {
+    if (
+      node.nodeType === ELEMENT_NODE &&
+      /** @type {Element} */ (node).localName === 'template'
+    ) {
+      return /** @type {HTMLTemplateElement} */ (node).content;
+    }
+    return node;
+  }
+
+  /**
+   * Text-only elements (style, script, textarea, title) cannot carry separator
+   * comments, so the server serializes their children as a single text run.
+   * The first text child claims that node and every later child gets its own.
+   *
+   * @param {string} text
+   * @param {HydrationFrame} frame
+   * @param {boolean} isPending
+   * @returns {Text}
+   */
+  #claimTextOnlyText(text, frame, isPending) {
+    const document = this.host.document;
+    const previous = frame.lastTextNode;
+    /** @type {Text} */
+    let node;
+    if (!previous && frame.nextChild) {
+      node = /** @type {Text} */ (
+        this.#claimHydrationChild(
+          (candidate) => candidate.nodeType === TEXT_NODE,
+          'expected text'
+        )
+      );
+    } else {
+      node = document.createTextNode('');
+      hydrationData(node).claim = { parent: frame.parent, before: null };
+      if (previous) previous.after(node);
+      else frame.parent.append(node);
+    }
+    frame.lastTextNode = node;
+    if (!isPending || node.textContent === '') node.textContent = String(text);
+    return node;
   }
 
   /** @returns {HydrationFrame | null} */
@@ -783,7 +841,7 @@ export class DOMRenderer {
   /** @param {ParentNode} parent */
   #assertClaimedChildren(parent) {
     if (getHydrationData(parent)?.claim?.opaque) return;
-    for (const node of parent.childNodes) {
+    for (const node of this.#childrenContainer(parent).childNodes) {
       if (!this.#isClaimed(node)) {
         throw new HydrationMismatchError('Unclaimed server node.');
       }

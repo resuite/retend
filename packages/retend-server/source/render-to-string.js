@@ -21,6 +21,11 @@ const voidElements = new Set([
 const SPLIT_TEXT_MARKER = '<!--retend:text-separator-->';
 const EMPTY_TEXT_MARKER = '<!--retend:empty-text-->';
 const rawTextElements = new Set(['SCRIPT', 'STYLE']);
+/*
+ * Elements whose children are a single text run. HTML comments are not parsed as
+ * comments inside them, so structural markers must never be emitted there.
+ */
+const textOnlyElements = new Set([...rawTextElements, 'TEXTAREA', 'TITLE']);
 
 /**
  * Renders a JSX template to a string.
@@ -28,6 +33,8 @@ const rawTextElements = new Set(['SCRIPT', 'STYLE']);
  *
  * @param {JSX.Template} template - The JSX template to render.
  * @param {Window & globalThis | VDom.VWindow} window - The window object.
+ * @param {boolean} [inRawTextElement] - Whether the template sits inside a `<script>` or `<style>`.
+ * @param {boolean} [inTextOnlyElement] - Whether the template sits inside an element that cannot hold comments.
  * @returns {string} The rendered string.
  *
  * @description
@@ -40,7 +47,12 @@ const rawTextElements = new Set(['SCRIPT', 'STYLE']);
  * const renderedString = renderToString(jsxTemplate);
  * console.log(renderedString); // Outputs: <div>Hello, world!</div>
  */
-export function renderToString(template, window, inRawTextElement = false) {
+export function renderToString(
+  template,
+  window,
+  inRawTextElement = false,
+  inTextOnlyElement = false
+) {
   if (/string|number|boolean/.test(typeof template)) {
     return inRawTextElement ? String(template) : escapeHTML(template);
   }
@@ -59,9 +71,9 @@ export function renderToString(template, window, inRawTextElement = false) {
      * even when the nodeType is Node.TEXT_NODE
      */
     if (template.nodeType === window.Node.TEXT_NODE) {
-      if (inRawTextElement) return template.textContent ?? '';
-      if (template.textContent === '') return EMPTY_TEXT_MARKER;
-      return escapeHTML(template.textContent ?? '');
+      const content = template.textContent ?? '';
+      if (content === '') return inTextOnlyElement ? '' : EMPTY_TEXT_MARKER;
+      return inRawTextElement ? content : escapeHTML(content);
     }
 
     if (template.nodeType === window.Node.COMMENT_NODE) {
@@ -71,18 +83,23 @@ export function renderToString(template, window, inRawTextElement = false) {
     if (template instanceof window.ShadowRoot) {
       return `<template shadowrootmode="open">${renderChildren(
         template.childNodes,
-        window,
-        false
+        window
       )}</template>`;
     }
 
     if (template instanceof window.DocumentFragment) {
-      return renderChildren(template.childNodes, window, inRawTextElement);
+      return renderChildren(
+        template.childNodes,
+        window,
+        inRawTextElement,
+        inTextOnlyElement
+      );
     }
 
     if (template instanceof window.Element) {
       const tagName = template.tagName.toLowerCase();
       const isRawTextElement = rawTextElements.has(template.tagName);
+      const isTextOnlyElement = textOnlyElements.has(template.tagName);
 
       let text = `<${tagName}`;
 
@@ -98,18 +115,12 @@ export function renderToString(template, window, inRawTextElement = false) {
           text += renderToString(template.shadowRoot, window, false);
         }
 
-        let precededByTextNode = false;
-        for (const child of template.childNodes) {
-          if (
-            !isRawTextElement &&
-            precededByTextNode &&
-            child.nodeType === window.Node.TEXT_NODE
-          ) {
-            text += SPLIT_TEXT_MARKER;
-          }
-          text += renderToString(child, window, isRawTextElement);
-          precededByTextNode = child.nodeType === window.Node.TEXT_NODE;
-        }
+        text += renderChildren(
+          template.childNodes,
+          window,
+          isRawTextElement,
+          isTextOnlyElement
+        );
 
         text += `</${tagName}>`;
       } else {
@@ -125,7 +136,12 @@ export function renderToString(template, window, inRawTextElement = false) {
   }
 
   if (Array.isArray(template)) {
-    return renderChildren(template, window, inRawTextElement);
+    return renderChildren(
+      template,
+      window,
+      inRawTextElement,
+      inTextOnlyElement
+    );
   }
 
   return '';
@@ -134,15 +150,90 @@ export function renderToString(template, window, inRawTextElement = false) {
 /**
  * @param {Iterable<JSX.Template>} children
  * @param {Window & globalThis | VDom.VWindow} window
- * @param {boolean} inRawTextElement
+ * @param {boolean} [inRawTextElement]
+ * @param {boolean} [inTextOnlyElement]
  */
-function renderChildren(children, window, inRawTextElement) {
+function renderChildren(
+  children,
+  window,
+  inRawTextElement = false,
+  inTextOnlyElement = false
+) {
   let text = '';
+  let previousEndsWithText = false;
   for (const child of children) {
-    text += renderToString(child, window, inRawTextElement);
+    /*
+     * The parser merges adjacent text nodes, so a separator is needed between
+     * siblings that both carry text. Text-only elements cannot hold comments,
+     * so their children are serialized as one merged text run instead.
+     */
+    if (
+      !inTextOnlyElement &&
+      previousEndsWithText &&
+      startsWithText(child, window)
+    ) {
+      text += SPLIT_TEXT_MARKER;
+    }
+    text += renderToString(child, window, inRawTextElement, inTextOnlyElement);
+    previousEndsWithText = endsWithText(child, window);
   }
   return text;
 }
+
+/**
+ * @param {any} node
+ * @param {Window & globalThis | VDom.VWindow} window
+ * @returns {boolean}
+ */
+function startsWithText(node, window) {
+  if (Array.isArray(node))
+    return node.length > 0 && startsWithText(node[0], window);
+  if (isPrimitiveText(node) || isTextNode(node, window)) return true;
+  if (isFragment(node, window)) {
+    const children = Array.from(/** @type {any} */ (node).childNodes);
+    return children.length > 0 && startsWithText(children[0], window);
+  }
+  return false;
+}
+
+/**
+ * @param {any} node
+ * @param {Window & globalThis | VDom.VWindow} window
+ * @returns {boolean}
+ */
+function endsWithText(node, window) {
+  if (Array.isArray(node))
+    return node.length > 0 && endsWithText(node[node.length - 1], window);
+  if (isPrimitiveText(node) || isTextNode(node, window)) return true;
+  if (isFragment(node, window)) {
+    const children = Array.from(/** @type {any} */ (node).childNodes);
+    return (
+      children.length > 0 && endsWithText(children[children.length - 1], window)
+    );
+  }
+  return false;
+}
+
+/** @param {any} node */
+const isPrimitiveText = (node) =>
+  typeof node === 'string' ||
+  typeof node === 'number' ||
+  typeof node === 'boolean';
+
+/**
+ * @param {any} node
+ * @param {Window & globalThis | VDom.VWindow} window
+ */
+const isTextNode = (node, window) =>
+  typeof node?.nodeType === 'number' && node.nodeType === window.Node.TEXT_NODE;
+
+/**
+ * @param {any} node
+ * @param {Window & globalThis | VDom.VWindow} window
+ */
+const isFragment = (node, window) =>
+  typeof node?.nodeType === 'number' &&
+  node.nodeType === window.Node.DOCUMENT_FRAGMENT_NODE;
 
 /**
  * Escapes HTML special characters to prevent XSS and maintain correct rendering
