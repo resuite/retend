@@ -16,7 +16,6 @@ import { AsyncCell, Cell, useAwait } from 'retend';
  * @property {Map<string, (event: Event) => void>} __eventListenerList
  * List of event listeners set as attributes on the element.
  * @property {Map<string, WrapperFn>} __modifiedListenerList
- * @property {CellSet} __attributeCells
  * List of cell callbacks sets on the element.
  * @property {boolean} __createdByJsx
  * Whether or not the element was created using JSX syntax.
@@ -183,10 +182,7 @@ export const camelCasedAttributes = new Set([
  * @template T
  * @template [This=Node]
  * @template [R=void]
- * @typedef {((this: This, argument: T) => R) & {
- *    relatedCell?: Cell<T>,
- *    originalFunction?: ReactiveCellFunction<T, This>
- * }} ReactiveCellFunction
+ * @typedef {((this: This, argument: T) => R)} ReactiveCellFunction
  */
 
 /**
@@ -203,90 +199,11 @@ export function addCellListener(
   callback,
   runImmediately = true
 ) {
-  /** @type {ReactiveCellFunction<T, This>} */
   const boundCallback = callback.bind(element);
-  Reflect.set(boundCallback, 'relatedCell', cell);
-  // The original function has to be stored because (and I just found this out)
-  // Calling .bind() on a function that is already bound leads to unintuitive
-  // behavior. Functions that are already bound to VNodes cannot be rebound to
-  // DOM elements.
-  Reflect.set(boundCallback, 'originalFunction', callback);
-
   if (runImmediately) {
-    cell.runAndListen(boundCallback, { weak: true });
+    cell.runAndListen(boundCallback);
   } else {
-    cell.listen(boundCallback, { weak: true });
-  }
-
-  if (element && typeof element === 'object') {
-    if (!('__attributeCells' in element)) {
-      Reflect.set(element, '__attributeCells', new Set());
-    }
-
-    const storage = /** @type {CellSet<This>} */ (
-      Reflect.get(element, '__attributeCells')
-    );
-    // Persist to prevent garbage collection.
-    storage.add(boundCallback);
-    storage.add(cell);
-  }
-}
-
-/**
- * @template [This=Node]
- * @typedef {Set<Cell<*> | ReactiveCellFunction<*, This>>} CellSet
- */
-
-/**
- * @template [This=Node]
- * @param {This} node
- */
-export function removeCellListeners(node) {
-  if (node && typeof node === 'object') {
-    const storage = /** @type {CellSet<This> | undefined} */ (
-      Reflect.get(node, '__attributeCells')
-    );
-    if (!storage) return;
-
-    for (const item of storage) {
-      if (typeof item === 'function') {
-        item.relatedCell?.ignore(item);
-      }
-    }
-
-    storage.clear();
-  }
-}
-
-/**
- * @template [This=Node]
- * @param {This} source
- * @param {This} target
- */
-export function copyCellListeners(source, target) {
-  if (source && typeof source === 'object') {
-    const sourceStorage = /** @type {CellSet<typeof source> | undefined} */ (
-      Reflect.get(source, '__attributeCells')
-    );
-
-    if (!sourceStorage) return;
-
-    for (const item of sourceStorage) {
-      if (typeof item === 'function') {
-        const boundCallback = item;
-        const relatedCell = boundCallback.relatedCell;
-        const originalFunction = boundCallback.originalFunction;
-
-        if (
-          relatedCell &&
-          originalFunction &&
-          target &&
-          typeof target === 'object'
-        ) {
-          addCellListener(target, relatedCell, originalFunction, false);
-        }
-      }
-    }
+    cell.listen(boundCallback);
   }
 }
 
