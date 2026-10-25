@@ -1,10 +1,23 @@
 import type { VElement, VNode } from 'retend-server/v-dom';
 import type { DOMRenderer } from 'retend-web';
 
-import { Cell, For, getActiveRenderer } from 'retend';
+import {
+  Await,
+  Cell,
+  For,
+  If,
+  getActiveRenderer,
+  waitForAsyncBoundaries,
+} from 'retend';
 import { describe, expect, it } from 'vitest';
 
-import { browserSetup, getTextContent, render, vDomSetup } from './setup.tsx';
+import {
+  browserSetup,
+  getTextContent,
+  render,
+  timeout,
+  vDomSetup,
+} from './setup.tsx';
 
 const runTests = () => {
   it('should render a list of elements', () => {
@@ -546,6 +559,81 @@ const runTests = () => {
 
     expect(getTextContent(result)).toBe('CharlieAliceBob');
     expect(callbackCount).toBe(3); // Only called once for the new item
+  });
+
+  describe('items whose root is a group that changes after mount', () => {
+    const setup = () => {
+      const items = Cell.source([{ id: 1 }, { id: 2 }, { id: 3 }]);
+      const loaded = Cell.source(false);
+      const App = () => (
+        <div>
+          {For(
+            items,
+            (item) =>
+              If(
+                loaded,
+                () => <span>Item {item.id}</span>,
+                () => <span>Loading</span>
+              ),
+            { key: 'id' }
+          )}
+        </div>
+      );
+      const result = render(App);
+      expect(getTextContent(result)).toBe('LoadingLoadingLoading');
+      loaded.set(true);
+      expect(getTextContent(result)).toBe('Item 1Item 2Item 3');
+      return { items, result };
+    };
+
+    it('removes the current content, not the content from mount', () => {
+      const { items, result } = setup();
+      items.set([{ id: 1 }, { id: 3 }]);
+      expect(getTextContent(result)).toBe('Item 1Item 3');
+      items.set([]);
+      expect(getTextContent(result)).toBe('');
+    });
+
+    it('moves the current content when items are reordered', () => {
+      const { items, result } = setup();
+      items.set([{ id: 3 }, { id: 1 }, { id: 2 }]);
+      expect(getTextContent(result)).toBe('Item 3Item 1Item 2');
+      items.set([{ id: 2 }, { id: 3 }, { id: 1 }]);
+      expect(getTextContent(result)).toBe('Item 2Item 3Item 1');
+    });
+
+    it('replaces an item whose Await root resolved after mount', async () => {
+      const items = Cell.source([{ id: 'a' }]);
+      const App = () => (
+        <div>
+          {For(
+            items,
+            (item) => {
+              const label = Cell.derivedAsync(async () => {
+                await timeout(5);
+                return `Item ${item.id}`;
+              });
+              return (
+                <Await fallback={<span>Loading</span>}>
+                  <span>{label}</span>
+                </Await>
+              );
+            },
+            { key: 'id' }
+          )}
+        </div>
+      );
+      const result = render(App);
+      expect(getTextContent(result)).toBe('Loading');
+      await waitForAsyncBoundaries();
+      await timeout(20);
+      expect(getTextContent(result)).toBe('Item a');
+
+      items.set([{ id: 'b' }]);
+      await waitForAsyncBoundaries();
+      await timeout(20);
+      expect(getTextContent(result)).toBe('Item b');
+    });
   });
 };
 
