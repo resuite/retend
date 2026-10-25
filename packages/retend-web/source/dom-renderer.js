@@ -42,7 +42,7 @@ class HydrationMismatchError extends Error {}
  * @typedef {Element & HiddenElementProperties} JsxElement
  * @typedef {[ConnectedComment, ConnectedComment]} DOMHandle
  * @typedef {Renderer<DOMRenderingTypes>} DOMRendererInterface
- * @typedef {{ parent: ParentNode, nextChild: ChildNode | null, parentFrame?: HydrationFrame, end?: Comment, start?: Comment, claimed?: boolean, textOnly?: boolean, lastTextNode?: Text }} HydrationFrame
+ * @typedef {{ parent: ParentNode, nextChild: ChildNode | null, parentFrame?: HydrationFrame, end?: Comment, start?: Comment, claimed?: boolean, textOnly?: boolean }} HydrationFrame
  * @typedef {HydrationFrame & { start: Comment, end: Comment, parentFrame: HydrationFrame }} HydrationRange
  * @typedef {{ parent?: ParentNode, before?: ChildNode | null, opaque?: boolean }} HydrationClaim
  * @typedef {{ roots: ParentNode[], frame: HydrationFrame | null, teleports: Array<() => Promise<unknown> | unknown> }} HydrationContext
@@ -678,8 +678,9 @@ export class DOMRenderer {
 
   /**
    * Text-only elements (style, script, textarea, title) cannot carry separator
-   * comments, so the server serializes their children as a single text run.
-   * The first text child claims that node and every later child gets its own.
+   * comments, so the server serializes their children as one text run. The
+   * first text child claims that node and later children get nodes of their own,
+   * which is enough because these elements hold nothing but text.
    *
    * @param {string} text
    * @param {HydrationFrame} frame
@@ -687,11 +688,9 @@ export class DOMRenderer {
    * @returns {Text}
    */
   #claimTextOnlyText(text, frame, isPending) {
-    const document = this.host.document;
-    const previous = frame.lastTextNode;
     /** @type {Text} */
     let node;
-    if (!previous && frame.nextChild) {
+    if (frame.nextChild) {
       node = /** @type {Text} */ (
         this.#claimHydrationChild(
           (candidate) => candidate.nodeType === TEXT_NODE,
@@ -699,12 +698,10 @@ export class DOMRenderer {
         )
       );
     } else {
-      node = document.createTextNode('');
+      node = this.host.document.createTextNode('');
       hydrationData(node).claim = { parent: frame.parent, before: null };
-      if (previous) previous.after(node);
-      else frame.parent.append(node);
+      frame.parent.append(node);
     }
-    frame.lastTextNode = node;
     if (!isPending || node.textContent === '') node.textContent = String(text);
     return node;
   }

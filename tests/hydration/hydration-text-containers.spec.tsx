@@ -135,6 +135,28 @@ describe('Hydration text containers', () => {
     expect(span?.shadowRoot?.textContent).toBe('later and after');
   });
 
+  it('hydrates text at both edges of a fragment', async () => {
+    const middle = Cell.source('middle');
+    const template = () => (
+      <div id="fragment-text">
+        start{' '}
+        <>
+          {middle}
+          {' end'}
+        </>
+      </div>
+    );
+
+    const { document } = await setupHydration(template);
+    const div = document.querySelector('#fragment-text');
+
+    expect(div?.textContent).toBe('start middle end');
+
+    middle.set('changed');
+
+    expect(div?.textContent).toBe('start changed end');
+  });
+
   it('hydrates template contents', async () => {
     const template = () => (
       <template id="card-template">
