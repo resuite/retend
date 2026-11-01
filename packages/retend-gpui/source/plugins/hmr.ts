@@ -6,7 +6,6 @@ import {
   __HMR_SYMBOLS,
   branchState,
   createNodesFromTemplate,
-  onSetup,
   withState,
   type __HMR_UpdatableFn,
   type SourceCell,
@@ -79,6 +78,9 @@ export function hotReloadModule(
     new: Object.values(newModule),
   };
   const { globalData } = getGlobalContext();
+  // An update can be triggered from inside another update's render, so the
+  // context is restored rather than cleared.
+  const outerContext = globalData.get(__HMR_SYMBOLS.HMRContextKey);
   globalData.set(__HMR_SYMBOLS.HMRContextKey, context);
 
   try {
@@ -100,33 +102,16 @@ export function hotReloadModule(
       }
     }
   } finally {
-    globalData.delete(__HMR_SYMBOLS.HMRContextKey);
+    if (outerContext) {
+      globalData.set(__HMR_SYMBOLS.HMRContextKey, outerContext);
+    } else {
+      globalData.delete(__HMR_SYMBOLS.HMRContextKey);
+    }
   }
 
   for (const error of errors) {
     console.error('HMR Update Error: ', error);
   }
-}
-
-function trackScopeReference(
-  component: __HMR_UpdatableFn,
-  fileName: string
-): void {
-  const Scope = component.__isScopeProviderOf;
-  if (!Scope) return;
-
-  const scopeList = __HMR_SYMBOLS.ScopeList;
-  if (!Reflect.get(Scope, __HMR_SYMBOLS.HmrId)) {
-    const description = Scope.key.description;
-    let uniqueId = description ? `${fileName}-${description}` : fileName;
-    while (scopeList.has(uniqueId)) uniqueId += '_';
-    scopeList.set(uniqueId, Scope);
-    Reflect.set(Scope, __HMR_SYMBOLS.HmrId, uniqueId);
-  }
-
-  const hmrId = Reflect.get(Scope, __HMR_SYMBOLS.HmrId) as string;
-  scopeList.set(hmrId, Scope);
-  onSetup(() => () => scopeList.delete(hmrId));
 }
 
 function renderComponent(
@@ -171,7 +156,14 @@ export function withHMRBoundaries(
   fileData: JSX.JSXDevFileData | undefined,
   renderer: RetendGpuiRenderer
 ): GpuiGroup {
-  if (fileData) trackScopeReference(component, fileData.fileName);
+  // Registered on every provider render, not just the first one, so the
+  // registry always points at the instance that is actually on the chain.
+  if (fileData && component.__isScopeProviderOf) {
+    __HMR_SYMBOLS.registerScope(
+      component.__isScopeProviderOf,
+      fileData.fileName
+    );
+  }
 
   let invalidator = Reflect.get(
     component,
