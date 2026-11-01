@@ -111,10 +111,8 @@ export async function hotReloadModule(newModule, oldModule) {
  * @param {DOMRenderer} renderer
  */
 export function withHMRBoundaries(tagname, props, fileData, renderer) {
-  // Registered on every provider render, not just the first one, so the
-  // registry always points at the instance that is actually on the chain.
   if (fileData && tagname.__isScopeProviderOf) {
-    __HMR_SYMBOLS.registerScope(tagname.__isScopeProviderOf, fileData.fileName);
+    __HMR_SYMBOLS.registerScope(tagname.__isScopeProviderOf, fileData);
   }
 
   // In Dev mode and using HMR, components have a self-referential

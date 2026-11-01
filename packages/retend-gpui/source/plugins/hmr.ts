@@ -156,13 +156,8 @@ export function withHMRBoundaries(
   fileData: JSX.JSXDevFileData | undefined,
   renderer: RetendGpuiRenderer
 ): GpuiGroup {
-  // Registered on every provider render, not just the first one, so the
-  // registry always points at the instance that is actually on the chain.
   if (fileData && component.__isScopeProviderOf) {
-    __HMR_SYMBOLS.registerScope(
-      component.__isScopeProviderOf,
-      fileData.fileName
-    );
+    __HMR_SYMBOLS.registerScope(component.__isScopeProviderOf, fileData);
   }
 
   let invalidator = Reflect.get(

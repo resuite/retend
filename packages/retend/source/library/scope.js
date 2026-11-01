@@ -401,16 +401,21 @@ export function createScope(name) {
  * @throws {Error} If no parent scope is found for the given provider, indicating it was not used to provide the scope.
  */
 export function useScopeContext(Scope) {
-  let current = Scope;
-  for (let hops = 0; hops <= MAX_SCOPE_LINKS; hops++) {
-    const providedValue = findProvidedValue(current);
-    if (providedValue !== SCOPE_NOT_FOUND) {
-      return /** @type {T} */ (providedValue);
-    }
+  const providedValue = findProvidedValue(Scope);
+  if (providedValue !== SCOPE_NOT_FOUND) {
+    return /** @type {T} */ (providedValue);
+  }
 
-    const successor = getScopeSuccessor(current);
-    if (!successor) break;
-    current = successor;
+  const visited = new Set([Scope]);
+  /** @type {Scope | undefined} */
+  let current = Reflect.get(Scope, __HMR_SYMBOLS.OverwrittenBy);
+  while (current && !visited.has(current)) {
+    visited.add(current);
+    const replacementValue = findProvidedValue(current);
+    if (replacementValue !== SCOPE_NOT_FOUND) {
+      return /** @type {T} */ (replacementValue);
+    }
+    current = Reflect.get(current, __HMR_SYMBOLS.OverwrittenBy);
   }
 
   throw new MissingScopeError(scopeNameOf(Scope));
@@ -676,102 +681,37 @@ export async function runPendingSetupEffects() {
 }
 
 /**
- * The number of replaced instances resolution will follow before giving up.
- * Replacement links always point forward in time, so this only catches the
- * cycle two unrelated scopes create when they are registered under one name.
- */
-const MAX_SCOPE_LINKS = 32;
-
-/**
- * @param {Scope} Scope
- * @returns {string}
- */
-function scopeNameOf(Scope) {
-  return Scope?.key?.description ?? 'Scope';
-}
-
-/**
- * @param {Scope} previous
- * @param {Scope} next
- * @returns {Scope}
- */
-function linkScope(previous, next) {
-  Reflect.set(previous, __HMR_SYMBOLS.OverwrittenBy, next);
-  return next;
-}
-
-/**
- * Returns the instance that took over from `Scope` after a hot update, or `null`
- * when `Scope` is still the newest instance of its scope.
+ * Registers the scope at a JSX provider call site.
+ *
+ * A provider can render in multiple files, and two different scopes can share
+ * a name or a file. Only the complete JSX call-site identity distinguishes the
+ * providers. Link replacements only during an actual hot update: a normal
+ * render can switch which scope is provided at a given site.
  *
  * @param {Scope} Scope
- * @returns {Scope | null}
+ * @param {import('../jsx-runtime/index.d.ts').JSX.JSXDevFileData} fileData
  */
-function getScopeSuccessor(Scope) {
-  if (!Scope) return null;
-  const linked = /** @type {Scope | undefined} */ (
-    Reflect.get(Scope, __HMR_SYMBOLS.OverwrittenBy)
-  );
-  if (linked && linked !== Scope) return linked;
+function registerScope(Scope, fileData) {
+  const { fileName, lineNumber, columnNumber } = fileData;
+  if (!fileName || lineNumber == null || columnNumber == null) return;
 
-  const hmrId = /** @type {string | undefined} */ (
-    Reflect.get(Scope, __HMR_SYMBOLS.HmrId)
-  );
-  if (hmrId) {
-    const registered = __HMR_SYMBOLS.ScopeList.get(hmrId);
-    if (registered && registered !== Scope) return linkScope(Scope, registered);
-  }
-
-  // A consumer module can re-execute against a scope that has already been
-  // replaced, so the instance it holds may never have rendered as a provider
-  // and has no id of its own. Names are only trusted while one file owns them.
-  const named = __HMR_SYMBOLS.ScopeNames.get(scopeNameOf(Scope));
-  if (named && !named.conflicted && named.instance !== Scope) {
-    return linkScope(Scope, named.instance);
-  }
-
-  return null;
-}
-
-/**
- * Records a scope provider render so that consumers still holding an instance
- * from a replaced module can find the instance that is on the live chain.
- *
- * Scope identity changes whenever the module that called `createScope` is hot
- * replaced. The registry keys the newest instance by the file that rendered the
- * provider plus the scope's own name, and links the instance it replaced to the
- * new one. `useScopeContext` follows those links, so resolution works for every
- * render after the update rather than only inside the update itself.
- *
- * @param {Scope} Scope
- * @param {string} fileName
- */
-function registerScope(Scope, fileName) {
-  const name = scopeNameOf(Scope);
-  const id = `${fileName}::${name}`;
-  const replaced = __HMR_SYMBOLS.ScopeList.get(id);
-  if (replaced === Scope) return;
+  const id = `${fileName}:${lineNumber}:${columnNumber}`;
+  const previous = __HMR_SYMBOLS.ScopeList.get(id);
+  if (previous === Scope) return;
 
   __HMR_SYMBOLS.ScopeList.set(id, Scope);
-  Reflect.set(Scope, __HMR_SYMBOLS.HmrId, id);
-  if (replaced) linkScope(replaced, Scope);
-
-  const named = __HMR_SYMBOLS.ScopeNames.get(name);
-  if (!named) {
-    __HMR_SYMBOLS.ScopeNames.set(name, {
-      instance: Scope,
-      file: fileName,
-      conflicted: false,
-    });
-    return;
+  if (
+    previous &&
+    scopeNameOf(previous) === scopeNameOf(Scope) &&
+    __HMR_SYMBOLS.getHMRContext()
+  ) {
+    Reflect.set(previous, __HMR_SYMBOLS.OverwrittenBy, Scope);
   }
-  // The same name rendered from a second file is either the same scope reached
-  // through another import or an unrelated scope that happens to share a name.
-  // The registry cannot tell the two apart, so it stops resolving by name
-  // instead of risking a sibling scope's value.
-  if (named.file !== fileName) named.conflicted = true;
-  named.file = fileName;
-  named.instance = Scope;
+}
+
+/** @param {Scope} Scope */
+function scopeNameOf(Scope) {
+  return Scope?.key?.description ?? 'Scope';
 }
 
 /** @type {Scope<__HMR_UpdatableFn[]>} */
@@ -781,13 +721,10 @@ const ComponentInvalidator = Symbol('Invalidator');
 export const __HMR_SYMBOLS = {
   ComponentInvalidator,
   OverwrittenBy: Symbol('OverwrittenBy'),
-  HmrId: Symbol('HmrId'),
   HMRContextKey: Symbol('HMRContext'),
   HMRScopeContext: Symbol('HMRScopeContext'),
-  /** Stable `<file>::<scope name>` key to the newest instance. @type {Map<string, Scope>} */
+  /** Provider JSX call site to its last rendered scope. @type {Map<string, Scope>} */
   ScopeList: new Map(),
-  /** Scope name to newest instance, for instances that never rendered. @type {Map<string, { instance: Scope, file: string, conflicted: boolean }>} */
-  ScopeNames: new Map(),
   registerScope,
   RetendComponentTree,
   useComponentAncestry() {
