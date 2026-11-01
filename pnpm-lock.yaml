@@ -270,8 +270,8 @@ importers:
   packages/retend:
     dependencies:
       '@adbl/cells':
-        specifier: ^0.0.27
-        version: 0.0.27
+        specifier: ^0.0.28
+        version: 0.0.28
       csstype:
         specifier: ^3.2.3
         version: 3.2.3
@@ -461,8 +461,8 @@ importers:
 
 packages:
 
-  '@adbl/cells@0.0.27':
-    resolution: {integrity: sha512-tjIUhieJJe1nctk9q3qs3HHUHKMEGw5dtVGufI+i4rmmViaJ+WR44NnfwJdIEG9lBTsWd8NKea6UFfE5VrU5/A==}
+  '@adbl/cells@0.0.28':
+    resolution: {integrity: sha512-rY+YKtxsPO4D46/zwfnYOXacsIdgsYnITK0SV4uU9OhvvJ0D319xT0ryY9a1L9JvMQW1K5ddKr3fKNVXUckZJg==}
 
   '@babel/code-frame@7.29.0':
     resolution: {integrity: sha512-9NhCeYjq9+3uxgdtp20LSiJXJvN0FeCtNGpJxuMFZ1Kv3cWUNb6DOhJwUvcVCzKGR66cw4njwM6hrJLqgOwbcw==}
@@ -5359,7 +5359,7 @@ packages:
 
 snapshots:
 
-  '@adbl/cells@0.0.27': {}
+  '@adbl/cells@0.0.28': {}
 
   '@babel/code-frame@7.29.0':
     dependencies:
