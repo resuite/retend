@@ -381,11 +381,12 @@ export function createScope(name) {
     value: `${key}.Provider`,
   });
 
-  /// @ts-expect-error: Vite types are not ingrained.
-  if (import.meta.hot) {
-    /// @ts-expect-error: Not used in production.
-    Scope.Provider.__isScopeProviderOf = Scope;
-  }
+  // Read by the HMR boundary in each renderer to register the provider. The
+  // property is always set: one assignment per scope is free, and gating it on
+  // `import.meta.hot` made provider tracking depend on how this module happened
+  // to be loaded rather than on whether the renderer runs hot-update wrappers.
+  /// @ts-expect-error: Provider components do not declare this property.
+  Scope.Provider.__isScopeProviderOf = Scope;
 
   return Scope;
 }
@@ -400,45 +401,45 @@ export function createScope(name) {
  * @throws {Error} If no parent scope is found for the given provider, indicating it was not used to provide the scope.
  */
 export function useScopeContext(Scope) {
-  const snapshotCtx = getState();
-  let relatedScopeData;
-  let link = snapshotCtx.scopes;
-  while (link) {
-    if (link.scope === Scope) {
-      relatedScopeData = link.value;
-      break;
+  const providedValue = findProvidedValue(Scope);
+  if (providedValue !== SCOPE_NOT_FOUND) {
+    return /** @type {T} */ (providedValue);
+  }
+
+  const visited = new Set([Scope]);
+  /** @type {Scope | undefined} */
+  let current = Reflect.get(Scope, __HMR_SYMBOLS.OverwrittenBy);
+  while (current && !visited.has(current)) {
+    visited.add(current);
+    const replacementValue = findProvidedValue(current);
+    if (replacementValue !== SCOPE_NOT_FOUND) {
+      return /** @type {T} */ (replacementValue);
     }
+    current = Reflect.get(current, __HMR_SYMBOLS.OverwrittenBy);
+  }
+
+  throw new MissingScopeError(scopeNameOf(Scope));
+}
+
+/** Sentinel for a scope that is not on the active chain, so that `undefined`
+ * and `null` remain valid scope values. */
+const SCOPE_NOT_FOUND = Symbol('ScopeNotFound');
+
+/**
+ * Walks the active scope chain looking for an exact match. A hot update can put
+ * a different instance on the chain than the one a consumer holds, which is why
+ * a miss is reported instead of thrown.
+ *
+ * @param {Scope} Scope
+ * @returns {unknown}
+ */
+function findProvidedValue(Scope) {
+  let link = getState().scopes;
+  while (link) {
+    if (link.scope === Scope) return link.value;
     link = link.parent;
   }
-
-  if (!link) {
-    // @ts-expect-error: Vite types is not ingrained.
-    if (import.meta.hot) {
-      // In HMR, scopes can change referential identity.
-      // `HmrId` helps identify them across reloads.
-      // Its not fool proof, but it works.
-      const latestInstance = Reflect.get(Scope, __HMR_SYMBOLS.OverwrittenBy);
-      if (latestInstance && latestInstance !== Scope) {
-        // Scope was previously invalidated by HMR.
-        return useScopeContext(latestInstance);
-      }
-      const { globalData } = getGlobalContext();
-      const hmrContext = globalData.get(__HMR_SYMBOLS.HMRContextKey);
-      if (hmrContext) {
-        const activeScopes = __HMR_SYMBOLS.ScopeList;
-        const hmrId = Reflect.get(Scope, __HMR_SYMBOLS.HmrId);
-        const latestInstance = activeScopes.get(hmrId);
-        if (latestInstance && latestInstance !== Scope) {
-          Reflect.set(Scope, __HMR_SYMBOLS.OverwrittenBy, latestInstance);
-          return useScopeContext(latestInstance);
-        }
-      }
-    }
-
-    const scopeName = Scope?.key.description || 'UnknownScope';
-    throw new MissingScopeError(scopeName);
-  }
-  return /** @type {T} */ relatedScopeData;
+  return SCOPE_NOT_FOUND;
 }
 
 export class MissingScopeError extends Error {
@@ -679,6 +680,40 @@ export async function runPendingSetupEffects() {
   await new Promise((resolve) => queueMicrotask(() => resolve(undefined)));
 }
 
+/**
+ * Registers the scope at a JSX provider call site.
+ *
+ * A provider can render in multiple files, and two different scopes can share
+ * a name or a file. Only the complete JSX call-site identity distinguishes the
+ * providers. Link replacements only during an actual hot update: a normal
+ * render can switch which scope is provided at a given site.
+ *
+ * @param {Scope} Scope
+ * @param {import('../jsx-runtime/index.d.ts').JSX.JSXDevFileData} fileData
+ */
+function registerScope(Scope, fileData) {
+  const { fileName, lineNumber, columnNumber } = fileData;
+  if (!fileName || lineNumber == null || columnNumber == null) return;
+
+  const id = `${fileName}:${lineNumber}:${columnNumber}`;
+  const previous = __HMR_SYMBOLS.ScopeList.get(id);
+  if (previous === Scope) return;
+
+  __HMR_SYMBOLS.ScopeList.set(id, Scope);
+  if (
+    previous &&
+    scopeNameOf(previous) === scopeNameOf(Scope) &&
+    __HMR_SYMBOLS.getHMRContext()
+  ) {
+    Reflect.set(previous, __HMR_SYMBOLS.OverwrittenBy, Scope);
+  }
+}
+
+/** @param {Scope} Scope */
+function scopeNameOf(Scope) {
+  return Scope?.key?.description ?? 'Scope';
+}
+
 /** @type {Scope<__HMR_UpdatableFn[]>} */
 const RetendComponentTree = createScope('retend:RetendComponentTree');
 const ComponentInvalidator = Symbol('Invalidator');
@@ -686,10 +721,11 @@ const ComponentInvalidator = Symbol('Invalidator');
 export const __HMR_SYMBOLS = {
   ComponentInvalidator,
   OverwrittenBy: Symbol('OverwrittenBy'),
-  HmrId: Symbol('HmrId'),
   HMRContextKey: Symbol('HMRContext'),
   HMRScopeContext: Symbol('HMRScopeContext'),
+  /** Provider JSX call site to its last rendered scope. @type {Map<string, Scope>} */
   ScopeList: new Map(),
+  registerScope,
   RetendComponentTree,
   useComponentAncestry() {
     try {
