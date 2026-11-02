@@ -4,7 +4,6 @@ import {
   __HMR_SYMBOLS,
   createNodesFromTemplate,
   branchState,
-  onSetup,
   withState,
 } from 'retend';
 import { getGlobalContext } from 'retend/context';
@@ -18,7 +17,6 @@ import {
 
 /** @import { __HMR_UpdatableFn, HmrContext } from 'retend'; */
 /** @import { JSX } from 'retend/jsx-runtime'; */
-/** @import { Scope } from 'retend' */
 /** @import { DOMRenderer } from '../dom-renderer.js'; */
 
 /**
@@ -50,6 +48,10 @@ export async function hotReloadModule(newModule, oldModule) {
     old: Object.values(oldModule),
     new: Object.values(newModule),
   };
+  // An update can be triggered from inside another update's render (a component
+  // that mounts a module which is itself being replaced), so the context has to
+  // be restored rather than cleared.
+  const outerContext = globalData.get(__HMR_SYMBOLS.HMRContextKey);
   globalData.set(__HMR_SYMBOLS.HMRContextKey, context);
   try {
     for (const [key, newInstance] of newModuleData) {
@@ -87,7 +89,11 @@ export async function hotReloadModule(newModule, oldModule) {
       }
     }
   } finally {
-    globalData.set(__HMR_SYMBOLS.HMRContextKey, null);
+    if (outerContext) {
+      globalData.set(__HMR_SYMBOLS.HMRContextKey, outerContext);
+    } else {
+      globalData.delete(__HMR_SYMBOLS.HMRContextKey);
+    }
   }
 
   if (errors.length > 0) {
@@ -99,38 +105,14 @@ export async function hotReloadModule(newModule, oldModule) {
 }
 
 /**
- *
- * @param {Scope & { [__HMR_SYMBOLS.HmrId]?: string }} Scope
- * @param {string} [fileName]
- */
-function trackScopeReference(Scope, fileName) {
-  const ScopeList = __HMR_SYMBOLS.ScopeList;
-  if (!Reflect.get(Scope, __HMR_SYMBOLS.HmrId)) {
-    const description = Scope.key.description;
-    let uniqueId = description ? `${fileName}-${description}` : fileName;
-
-    while (ScopeList.has(uniqueId)) uniqueId += '_';
-    ScopeList.set(uniqueId, Scope);
-    Reflect.set(Scope, __HMR_SYMBOLS.HmrId, uniqueId);
-  }
-
-  ScopeList.set(Scope[__HMR_SYMBOLS.HmrId], Scope);
-
-  onSetup(() => () => ScopeList.delete(Scope[__HMR_SYMBOLS.HmrId]));
-}
-
-/**
  * @param {__HMR_UpdatableFn} tagname
  * @param {any[]} props
  * @param {JSX.JSXDevFileData | undefined} fileData
  * @param {DOMRenderer} renderer
  */
 export function withHMRBoundaries(tagname, props, fileData, renderer) {
-  if (tagname.__isScopeProviderOf && fileData) {
-    const { fileName } = fileData;
-    const Scope = tagname.__isScopeProviderOf;
-    if (!Reflect.get(Scope, __HMR_SYMBOLS.HmrId))
-      trackScopeReference(Scope, fileName);
+  if (fileData && tagname.__isScopeProviderOf) {
+    __HMR_SYMBOLS.registerScope(tagname.__isScopeProviderOf, fileData);
   }
 
   // In Dev mode and using HMR, components have a self-referential

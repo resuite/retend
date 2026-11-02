@@ -75,6 +75,48 @@ describe('retend-web component HMR boundaries', () => {
     expect(document.body.textContent).toBe('next-firstnext-second');
   });
 
+  it('keeps the update context when a render starts another update', async () => {
+    const renderer = getActiveRenderer() as DOMRenderer;
+    const { document } = renderer.host;
+
+    function NestedOld() {
+      return <span>nested-old</span>;
+    }
+    function NestedNew() {
+      return <span>nested-new</span>;
+    }
+    function First() {
+      return <span>first</span>;
+    }
+    function NextFirst() {
+      // Another module is replaced while this render is still in flight.
+      void hotReloadModule({ default: NestedNew }, { default: NestedOld });
+      return <span>next-first</span>;
+    }
+    function Second() {
+      return <span>second</span>;
+    }
+    function NextSecond() {
+      return <span>next-second</span>;
+    }
+
+    for (const component of [First, Second]) {
+      const rendered = renderer.render(() =>
+        withHMRBoundaries(component, [], undefined, renderer)
+      );
+      document.body.append(
+        ...(Array.isArray(rendered) ? rendered : [rendered])
+      );
+    }
+    expect(document.body.textContent).toBe('firstsecond');
+
+    await hotReloadModule(
+      { First: NextFirst, Second: NextSecond },
+      { First, Second }
+    );
+    expect(document.body.textContent).toBe('next-firstnext-second');
+  });
+
   it('updates an ancestor after a pass-through child was hot-updated', async () => {
     const renderer = getActiveRenderer() as DOMRenderer;
     const { document } = renderer.host;
